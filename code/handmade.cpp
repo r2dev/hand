@@ -33,7 +33,7 @@ GameOutputSound(game_sound_output_buffer* SoundBuffer, int ToneHz) {
 
 
 internal void
-GameUpdateAndRender(game_memory* Memory, game_input* Input, game_offscreen_buffer* Buffer, game_sound_output_buffer *SoundBuffer) {
+GameUpdateAndRender(game_memory* Memory, game_input* Input, game_offscreen_buffer* Buffer) {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
 	if (!Memory->IsInitialized) {
@@ -69,7 +69,14 @@ GameUpdateAndRender(game_memory* Memory, game_input* Input, game_offscreen_buffe
 		}
 	}
 	
-	GameOutputSound(SoundBuffer, GameState->ToneHz);
+	
 	RenderWeirdGradient(Buffer, GameState->BlueOffset, GameState->GreenOffset);
 }
+
+internal void
+GameGetSoundSamples(game_memory* Memory, game_sound_output_buffer* SoundBuffer) {
+	game_state* GameState = (game_state*)Memory->PermanentStorage;
+	GameOutputSound(SoundBuffer, GameState->ToneHz);
+}
+
 

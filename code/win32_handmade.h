@@ -23,6 +23,7 @@ struct win32_sound_output
 	DWORD SecondaryBufferSize;
 	real32 tSine;
 	int LatencySampleCount;
+	DWORD SafetyBytes;
 };
 
 struct win32_debug_time_marker {
