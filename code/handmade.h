@@ -65,6 +65,7 @@ struct
 	int Width;
 	int Height;
 	int Pitch;
+	int BytesPerPixel;
 };
 
 struct
@@ -124,6 +125,10 @@ struct game_state {
 	int GreenOffset;
 	int ToneHz;
 	real32 tSine;
+
+	int PlayerX;
+	int PlayerY;
+	real32 tJump;
 };
 
 struct game_memory {

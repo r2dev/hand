@@ -31,14 +31,29 @@ struct win32_debug_time_marker {
 	DWORD WriteCursor;
 };
 
-struct win32_game_code
-{
+struct win32_game_code {
 	HMODULE GameCodeDLL;
 	FILETIME DLLLastWriteTime;
 	game_update_and_render* UpdateAndRender;
 	game_get_sound_samples* GetSoundSamples;
 	
 	bool32 IsValid;
+};
+
+struct win32_recorded_input {
+	int InputCount;
+	game_input* InputStream;
+};
+
+struct win32_state {
+	HANDLE RecordingHandle;
+	int InputRecordingIndex;
+
+	HANDLE PlaybackHandle;
+	int InputPlayingIndex;
+
+	void* GameMemoryBlock;
+	uint64 TotalSize;
 };
 
 #define WIN32_HANDMADE_H
