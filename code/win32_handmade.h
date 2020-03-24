@@ -46,6 +46,11 @@ struct win32_recorded_input {
 
 
 #define WIN32_STATE_FILE_NAME_COUNT MAX_PATH
+
+struct win32_replay_buffer {
+	void* MemoryBlock;
+	char ReplayFileName[WIN32_STATE_FILE_NAME_COUNT];
+};
 struct win32_state {
 	HANDLE RecordingHandle;
 	int InputRecordingIndex;
@@ -55,6 +60,8 @@ struct win32_state {
 
 	void* GameMemoryBlock;
 	uint64 TotalSize;
+
+	win32_replay_buffer ReplayBuffers[4];
 
 	char EXEFileName[WIN32_STATE_FILE_NAME_COUNT];
 	char* OnePastLastEXEFileNameSlash;
