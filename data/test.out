@@ -99,15 +99,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		GameState->tJump -= 0.033f;
 	}
 	
-	
-	RenderWeirdGradient(Buffer, GameState->BlueOffset, GameState->GreenOffset);
 	RenderPlayer(Buffer, GameState->PlayerX, GameState->PlayerY);
-
+ 
 	RenderPlayer(Buffer, Input->MouseX, Input->MouseY);
 
 	for (int ButtonIndex = 0; ButtonIndex < ArrayCount(Input->MouseBottons); ++ButtonIndex) {
 		if (Input->MouseBottons[ButtonIndex].EndedDown) {
-			RenderPlayer(Buffer, ButtonIndex * 10, ButtonIndex * 10);
+			RenderPlayer(Buffer, ButtonIndex * 10, 10);
 		}
 	}
 }

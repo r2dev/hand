@@ -679,11 +679,12 @@ int CALLBACK WinMain(
 
 	Win32LoadXInput();
 	WNDCLASS WindowClass = {};
-	Win32ResizeDIBSection(&GlobalBackbuffer, 1280, 720);
+	Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;
 	WindowClass.lpfnWndProc = Win32MainWindowCallback;
 	WindowClass.hInstance = Instance;
 	WindowClass.lpszClassName = "HandmadeHeroWindowClass";
+	WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
 
 	if (RegisterClass(&WindowClass)) {
 		HWND Window = CreateWindowEx(
@@ -754,6 +755,7 @@ int CALLBACK WinMain(
 				game_input Input[2] = {};
 				game_input* NewInput = &Input[0];
 				game_input* OldInput = &Input[1];
+				
 
 				LARGE_INTEGER LastCounter = Win32GetWallClock();
 				LARGE_INTEGER FlipWallClock = Win32GetWallClock();
@@ -769,6 +771,8 @@ int CALLBACK WinMain(
 
 				int64 LastCycleCount = __rdtsc();
 				while (GlobalRunning) {
+					NewInput->dtForFrame = TargetSecondsPerFrame;
+
 					FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
 
 					if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0) {
@@ -995,7 +999,7 @@ int CALLBACK WinMain(
 						ReleaseDC(Window, DeviceContext);
 						FlipWallClock = Win32GetWallClock();
 
-#if HANDMADE_INTERNAL
+#if 0
 						{
 
 							Assert(DebugTimeMarkerIndex < ArrayCount(DebugTimeMarkers));

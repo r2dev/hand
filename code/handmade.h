@@ -118,6 +118,7 @@ struct game_input {
 	game_button_state MouseBottons[5];
 	int32 MouseX, MouseY, MouseZ;
 	game_controller_input Controllers[5];
+	real32 dtForFrame;
 };
 
 inline game_controller_input* GetController(game_input* Input, int unsigned ControllerIndex) {
@@ -127,14 +128,8 @@ inline game_controller_input* GetController(game_input* Input, int unsigned Cont
 }
 
 struct game_state {
-	int BlueOffset;
-	int GreenOffset;
-	int ToneHz;
-	real32 tSine;
-
-	int PlayerX;
-	int PlayerY;
-	real32 tJump;
+	real32 PlayerX;
+	real32 PlayerY;
 };
 
 struct game_memory {
