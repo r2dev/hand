@@ -128,8 +128,48 @@ inline game_controller_input* GetController(game_input* Input, int unsigned Cont
 }
 
 struct game_state {
+	int32 PlayerTileMapX;
+	int32 PlayerTileMapY;
+
 	real32 PlayerX;
 	real32 PlayerY;
+};
+
+struct canonical_position {
+	int32 TileMapX;
+	int32 TileMapY;
+
+	int32 TileX;
+	int32 TileY;
+
+	real32 X;
+	real32 Y;
+};
+
+struct raw_position {
+	int32 TileMapX;
+	int32 TileMapY;
+	real32 X;
+	real32 Y;
+};
+
+struct tile_map
+{
+	uint32* Tiles;
+};
+
+struct world
+{
+	int32 CountX;
+	int32 CountY;
+	real32 UpperLeftX;
+	real32 UpperLeftY;
+	real32 TileWidth;
+	real32 TileHeight;
+
+	tile_map* TileMaps;
+	int32 TileMapCountX;
+	int32 TileMapCountY;
 };
 
 struct game_memory {

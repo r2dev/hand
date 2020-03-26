@@ -404,8 +404,15 @@ internal void
 Win32DisplayBufferInWindow(
 	win32_offscreen_buffer* Buffer,
 	HDC DeviceContext, int WindowWidth, int WindowHeight) {
+	int OffsetX = 10;
+	int OffsetY = 10;
+	PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
+	PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
+	PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
+	PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
+	
 	StretchDIBits(DeviceContext,
-		0, 0, Buffer->Width, Buffer->Height,
+		OffsetX, OffsetY, Buffer->Width, Buffer->Height,
 		0, 0, Buffer->Width, Buffer->Height,
 		Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
 }
@@ -1012,24 +1019,11 @@ int CALLBACK WinMain(
 					}
 #endif
 
-#if 0
-						int32 MSPerFrame = (int32)(1000 * CounterElapsed / PerfCountFrequency);
-						real64 FPS = 0;
-						int32 MCPF = (int32)(CyclesElapsed / (1000 * 1000));
 
 
-						char Buffer[256];
-						wsprintf(Buffer, "%dms/f ,%df/s, %dm/f\n", MSPerFrame, FPS, MCPF);
-						OutputDebugStringA(Buffer);
-#endif
 						game_input* Temp = NewInput;
 						NewInput = OldInput;
 						OldInput = Temp;
-
-
-						int64 EndCycleCount = __rdtsc();
-						int64 CyclesElapsed = EndCycleCount - LastCycleCount;
-						LastCycleCount = EndCycleCount;
 				}
 			}
 		}
