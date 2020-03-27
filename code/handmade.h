@@ -1,4 +1,5 @@
 #if !defined(HANDMADE_H)
+#define HANDMADE_H
 #if HANDMADE_SLOW
 #define Assert(Expression) if(!(Expression)) { *(int*)0 = 0; }
 #else
@@ -126,31 +127,23 @@ inline game_controller_input* GetController(game_input* Input, int unsigned Cont
 	game_controller_input* Result = &Input->Controllers[ControllerIndex];
 	return(Result);
 }
-
-struct game_state {
-	int32 PlayerTileMapX;
-	int32 PlayerTileMapY;
-
-	real32 PlayerX;
-	real32 PlayerY;
-};
-
 struct canonical_position {
+#if 1
 	int32 TileMapX;
 	int32 TileMapY;
 
 	int32 TileX;
 	int32 TileY;
-
-	real32 X;
-	real32 Y;
+#else
+	uint32 _TileX;
+	uint32 _TileY;
+#endif
+	real32 TileRelX;
+	real32 TileRelY;
 };
 
-struct raw_position {
-	int32 TileMapX;
-	int32 TileMapY;
-	real32 X;
-	real32 Y;
+struct game_state {
+	canonical_position PlayerP;
 };
 
 struct tile_map
@@ -160,12 +153,14 @@ struct tile_map
 
 struct world
 {
+	real32 TileSideInMeters;
+	int32 TileSideInPixels;
+	real32 MetersToPixels;
+
 	int32 CountX;
 	int32 CountY;
 	real32 UpperLeftX;
 	real32 UpperLeftY;
-	real32 TileWidth;
-	real32 TileHeight;
 
 	tile_map* TileMaps;
 	int32 TileMapCountX;
@@ -193,5 +188,5 @@ typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
 typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
 
 
-#define HANDMADE_H
+
 #endif
