@@ -28,6 +28,8 @@ typedef int32 bool32;
 typedef float real32;
 typedef double real64;
 
+typedef size_t memory_index;
+
 inline uint32
 SafeTruncateUInt64(uint64 Value) {
 	Assert(Value <= 0xFFFFFFFF);
@@ -127,46 +129,6 @@ inline game_controller_input* GetController(game_input* Input, int unsigned Cont
 	game_controller_input* Result = &Input->Controllers[ControllerIndex];
 	return(Result);
 }
-struct canonical_position {
-#if 1
-	int32 TileMapX;
-	int32 TileMapY;
-
-	int32 TileX;
-	int32 TileY;
-#else
-	uint32 _TileX;
-	uint32 _TileY;
-#endif
-	real32 TileRelX;
-	real32 TileRelY;
-};
-
-struct game_state {
-	canonical_position PlayerP;
-};
-
-struct tile_map
-{
-	uint32* Tiles;
-};
-
-struct world
-{
-	real32 TileSideInMeters;
-	int32 TileSideInPixels;
-	real32 MetersToPixels;
-
-	int32 CountX;
-	int32 CountY;
-	real32 UpperLeftX;
-	real32 UpperLeftY;
-
-	tile_map* TileMaps;
-	int32 TileMapCountX;
-	int32 TileMapCountY;
-};
-
 struct game_memory {
 	bool32 IsInitialized;
 
@@ -180,6 +142,42 @@ struct game_memory {
 	debug_platform_write_entire_file* DEBUGPlatformWriteEntireFile;
 	debug_platform_free_file_memory* DEBUGPlatformFreeFileMemory;
 };
+
+struct memory_arena {
+	memory_index Size;
+	uint8* Base;
+	memory_index Used;
+};
+
+
+
+#define PushSize(Arena, type) (type*) _PushSize(Arena, sizeof(type))
+#define PushArray(Arena, Count, type) (type*) _PushSize(Arena, (Count)*sizeof(type))
+void*
+_PushSize(memory_arena* Arena, memory_index Size) {
+	Assert((Arena->Used + Size) <= Arena->Size);
+	void* Result = Arena->Base + Arena->Used;
+	Arena->Used += Size;
+	return(Result);
+}
+
+
+#include "handmade_intrinsics.h"
+#include "handmade_tile.h"
+
+
+struct world {
+	tile_map* TileMap;
+};
+
+struct game_state {
+	memory_arena WorldArena;
+	world* World;
+	tile_map_position PlayerP;
+};
+
+
+
 
 #define GAME_UPDATE_AND_RENDER(name) void name(thread_context *Thread, game_memory* Memory, game_input* Input, game_offscreen_buffer* Buffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
