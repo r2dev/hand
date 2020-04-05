@@ -32,6 +32,6 @@ struct tile_map_position {
 	uint32 AbsTileY;
 	uint32 AbsTileZ;
 
-	real32 TileRelX;
-	real32 TileRelY;
+	real32 OffsetX;
+	real32 OffsetY;
 };
