@@ -78,15 +78,31 @@ struct bitmap_header {
 };
 #pragma pack(pop)
 
-internal uint32 *
+internal loaded_bitmap
 DEBUGLoadBMP(thread_context * Thread, debug_platform_read_entire_file *ReadEntireFile, char * FileName) {
-	uint32* Result = 0;
+	loaded_bitmap Result = {};
 	debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
 	if (ReadResult.ContentsSize != 0) {
 		bitmap_header* Header = (bitmap_header*)ReadResult.Contents;
-		uint32* Pixels = (uint32 *)((uint8*)ReadResults.Contents + Header->BitmapOffset);
-		Result = Pixels;
+		uint32* Pixels = (uint32 *)((uint8*)ReadResult.Contents + Header->BitmapOffset);
+		Result.Height = Header->Height;
+		Result.Width = Header->Width;
+		Result.Pixels = Pixels;
+		uint32* SourceDest = Pixels;
+		for (int32 Y = 0;
+			Y < Header->Height;
+			++Y)
+		{
+			for (int32 X = 0;
+				X < Header->Width;
+				++X)
+			{
+				*SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
+				++SourceDest;
+			}
+		}
 	}
+	
 	return(Result);
 
 }
@@ -106,6 +122,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	real32 PlayerWidth = 0.75f * PlayerHeight;
 
 	if (!Memory->IsInitialized) {
+
+		GameState->Background = 
+			DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
+
 		InitializateArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state),
 			(uint8*)Memory->PermanentStorage + sizeof(game_state));
 		GameState->World = PushSize(&GameState->WorldArena, world);
@@ -125,8 +145,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			TileMap->TileChunkCountX * TileMap->TileChunkCountY * TileMap->TileChunkCountZ, tile_chunk);
 
 		TileMap->TileSideInMeters = 1.4f;
-
-
 
 		GameState->PlayerP.AbsTileX = 7;
 		GameState->PlayerP.AbsTileY = 3;
@@ -310,8 +328,29 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 		}
 	}
+	loaded_bitmap* Background = &GameState->Background;
+	int BlitWidth = Background->Width;
+	int BlitHeight = Background->Height;
+	if (BlitWidth > Buffer->Width) {
+		BlitWidth = Buffer->Width;
+	}
+	if (BlitHeight > Buffer->Height) {
+		BlitHeight = Buffer->Height;
+	}
+	uint32* SourceRow = Background->Pixels + Background->Width * (Background->Height - 1);
+	uint8* DestRow = (uint8*)Buffer->Memory;
+	
+	for (int32 Y = 0; Y < BlitHeight; ++Y) {
+		uint32* Dest = (uint32*)DestRow;
+		uint32* Source = SourceRow;
+		for (int32 X = 0; X < BlitWidth; ++X) {
+			*Dest++ = *Source++;
+		}
+		DestRow += Buffer->Pitch;
+		SourceRow -= Background->Width;
+	}
 
-	DrawRectangle(Buffer, 0, 0, (real32)Buffer->Width, (real32)Buffer->Height, 0, 1, 1);
+	//DrawRectangle(Buffer, 0, 0, (real32)Buffer->Width, (real32)Buffer->Height, 0, 1, 1);
 
 	real32 ScreenCenterX = 0.5f * (real32)Buffer->Width;
 	real32 ScreenCenterY = 0.5f * (real32)Buffer->Height;
@@ -321,7 +360,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			uint32 Column = GameState->PlayerP.AbsTileX + RelColumn;
 			uint32 Row = GameState->PlayerP.AbsTileY + RelRow;
 			uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->PlayerP.AbsTileZ);
-			if (TileID > 0) {
+			if (TileID > 1) {
 				real32 Gray = 0.5f;
 				if (TileID == 2) {
 					Gray = 1.0f;

@@ -165,6 +165,11 @@ _PushSize(memory_arena* Arena, memory_index Size) {
 #include "handmade_intrinsics.h"
 #include "handmade_tile.h"
 
+struct loaded_bitmap {
+	int32 Width;
+	int32 Height;
+	uint32* Pixels;
+};
 
 struct world {
 	tile_map* TileMap;
@@ -174,8 +179,9 @@ struct game_state {
 	memory_arena WorldArena;
 	world* World;
 	tile_map_position PlayerP;
-};
 
+	loaded_bitmap Background;
+};
 
 
 
