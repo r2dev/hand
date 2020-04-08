@@ -1,5 +1,5 @@
 #if !defined(WIN32_HANDMADE_H)
-
+#define WIN32_HANDMADE_H
 struct win32_offscreen_buffer {
 	BITMAPINFO Info;
 	void* Memory;
@@ -67,5 +67,5 @@ struct win32_state {
 	char* OnePastLastEXEFileNameSlash;
 };
 
-#define WIN32_HANDMADE_H
+
 #endif

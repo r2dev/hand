@@ -1,5 +1,4 @@
-#include "handmade.h"
-
+#include "handmade_platform.h"
 #include <windows.h>
 #include <Xinput.h>
 #include <malloc.h>
@@ -181,19 +180,22 @@ Win32GetLastWriteTime(char* SourceDLLName) {
 }
 
 internal win32_game_code
-Win32LoadGameCode(char* SourceDLLName, char* TempDLLName) {
+Win32LoadGameCode(char* SourceDLLName, char* TempDLLName, char* LockFileName) {
 	win32_game_code Result = {};
-	Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
-	CopyFile(SourceDLLName, TempDLLName, FALSE);
+	WIN32_FILE_ATTRIBUTE_DATA Ignored;
+	if (!GetFileAttributesEx(LockFileName, GetFileExInfoStandard, &Ignored)) {
+		Result.DLLLastWriteTime = Win32GetLastWriteTime(SourceDLLName);
+		CopyFile(SourceDLLName, TempDLLName, FALSE);
 
-	Result.GameCodeDLL = LoadLibraryA(TempDLLName);
-	if (Result.GameCodeDLL) {
-		Result.UpdateAndRender = (game_update_and_render*)
-			GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-		Result.GetSoundSamples = (game_get_sound_samples*)
-			GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
+		Result.GameCodeDLL = LoadLibraryA(TempDLLName);
+		if (Result.GameCodeDLL) {
+			Result.UpdateAndRender = (game_update_and_render*)
+				GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+			Result.GetSoundSamples = (game_get_sound_samples*)
+				GetProcAddress(Result.GameCodeDLL, "GameGetSoundSamples");
 
-		Result.IsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+			Result.IsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+		}
 	}
 	if (!Result.IsValid) {
 		Result.UpdateAndRender = 0;
@@ -203,7 +205,7 @@ Win32LoadGameCode(char* SourceDLLName, char* TempDLLName) {
 }
 
 internal void
-Win32GetInputFileLocation(win32_state *State, bool32 InputStream , int SlotIndex, int DestCount, char* Dest) {
+Win32GetInputFileLocation(win32_state* State, bool32 InputStream, int SlotIndex, int DestCount, char* Dest) {
 	char Temp[64];
 	wsprintf(Temp, "loop_edit_%d_%s.hmi", SlotIndex, InputStream ? "input" : "state");
 	Win32BuildEXEPathFileName(State, Temp, DestCount, Dest);
@@ -261,7 +263,7 @@ Win32BeginInputPlayBack(win32_state* State, int InputPlayingIndex) {
 		Win32GetInputFileLocation(State, true, InputPlayingIndex, sizeof(Filename), Filename);
 		//@todo check share here
 		State->PlaybackHandle = CreateFileA(Filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
-		
+
 		//DWORD BytesRead;
 		//ReadFile(State->PlaybackHandle, State->GameMemoryBlock, BytesToRead, &BytesRead, 0);
 #if 0
@@ -410,7 +412,7 @@ Win32DisplayBufferInWindow(
 	PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
 	PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
 	PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
-	
+
 	StretchDIBits(DeviceContext,
 		OffsetX, OffsetY, Buffer->Width, Buffer->Height,
 		0, 0, Buffer->Width, Buffer->Height,
@@ -594,7 +596,7 @@ Win32MainWindowCallback(
 	UINT   Message,
 	WPARAM WParam,
 	LPARAM LParam
-) {
+	) {
 	LRESULT Result = 0;
 	switch (Message) {
 	case WM_SIZE: {
@@ -662,13 +664,13 @@ int CALLBACK WinMain(
 	HINSTANCE PrevInstance,
 	LPSTR     CommandLine,
 	int       showCode
-) {
+	) {
 	win32_state Win32State = {};
 	LARGE_INTEGER PerfCountFrequencyResult;
 	QueryPerformanceFrequency(&PerfCountFrequencyResult);
 	GlobalPerfCountFrequency = PerfCountFrequencyResult.QuadPart;
 
-	
+
 	Win32GetEXEFileName(&Win32State);
 	char SourceGameCodeDLLFilename[] = "handmade.dll";
 	char SourceGameCodeDLLFullPath[WIN32_STATE_FILE_NAME_COUNT];
@@ -680,6 +682,12 @@ int CALLBACK WinMain(
 
 	Win32BuildEXEPathFileName(&Win32State, TempGameCodeDLLFilename,
 		sizeof(TempGameCodeDLLFullPath), TempGameCodeDLLFullPath);
+
+	char GameCodeLockFilename[] = "lock.tmp";
+	char GameCodeLockFullPath[WIN32_STATE_FILE_NAME_COUNT];
+	Win32BuildEXEPathFileName(&Win32State, GameCodeLockFilename,
+		sizeof(GameCodeLockFullPath), GameCodeLockFullPath);
+
 
 	UINT DesiredSchedulerMS = 1;
 	bool32 SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
@@ -710,7 +718,7 @@ int CALLBACK WinMain(
 			}
 			real32 GameUpdateHz = MonitorRefreshHz / 2.0f;
 			real32 TargetSecondsPerFrame = 1.0f / GameUpdateHz;
-			
+
 
 			SoundOutput.SamplesPerSecond = 48000;
 			SoundOutput.BytesPerSample = sizeof(int16) * 2;
@@ -762,7 +770,7 @@ int CALLBACK WinMain(
 				game_input Input[2] = {};
 				game_input* NewInput = &Input[0];
 				game_input* OldInput = &Input[1];
-				
+
 
 				LARGE_INTEGER LastCounter = Win32GetWallClock();
 				LARGE_INTEGER FlipWallClock = Win32GetWallClock();
@@ -774,7 +782,7 @@ int CALLBACK WinMain(
 				real32 AudioLatencySeconds = 0;
 				bool32 SoundIsValid = false;
 
-				win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
+				win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
 
 				int64 LastCycleCount = __rdtsc();
 				while (GlobalRunning) {
@@ -784,7 +792,7 @@ int CALLBACK WinMain(
 
 					if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0) {
 						Win32UnloadGameCode(&Game);
-						Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath);
+						Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
 					}
 
 					game_controller_input* OldKeyboardController = GetController(OldInput, 0);
@@ -852,11 +860,11 @@ int CALLBACK WinMain(
 								Win32ProcessXInputDigitalButton((NewController->StickAverageX < -Threshold) ? 1 : 0,
 									&OldController->MoveLeft, 1, &NewController->MoveLeft);
 								Win32ProcessXInputDigitalButton((NewController->StickAverageX > Threshold) ? 1 : 0,
-									& OldController->MoveRight, 1, & NewController->MoveRight);
+									&OldController->MoveRight, 1, &NewController->MoveRight);
 								Win32ProcessXInputDigitalButton((NewController->StickAverageY < -Threshold) ? 1 : 0,
 									&OldController->MoveDown, 1, &NewController->MoveDown);
 								Win32ProcessXInputDigitalButton((NewController->StickAverageY > Threshold) ? 1 : 0,
-									& OldController->MoveUp, 1, & NewController->MoveUp);
+									&OldController->MoveUp, 1, &NewController->MoveUp);
 
 								Win32ProcessXInputDigitalButton(Pad->wButtons,
 									&OldController->ActionDown, XINPUT_GAMEPAD_A,
@@ -1016,7 +1024,7 @@ int CALLBACK WinMain(
 							}
 							Marker->PlayCursor = PlayCursor;
 							Marker->WriteCursor = WriteCursor;
-					}
+						}
 #endif
 
 
@@ -1024,18 +1032,18 @@ int CALLBACK WinMain(
 						game_input* Temp = NewInput;
 						NewInput = OldInput;
 						OldInput = Temp;
+					}
 				}
 			}
-		}
 			else {
 
 			}
-	}
+		}
 		else {
 
 		}
 
-}
+	}
 	else {
 
 	}
