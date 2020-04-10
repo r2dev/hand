@@ -3,15 +3,6 @@
 
 #include "handmade_platform.h"
 
-inline uint32
-SafeTruncateUInt64(uint64 Value) {
-	Assert(Value <= 0xFFFFFFFF);
-	uint32 Result = (uint32)Value;
-	return(Result);
-}
-
-
-
 struct memory_arena {
 	memory_index Size;
 	uint8* Base;

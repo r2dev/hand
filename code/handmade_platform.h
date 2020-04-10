@@ -174,6 +174,13 @@ inline game_controller_input* GetController(game_input* Input, int unsigned Cont
 	return(Result);
 }
 
+inline uint32
+SafeTruncateUInt64(uint64 Value) {
+	Assert(Value <= 0xFFFFFFFF);
+	uint32 Result = (uint32)Value;
+	return(Result);
+}
+	
 #ifdef __cplusplus
 }
 #endif

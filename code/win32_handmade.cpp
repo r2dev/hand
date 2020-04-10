@@ -11,6 +11,8 @@ global_variable bool32 GlobalPause;
 global_variable win32_offscreen_buffer GlobalBackbuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global_variable int64 GlobalPerfCountFrequency;
+global_variable bool32 DEBUGGlobalShowCursor;
+global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
 
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
@@ -406,17 +408,26 @@ internal void
 Win32DisplayBufferInWindow(
 	win32_offscreen_buffer* Buffer,
 	HDC DeviceContext, int WindowWidth, int WindowHeight) {
-	int OffsetX = 10;
-	int OffsetY = 10;
-	PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
-	PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
-	PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
-	PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
+	
+	if (WindowWidth >= Buffer->Width * 2 && WindowHeight >= Buffer->Height * 2) {
+		StretchDIBits(DeviceContext,
+			0, 0, Buffer->Width * 2, Buffer->Height * 2,
+			0, 0, Buffer->Width, Buffer->Height,
+			Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
+	}
+	else {
+		int OffsetX = 10;
+		int OffsetY = 10;
+		PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
+		PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
+		PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
+		PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
 
-	StretchDIBits(DeviceContext,
-		OffsetX, OffsetY, Buffer->Width, Buffer->Height,
-		0, 0, Buffer->Width, Buffer->Height,
-		Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
+		StretchDIBits(DeviceContext,
+			OffsetX, OffsetY, Buffer->Width, Buffer->Height,
+			0, 0, Buffer->Width, Buffer->Height,
+			Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
+	}
 }
 
 internal void
@@ -500,6 +511,30 @@ Win32ProcessKeyboardMessage(game_button_state* NewState, bool32 IsDown) {
 }
 
 internal void
+ToggleFullScreen(HWND Window) {
+	DWORD Style = GetWindowLong(Window, GWL_STYLE);
+	if (Style & WS_OVERLAPPEDWINDOW) {
+		MONITORINFO MonitorInfo = { sizeof(MonitorInfo) };
+		if (GetWindowPlacement(Window, &GlobalWindowPosition) &&
+			GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo)) {
+			SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+			SetWindowPos(Window, HWND_TOP,
+				MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+				MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+				MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+				SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+		}
+	}
+	else {
+		SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+		SetWindowPlacement(Window, &GlobalWindowPosition);
+		SetWindowPos(Window, NULL, 0, 0, 0, 0,
+			SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+			SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+	}
+}
+
+internal void
 Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardController) {
 	MSG Message;
 	while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE)) {
@@ -575,11 +610,19 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
 				}
 
 #endif
+				if (IsDown) {
+					bool32 AltKeyWasDown = (Message.lParam & (1 << 29));
+					if ((VKCode == VK_F4) && AltKeyWasDown) {
+						GlobalRunning = false;
+					}
+					if ((VKCode == VK_RETURN) && AltKeyWasDown) {
+						if (Message.hwnd) {
+							ToggleFullScreen(Message.hwnd);
+						}
+					}
+				}
 			}
-			bool32 AltKeyWasDown = (Message.lParam & (1 << 29));
-			if ((VKCode == VK_F4) && AltKeyWasDown) {
-				GlobalRunning = false;
-			}
+
 		} break;
 		default: {
 			TranslateMessage(&Message);
@@ -601,6 +644,14 @@ Win32MainWindowCallback(
 	switch (Message) {
 	case WM_SIZE: {
 
+	} break;
+	case WM_SETCURSOR: {
+		if (DEBUGGlobalShowCursor) {
+			Result = DefWindowProc(Window, Message, WParam, LParam);
+		}
+		else {
+			SetCursor(0);
+		}
 	} break;
 	case WM_DESTROY: {
 		GlobalRunning = false;
@@ -693,6 +744,9 @@ int CALLBACK WinMain(
 	bool32 SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
 
 	Win32LoadXInput();
+#if HANDMADE_INTERNAL
+	DEBUGGlobalShowCursor = true;
+#endif
 	WNDCLASS WindowClass = {};
 	Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;
@@ -1047,6 +1101,5 @@ int CALLBACK WinMain(
 	else {
 
 	}
-
 	return(0);
 }
