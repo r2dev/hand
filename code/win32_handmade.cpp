@@ -581,10 +581,10 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
 					Win32ProcessKeyboardMessage(&KeyboardController->RightShoulder, IsDown);
 				}
 				else if (VKCode == VK_SPACE) {
-					Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
+					Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
 				}
 				else if (VKCode == VK_ESCAPE) {
-					Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
+					Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
 				}
 #if HANDMADE_INTERNAL
 				else if (VKCode == 'P') {

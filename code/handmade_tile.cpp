@@ -13,8 +13,8 @@ RecanonicalizeCoord(tile_map* TileMap, uint32* TileV, real32* TileRelV) {
 inline tile_map_position
 RecanonicalizePosition(tile_map* TileMap, tile_map_position Pos) {
 	tile_map_position Result = Pos;
-	RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.OffsetX);
-	RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.OffsetY);
+	RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset.X);
+	RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset.Y);
 	return(Result);
 }
 
@@ -95,11 +95,16 @@ GetTileValue(tile_map* TileMap, tile_map_position Pos) {
 	return(TileChunkValue);
 }
 
+internal bool32
+isTileValueEmpty(uint32 TileValue) {
+	bool32 Empty = (TileValue == 1) || (TileValue == 3) || (TileValue == 4);
+	return Empty;
+}
 
 internal bool32
 IsTileMapPointEmpty(tile_map* TileMap, tile_map_position Pos) {
 	uint32 TileValue = GetTileValue(TileMap, Pos);
-	bool32 Empty = (TileValue == 1) || (TileValue == 3) || (TileValue == 4);
+	bool32 Empty = isTileValueEmpty(TileValue);
 	return(Empty);
 }
 
@@ -129,13 +134,25 @@ AreOnSameTile(tile_map_position* A, tile_map_position* B) {
 }
 
 
-tile_map_difference Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
+tile_map_difference
+Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position *B) {
 	tile_map_difference Result = {};
-	real32 dTileX = (real32)A->AbsTileX - (real32)B->AbsTileX;
-	real32 dTileY = (real32)A->AbsTileY - (real32)B->AbsTileY;
+	v2 dTileXY = {
+		(real32)A->AbsTileX - (real32)B->AbsTileX,
+		(real32)A->AbsTileY - (real32)B->AbsTileY
+	};
 	real32 dTileZ = (real32)A->AbsTileZ - (real32)B->AbsTileZ;
-	Result.dX = dTileX * TileMap->TileSideInMeters + (A->OffsetX - B->OffsetX);
-	Result.dY = dTileY * TileMap->TileSideInMeters + (A->OffsetY - B->OffsetY);
+	Result.dXY = TileMap->TileSideInMeters * dTileXY + (A->Offset - B->Offset);
+	
 	Result.dZ = dTileZ * TileMap->TileSideInMeters;
+	return(Result);
+}
+
+inline tile_map_position
+CenteredTilePoint(uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+	tile_map_position Result = {};
+	Result.AbsTileX = AbsTileX;
+	Result.AbsTileY = AbsTileY;
+	Result.AbsTileZ = AbsTileZ;
 	return(Result);
 }
