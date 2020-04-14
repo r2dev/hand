@@ -36,5 +36,5 @@ struct tile_map_position {
 	uint32 AbsTileY;
 	uint32 AbsTileZ;
 
-	v2 Offset;
+	v2 Offset_;
 };

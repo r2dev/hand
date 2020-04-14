@@ -84,5 +84,10 @@ LengthSq(v2 A) {
 	return (Result);
 }
 
+inline int32
+SignOf(int32 Value) {
+	int32 Result = (Value >= 0) ? 1 : -1;
+	return(Result);
+}
 
 #endif
