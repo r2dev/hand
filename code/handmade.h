@@ -52,32 +52,34 @@ struct high_entity {
 
 	real32 Z;
 	real32 dZ;
+
+	uint32 LowEntityIndex;
+};
+
+
+enum entity_type {
+	EntityType_Null,
+	EntityType_Hero,
+	EntityType_Wall,
 };
 
 struct low_entity {
-	
-};
+	entity_type Type;
 
-struct dormant_entity {
 	tile_map_position P;
 	real32 Width, Height;
 
 	bool32 Collides;
 	int32 dAbsTileZ;
+
+	uint32 HighEntityIndex;
 };
 
-enum entity_residence {
-	EntityResidence_Noneexistent,
-	EntityResidence_Dormant,
-	EntityResidence_Low,
-	EntityResidence_High,
-};
 
 struct entity {
-	entity_residence Residence;
+	uint32 LowIndex;
 	low_entity *Low;
 	high_entity *High;
-	dormant_entity *Dormant;
 };
 
 struct game_state {
@@ -88,15 +90,12 @@ struct game_state {
 	tile_map_position CameraP;
 
 	uint32 PlayerIndexForController[ArrayCount(((game_input*)0)->Controllers)];
-	uint32 EntityCount;
 
-	entity_residence EntityResidence[256];
-	high_entity HighEntities[256];
-	low_entity LowEntities[256];
-	dormant_entity DormantEntities[256];
-	
+	uint32 HighEntityCount;
+	high_entity HighEntities_[256];
 
-
+	uint32 LowEntityCount;
+	low_entity LowEntities[4096];
 
 	loaded_bitmap Background;
 	loaded_bitmap Shadow;

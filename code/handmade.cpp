@@ -204,97 +204,157 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 }
 
 internal void
-InitializateArena(memory_arena* Arena, memory_index Size, uint8* Storage) {
+InitializeArena(memory_arena* Arena, memory_index Size, uint8* Storage) {
 	Arena->Size = Size;
 	Arena->Base = Storage;
 	Arena->Used = 0;
 }
 
-internal void
-ChangeEntityResidence(game_state* GameState, uint32 EntityIndex, entity_residence Residence) {
-	if (Residence == EntityResidence_High) {
-		if (GameState->EntityResidence[EntityIndex] != EntityResidence_High) {
-			high_entity* HighEntity = &GameState->HighEntities[EntityIndex];
-			dormant_entity* DormantEntity = &GameState->DormantEntities[EntityIndex];
+inline high_entity*
+MakeEntityHighFrequency(game_state* GameState, uint32 LowIndex) {
+	high_entity* HighEntity = 0;
+	low_entity* LowEntity = GameState->LowEntities + LowIndex;
+
+	if (LowEntity->HighEntityIndex) {
+		HighEntity = GameState->HighEntities_ + LowEntity->HighEntityIndex;
+	}
+	else {
+		if (GameState->HighEntityCount < ArrayCount(GameState->HighEntities_)) {
+			uint32 HighIndex = GameState->HighEntityCount++;
+			HighEntity = GameState->HighEntities_ + HighIndex;
+
 			tile_map_difference Diff =
-				Subtract(GameState->World->TileMap, &DormantEntity->P, &GameState->CameraP);
+				Subtract(GameState->World->TileMap, &LowEntity->P, &GameState->CameraP);
 			HighEntity->P = Diff.dXY;
 			HighEntity->dP = v2{ 0, 0 };
-			HighEntity->AbsTileZ = DormantEntity->P.AbsTileZ;
+			HighEntity->AbsTileZ = LowEntity->P.AbsTileZ;
 			HighEntity->FacingDirection = 0;
-
+			HighEntity->LowEntityIndex = LowIndex;
+			LowEntity->HighEntityIndex = HighIndex;
+		}
+		else {
+			InvalidCodePath;
 		}
 	}
-	GameState->EntityResidence[EntityIndex] = Residence;
+	return HighEntity;
+}
+
+inline void
+MakeEntityLowFrequency(game_state* GameState, uint32 LowIndex) {
+	low_entity* LowEntity = &GameState->LowEntities[LowIndex];
+	uint32 HighIndex = LowEntity->HighEntityIndex;
+	if (HighIndex) {
+		uint32 LastHighIndex = GameState->HighEntityCount - 1;
+		if (HighIndex != LastHighIndex) {
+			high_entity* LastHighEntity = GameState->HighEntities_ + LastHighIndex;
+			high_entity* DelEntity = GameState->HighEntities_ + HighIndex;
+			*DelEntity = *LastHighEntity;
+			low_entity* LastHighEntityLowEntity = GameState->LowEntities + LastHighEntity->LowEntityIndex;
+			LastHighEntityLowEntity->HighEntityIndex = HighIndex;
+		}
+		--GameState->HighEntityCount;
+		LowEntity->HighEntityIndex = 0;
+	}
+}
+
+inline void
+OffsetAndCheckFrequencyByArea(game_state* GameState, v2 Offset, rectangle2 CameraBounds) {
+	for (uint32 EntityIndex = 1; EntityIndex < GameState->HighEntityCount; ++EntityIndex) {
+		high_entity* High = GameState->HighEntities_ + EntityIndex;
+		High->P += Offset;
+		if (IsInRectangle(CameraBounds, High->P)) {
+			continue;
+		}
+		else {
+			MakeEntityLowFrequency(GameState, High->LowEntityIndex);
+		}
+	}
+}
+
+inline uint32
+AddLowEntity(game_state* GameState, entity_type Type) {
+	Assert(GameState->LowEntityCount < ArrayCount(GameState->LowEntities));
+	uint32 EntityIndex = GameState->LowEntityCount++;
+
+	GameState->LowEntities[EntityIndex] = {};
+	GameState->LowEntities[EntityIndex].Type = Type;
+
+	return(EntityIndex);
+}
+
+inline low_entity*
+GetLowEntity(game_state* GameState, uint32 Index) {
+	low_entity* Result = 0;
+
+	if ((Index > 0) && (Index < GameState->LowEntityCount)) {
+		Result = GameState->LowEntities + Index;
+	}
+	return(Result);
 }
 
 inline entity
-GetEntity(game_state* GameState, entity_residence Residence, uint32 Index) {
-	entity Entity = {};
-	
-	if ((Index > 0) && (Index < GameState->EntityCount)) {
-		if (GameState->EntityResidence[Index] < Residence) {
-			ChangeEntityResidence(GameState, Index, Residence);
-			Assert(GameState->EntityResidence[Index] >= Residence);
-		}
-		Entity.Residence = Residence;
-		Entity.Dormant = &GameState->DormantEntities[Index];
-		Entity.Low = &GameState->LowEntities[Index];
-		Entity.High = &GameState->HighEntities[Index];
+GetHighEntity(game_state* GameState, uint32 LowIndex) {
+	entity Result = {};
+	if ((LowIndex > 0) && (LowIndex < GameState->LowEntityCount)) {
+		Result.LowIndex = LowIndex;
+		Result.Low = GameState->LowEntities + LowIndex;
+		Result.High = MakeEntityHighFrequency(GameState, LowIndex);
 	}
-	return(Entity);
+	return(Result);
 }
 
-internal void
-InitializePlayer(game_state* GameState, uint32 EntityIndex) {
-	entity Entity = GetEntity(GameState, EntityResidence_Dormant, EntityIndex);
 
-	Entity.Dormant->P.AbsTileX = 7;
-	Entity.Dormant->P.AbsTileY = 3;
-	Entity.Dormant->P.Offset_.X = 0;
-	Entity.Dormant->P.Offset_.Y = 0;
-	Entity.Dormant->Height = 0.5f;
-	Entity.Dormant->Width = 1.0f;
-	Entity.Dormant->Collides = true;
-	ChangeEntityResidence(GameState, EntityIndex, EntityResidence_High);
 
-	if (GetEntity(GameState, EntityResidence_Dormant, GameState->CameraFollowingEntityIndex).Residence == EntityResidence_Noneexistent) {
+internal uint32
+AddPlayer(game_state* GameState) {
+	uint32 EntityIndex = AddLowEntity(GameState, EntityType_Hero);
+	low_entity* Entity = GetLowEntity(GameState, EntityIndex);
+
+	Entity->P.AbsTileX = 7;
+	Entity->P.AbsTileY = 3;
+	Entity->P.Offset_.X = 0;
+	Entity->P.Offset_.Y = 0;
+	Entity->Height = 0.5f;
+	Entity->Width = 1.0f;
+	Entity->Collides = true;
+	MakeEntityHighFrequency(GameState, EntityIndex);
+	//ChangeEntityResidence(GameState, EntityIndex, EntityResidence_High);
+
+	if (GameState->CameraFollowingEntityIndex == 0) {
 		GameState->CameraFollowingEntityIndex = EntityIndex;
 	}
+	return(EntityIndex);
 }
 
-
-inline uint32
-AddEntity(game_state* GameState) {
-	uint32 EntityIndex = GameState->EntityCount++;
-	Assert(GameState->EntityCount < ArrayCount(GameState->DormantEntities));
-	Assert(GameState->EntityCount < ArrayCount(GameState->LowEntities));
-	Assert(GameState->EntityCount < ArrayCount(GameState->HighEntities));
-
-	GameState->EntityResidence[EntityIndex] = EntityResidence_Dormant;
-	GameState->DormantEntities[EntityIndex] = {};
-	GameState->LowEntities[EntityIndex] = {};
-	GameState->HighEntities[EntityIndex] = {};
-
+internal uint32
+AddWall(game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ) {
+	uint32 EntityIndex = AddLowEntity(GameState, EntityType_Wall);
+	low_entity* Entity = GetLowEntity(GameState, EntityIndex);
+	Entity->P.AbsTileX = AbsTileX;
+	Entity->P.AbsTileY = AbsTileY;
+	Entity->P.AbsTileZ = AbsTileZ;
+	Entity->Height = GameState->World->TileMap->TileSideInMeters;;
+	Entity->Width = Entity->Height;
+	Entity->Collides = true;
 	return(EntityIndex);
 }
 
 internal bool32
 TestWall(real32 WallX, real32 RelX, real32 RelY,
 	real32 PlayerDeltaX, real32 PlayerDeltaY, real32* tMin, real32 MinY, real32 MaxY) {
-	real32 tEpsilon = 0.00001f;
-	bool32 Result = false;
+	real32 tEpsilon = 0.001f;
+	bool32 Hit = false;
 	if (PlayerDeltaX != 0.0f) {
 		real32 tResult = (WallX - RelX) / PlayerDeltaX;
 		real32 Y = RelY + tResult * PlayerDeltaY;
 		if ((tResult >= 0.0f) && (*tMin > tResult)) {
 			if ((Y >= MinY) && (Y <= MaxY)) {
-				Result = true;
+				Hit = true;
 				*tMin = Maximum(0.0f, tResult - tEpsilon);
 			}
 		}
 	}
-	return(Result);
+	return(Hit);
 }
 
 
@@ -337,18 +397,25 @@ MovePlayer(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 
 	uint32 AbsTileZ = Entity.Dormant->P.AbsTileZ;
 	*/
-	real32 tRemaining = 1.0f;
-	for (uint32 Iteration = 0; (Iteration < 4) && (tRemaining > 0.0f); ++Iteration) {
+
+	for (uint32 Iteration = 0; (Iteration < 4); ++Iteration) {
 		real32 tMin = 1.0f;
 		v2 WallNormal = {};
-		uint32 HitEntityIndex = 0;
-		for (uint32 EntityIndex = 1; EntityIndex < GameState->EntityCount; ++EntityIndex) {
+		uint32 HitHighEntityIndex = 0;
 
-			entity TestEntity = GetEntity(GameState, EntityResidence_High, EntityIndex);
-			if (TestEntity.High != Entity.High) {
-				if (TestEntity.Dormant->Collides) {
-					real32 DiameterW = TestEntity.Dormant->Width + Entity.Dormant->Width;
-					real32 DiameterH = TestEntity.Dormant->Height + Entity.Dormant->Height;
+		v2 DesiredPosition = Entity.High->P + PlayerDelta;
+		for (uint32 TestHighEntityIndex = 1;
+			TestHighEntityIndex < GameState->HighEntityCount;
+			++TestHighEntityIndex) {
+			if (TestHighEntityIndex != Entity.Low->HighEntityIndex) {
+				entity TestEntity;
+				TestEntity.High = GameState->HighEntities_ + TestHighEntityIndex;
+				TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
+				TestEntity.Low = GameState->LowEntities + TestEntity.LowIndex;
+
+				if (TestEntity.Low->Collides) {
+					real32 DiameterW = TestEntity.Low->Width + Entity.Low->Width;
+					real32 DiameterH = TestEntity.Low->Height + Entity.Low->Height;
 
 					v2 MinCorner = -0.5f * v2{ DiameterW, DiameterH };
 					v2 MaxCorner = 0.5f * v2{ DiameterW, DiameterH };
@@ -358,42 +425,42 @@ MovePlayer(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 					//tResult = (MinCorner.X - RelOldPlayerP.dXY.X) / PlayerDelta.X;
 					if (TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
 						PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
-						WallNormal = v2{ 1, 0 };
-						HitEntityIndex = EntityIndex;
+						WallNormal = v2{ -1, 0 };
+						HitHighEntityIndex = TestHighEntityIndex;
 					}
 					if (TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
 						PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
-						WallNormal = v2{ -1, 0 };
-						HitEntityIndex = EntityIndex;
+						WallNormal = v2{ 1, 0 };
+						HitHighEntityIndex = TestHighEntityIndex;
 					}
 					if (TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
 						PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
 						WallNormal = v2{ 0, 1 };
-						HitEntityIndex = EntityIndex;
+						HitHighEntityIndex = TestHighEntityIndex;
 					}
 					if (TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
 						PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
 						WallNormal = v2{ 0, -1 };
-						HitEntityIndex = EntityIndex;
+						HitHighEntityIndex = TestHighEntityIndex;
 					}
 				}
 			}
 		}
 		Entity.High->P += tMin * PlayerDelta;
-		if (HitEntityIndex) {
+		if (HitHighEntityIndex) {
 			Entity.High->dP = Entity.High->dP - 1 * Inner(Entity.High->dP, WallNormal) * WallNormal;
+			PlayerDelta = DesiredPosition - Entity.High->P;
 			PlayerDelta = PlayerDelta - 1 * Inner(PlayerDelta, WallNormal) * WallNormal;
-			tRemaining -= tMin * tRemaining;
 
-			entity HitEntity = GetEntity(GameState, EntityResidence_Dormant, HitEntityIndex);
-			Entity.High->AbsTileZ += Entity.Dormant->dAbsTileZ;
-			
+			high_entity* HitHighEntity = GameState->HighEntities_ + HitHighEntityIndex;
+			low_entity* HitLowEntity = GameState->LowEntities + HitHighEntity->LowEntityIndex;
+			Entity.High->AbsTileZ += HitLowEntity->P.AbsTileZ;
 		}
 		else {
 			break;
 		}
-		
-		
+
+
 	}
 	if (Entity.High->dP.X == 0.0f && Entity.High->dP.Y == 0.0f) {
 
@@ -414,8 +481,9 @@ MovePlayer(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 			Entity.High->FacingDirection = 3;
 		}
 	}
-	Entity.Dormant->P = MapIntoTileSpace(GameState->World->TileMap, GameState->CameraP, Entity.High->P);
+	Entity.Low->P = MapIntoTileSpace(GameState->World->TileMap, GameState->CameraP, Entity.High->P);
 }
+
 #endif
 
 internal void
@@ -423,13 +491,31 @@ SetCamera(game_state* GameState, tile_map_position NewCameraP) {
 	tile_map* TileMap = GameState->World->TileMap;
 	tile_map_difference dCamera = Subtract(TileMap, &NewCameraP, &GameState->CameraP);
 	GameState->CameraP = NewCameraP;
-	rectangle2 CameraBounds = RectCenterDim(v2{ 0, 0 }, TileMap->TileSideInMeters * v2{17 * 3, 9 * 3});
+	uint32 TileSpanX = 17 * 3;
+	uint32 TileSpanY = 9 * 3;
+
+	rectangle2 CameraBounds = RectCenterDim(v2{ 0, 0 }, TileMap->TileSideInMeters * v2{ (real32)TileSpanX, (real32)TileSpanY });
 	v2 EntityOffsetForFrame = -dCamera.dXY;
-	for (int EntityIndex = 0; EntityIndex < ArrayCount(GameState->HighEntities); ++EntityIndex) {
-		high_entity* High = GameState->HighEntities + EntityIndex;
-		High->P += EntityOffsetForFrame;
-		if (!IsInRectangle(CameraBounds, High->P)) {
-			ChangeEntityResidence(GameState, EntityIndex, EntityResidence_Dormant);
+	OffsetAndCheckFrequencyByArea(GameState, EntityOffsetForFrame, CameraBounds);
+
+	uint32 MinTileX = NewCameraP.AbsTileX - TileSpanX / 2;
+	uint32 MaxTileX = NewCameraP.AbsTileX + TileSpanX / 2;
+	uint32 MinTileY = NewCameraP.AbsTileY - TileSpanY / 2;
+	uint32 MaxTileY = NewCameraP.AbsTileY + TileSpanY / 2;
+
+	for (uint32 EntityIndex = 1; EntityIndex < GameState->LowEntityCount; ++EntityIndex) {
+		low_entity* Low = GameState->LowEntities + EntityIndex;
+		if (!Low->HighEntityIndex) {
+#if 0
+			if ((Low->P.AbsTileZ == NewCameraP.AbsTileZ)
+				&& (Low->P.AbsTileX >= MinTileX)
+				&& (Low->P.AbsTileX <= MaxTileX)
+				&& (Low->P.AbsTileY >= MinTileY)
+				&& (Low->P.AbsTileY <= MaxTileY)) 
+#endif
+			{
+				MakeEntityHighFrequency(GameState, EntityIndex);
+			}
 		}
 	}
 }
@@ -442,10 +528,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 
 	if (!Memory->IsInitialized) {
-		AddEntity(GameState);
+		AddLowEntity(GameState, EntityType_Null);
+		GameState->HighEntityCount = 1;
 		GameState->Background =
 			DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
-		GameState->Shadow = 
+		GameState->Shadow =
 			DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_shadow.bmp");
 		hero_bitmaps* Bitmap = GameState->HeroBitmaps;
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_head.bmp");
@@ -475,7 +562,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		Bitmap->AlignX = 72;
 		Bitmap->AlignY = 182;
 
-		InitializateArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state),
+		InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state),
 			(uint8*)Memory->PermanentStorage + sizeof(game_state));
 		GameState->World = PushSize(&GameState->WorldArena, world);
 		world* World = GameState->World;
@@ -495,9 +582,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 		TileMap->TileSideInMeters = 1.4f;
 
-		GameState->CameraP.AbsTileX = 17 / 2;
-		GameState->CameraP.AbsTileY = 9 / 2;
-
 		uint32 TilesPerWidth = 17;
 		uint32 TilesPerHeight = 9;
 
@@ -512,94 +596,107 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		bool32 DoorUp = false;
 		bool32 DoorDown = false;
 
-		for (uint32 ScreenIndex = 0; ScreenIndex < 1; ++ScreenIndex) {
+		for (uint32 ScreenIndex = 0; ScreenIndex < 2; ++ScreenIndex) {
 			uint32 RandomChoice;
-			if (DoorUp || DoorDown) {
+			//if (DoorUp || DoorDown) 
+			{
 				RandomChoice = rand() % 2;
 			}
-			else {
-				RandomChoice = rand() % 3;
-			}
-			bool32 CreatedZDoor = false;
-			if (RandomChoice == 2) {
-				CreatedZDoor = true;
-				if (AbsTileZ == 0) {
-					DoorUp = true;
-				}
-				else {
-					DoorDown = true;
-				}
-			}
-			else if (RandomChoice == 1) {
-				DoorRight = true;
-			}
-			else {
-				DoorTop = true;
-			}
-			for (uint32 TileY = 0; TileY < TilesPerHeight; ++TileY) {
-				for (uint32 TileX = 0; TileX < TilesPerWidth; ++TileX) {
-					uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
-					uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;
-
-					uint32 TileValue = 1;
-					if (TileX == 0 && (!DoorLeft || TileY != (TilesPerHeight / 2))) {
-						TileValue = 2;
-					}
-
-					if (TileX == TilesPerWidth - 1 && (!DoorRight || TileY != (TilesPerHeight / 2))) {
-						TileValue = 2;
-					}
-
-					if (TileY == 0 && (!DoorBottom || TileX != (TilesPerWidth / 2))) {
-						TileValue = 2;
-					}
-
-					if (TileY == TilesPerHeight - 1 && (!DoorTop || TileX != (TilesPerWidth / 2))) {
-						TileValue = 2;
-					}
-					if (TileY == 6 && TileX == 10) {
-						if (DoorUp) {
-							TileValue = 3;
-						}
-						if (DoorDown) {
-							TileValue = 4;
-						}
-
-					}
-					SetTileValue(&GameState->WorldArena, World->TileMap, AbsTileX, AbsTileY, AbsTileZ, TileValue);
-				}
-			}
-			DoorLeft = DoorRight;
-			DoorBottom = DoorTop;
-
-			if (CreatedZDoor) {
-				DoorDown = !DoorDown;
-				DoorUp = !DoorUp;
-			}
-
-			else {
-				DoorUp = false;
-				DoorDown = false;
-			}
-
-			DoorRight = false;
-			DoorTop = false;
-
-			if (RandomChoice == 2) {
-				if (AbsTileZ == 0) {
-					AbsTileZ = 1;
-				}
-				else {
-					AbsTileZ = 0;
-				}
-			}
-			else if (RandomChoice == 1) {
-				ScreenX += 1;
-			}
-			else {
-				ScreenY += 1;
-			}
+#if 0
+	else {
+		RandomChoice = rand() % 3;
+	}
+#endif
+	bool32 CreatedZDoor = false;
+	if (RandomChoice == 2) {
+		CreatedZDoor = true;
+		if (AbsTileZ == 0) {
+			DoorUp = true;
 		}
+		else {
+			DoorDown = true;
+		}
+	}
+	else if (RandomChoice == 1) {
+		DoorRight = true;
+	}
+	else {
+		DoorTop = true;
+	}
+	for (uint32 TileY = 0; TileY < TilesPerHeight; ++TileY) {
+		for (uint32 TileX = 0; TileX < TilesPerWidth; ++TileX) {
+			uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
+			uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;
+
+			uint32 TileValue = 1;
+			if (TileX == 0 && (!DoorLeft || TileY != (TilesPerHeight / 2))) {
+				TileValue = 2;
+			}
+
+			if (TileX == TilesPerWidth - 1 && (!DoorRight || TileY != (TilesPerHeight / 2))) {
+				TileValue = 2;
+			}
+
+			if (TileY == 0 && (!DoorBottom || TileX != (TilesPerWidth / 2))) {
+				TileValue = 2;
+			}
+
+			if (TileY == TilesPerHeight - 1 && (!DoorTop || TileX != (TilesPerWidth / 2))) {
+				TileValue = 2;
+			}
+			if (TileY == 6 && TileX == 10) {
+				if (DoorUp) {
+					TileValue = 3;
+				}
+				if (DoorDown) {
+					TileValue = 4;
+				}
+
+			}
+			SetTileValue(&GameState->WorldArena, World->TileMap, AbsTileX, AbsTileY, AbsTileZ, TileValue);
+			if (TileValue == 2) {
+				AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+			}
+
+		}
+	}
+	DoorLeft = DoorRight;
+	DoorBottom = DoorTop;
+
+	if (CreatedZDoor) {
+		DoorDown = !DoorDown;
+		DoorUp = !DoorUp;
+	}
+
+	else {
+		DoorUp = false;
+		DoorDown = false;
+	}
+
+	DoorRight = false;
+	DoorTop = false;
+
+	if (RandomChoice == 2) {
+		if (AbsTileZ == 0) {
+			AbsTileZ = 1;
+		}
+		else {
+			AbsTileZ = 0;
+		}
+	}
+	else if (RandomChoice == 1) {
+		ScreenX += 1;
+	}
+	else {
+		ScreenY += 1;
+	}
+		}
+
+		tile_map_position NewCameraP;
+		NewCameraP.AbsTileX = 17 / 2;
+		NewCameraP.AbsTileY = 9 / 2;
+		SetCamera(GameState, NewCameraP);
+
 		Memory->IsInitialized = true;
 	}
 
@@ -615,8 +712,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
 		game_controller_input* Controller = GetController(Input, ControllerIndex);
-		entity ControllingEntity = GetEntity(GameState, EntityResidence_High, GameState->PlayerIndexForController[ControllerIndex]);
-		if (ControllingEntity.Residence != EntityResidence_Noneexistent) {
+		uint32 LowIndex = GameState->PlayerIndexForController[ControllerIndex];
+		if (LowIndex == 0) {
+			if (Controller->Start.EndedDown) {
+				uint32 EntityIndex = AddPlayer(GameState);
+
+				GameState->PlayerIndexForController[ControllerIndex] = EntityIndex;
+			}
+		}
+		else {
+			entity ControllingEntity = GetHighEntity(GameState, LowIndex);
 			v2 ddPlayer = {};
 			if (Controller->IsAnalog) {
 				ddPlayer = v2{ Controller->StickAverageX, Controller->StickAverageY };
@@ -634,26 +739,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				}
 				if (Controller->MoveRight.EndedDown) {
 					ddPlayer.X = 1.0f;
-				}	
+				}
 			}
 			if (Controller->ActionUp.EndedDown) {
 				ControllingEntity.High->dZ = 3.0f;
 			}
 			MovePlayer(GameState, ControllingEntity, Input->dtForFrame, ddPlayer);
 		}
-		else {
-			if (Controller->Start.EndedDown) {
-				uint32 EntityIndex = AddEntity(GameState);
-				InitializePlayer(GameState, EntityIndex);
-				GameState->PlayerIndexForController[ControllerIndex] = EntityIndex;
-			}
-		}
-
 	}
-	entity CameraFollowingEntity = GetEntity(GameState, EntityResidence_High, GameState->CameraFollowingEntityIndex);
-	if (CameraFollowingEntity.Residence != EntityResidence_Noneexistent) {
+	entity CameraFollowingEntity = GetHighEntity(GameState, GameState->CameraFollowingEntityIndex);
+	if (CameraFollowingEntity.High) {
 		tile_map_position NewCameraP = GameState->CameraP;
-		NewCameraP.AbsTileZ = CameraFollowingEntity.Dormant->P.AbsTileZ;
+		NewCameraP.AbsTileZ = CameraFollowingEntity.Low->P.AbsTileZ;
 
 		if (CameraFollowingEntity.High->P.X > (9.0f * TileMap->TileSideInMeters)) {
 			NewCameraP.AbsTileX += 17;
@@ -677,45 +774,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	real32 ScreenCenterX = 0.5f * (real32)Buffer->Width;
 	real32 ScreenCenterY = 0.5f * (real32)Buffer->Height;
 
-	for (int RelRow = -10; RelRow < 10; ++RelRow) {
-		for (int RelColumn = -20; RelColumn < 20; ++RelColumn) {
-			uint32 Column = GameState->CameraP.AbsTileX + RelColumn;
-			uint32 Row = GameState->CameraP.AbsTileY + RelRow;
-			uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->CameraP.AbsTileZ);
-			if (TileID > 1) {
-				real32 Gray = 0.5f;
-				if (TileID == 2) {
-					Gray = 1.0f;
-				}
-
-				if (TileID > 2) {
-					Gray = 0.25f;
-				}
-
-				if (Row == GameState->CameraP.AbsTileY && Column == GameState->CameraP.AbsTileX) {
-					Gray = 0.0f;
-				}
-
-				v2 TileSide = { 0.5f * TileSideInPixels , 0.5f * TileSideInPixels };
-				v2 Cen = {
-				ScreenCenterX - MetersToPixels * GameState->CameraP.Offset_.X
-					+ ((real32)RelColumn) * TileSideInPixels,
-				ScreenCenterY + MetersToPixels * GameState->CameraP.Offset_.Y
-					- ((real32)RelRow) * TileSideInPixels };
-
-				v2 Min = Cen - TileSide;
-				v2 Max = Cen + TileSide;
-				DrawRectangle(Buffer, Min, Max, Gray, Gray, Gray);
-			}
-		}
-	}
-
-
-	for (uint32 EntityIndex = 0; EntityIndex < GameState->EntityCount; ++EntityIndex) {
-		if (GameState->EntityResidence[EntityIndex] == EntityResidence_High) {
-			high_entity* HighEntity = &GameState->HighEntities[EntityIndex];
-			low_entity* LowEntity = &GameState->LowEntities[EntityIndex];
-			dormant_entity* DormantEntity = &GameState->DormantEntities[EntityIndex];
+	for (uint32 HighEntityIndex = 0; HighEntityIndex < GameState->HighEntityCount; ++HighEntityIndex) {
+		
+			high_entity* HighEntity = GameState->HighEntities_ + HighEntityIndex;
+			low_entity* LowEntity = GameState->LowEntities + HighEntity->LowEntityIndex;
 
 			real32 dt = Input->dtForFrame;
 			real32 ddZ = -9.8f;
@@ -728,7 +790,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			if (CAlpha < 0) {
 				CAlpha = 0.0f;
 			}
-			
+
 			//tile_map_difference Diff = Subtract(TileMap, &Entity->P, &GameState->CameraP);
 			real32 PlayerR = 1.0f;
 			real32 PlayerG = 1.0f;
@@ -740,22 +802,24 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			real32 Z = -HighEntity->Z * MetersToPixels;
 
 			v2 PlayerLeftTop = {
-				PlayerGroundX - (MetersToPixels * DormantEntity->Width * 0.5f),
-				PlayerGroundY - MetersToPixels * DormantEntity->Height * 0.5f
+				PlayerGroundX - (MetersToPixels * LowEntity->Width * 0.5f),
+				PlayerGroundY - MetersToPixels * LowEntity->Height * 0.5f
 			};
 			v2 PlayerWidthHeight = {
-				DormantEntity->Width, DormantEntity->Height
+				LowEntity->Width, LowEntity->Height
 			};
-#if 0
-			DrawRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MetersToPixels * PlayerWidthHeight,
-				PlayerR, PlayerG, PlayerB);
-#endif
-			hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[HighEntity->FacingDirection];
-			DrawBitmap(Buffer, &HeroBitmap->Torso, PlayerGroundX, PlayerGroundY + Z, HeroBitmap->AlignX, HeroBitmap->AlignY);
-			DrawBitmap(Buffer, &HeroBitmap->Cape, PlayerGroundX, PlayerGroundY + Z, HeroBitmap->AlignX, HeroBitmap->AlignY);
-			DrawBitmap(Buffer, &HeroBitmap->Head, PlayerGroundX, PlayerGroundY + Z, HeroBitmap->AlignX, HeroBitmap->AlignY);
-			DrawBitmap(Buffer, &GameState->Shadow, PlayerGroundX, PlayerGroundY, HeroBitmap->AlignX, HeroBitmap->AlignY, CAlpha);
-		}
+			if (LowEntity->Type == EntityType_Hero) {
+				hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[HighEntity->FacingDirection];
+				DrawBitmap(Buffer, &HeroBitmap->Torso, PlayerGroundX, PlayerGroundY + Z, HeroBitmap->AlignX, HeroBitmap->AlignY);
+				DrawBitmap(Buffer, &HeroBitmap->Cape, PlayerGroundX, PlayerGroundY + Z, HeroBitmap->AlignX, HeroBitmap->AlignY);
+				DrawBitmap(Buffer, &HeroBitmap->Head, PlayerGroundX, PlayerGroundY + Z, HeroBitmap->AlignX, HeroBitmap->AlignY);
+				DrawBitmap(Buffer, &GameState->Shadow, PlayerGroundX, PlayerGroundY, HeroBitmap->AlignX, HeroBitmap->AlignY, CAlpha);
+			}
+			else {
+				DrawRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MetersToPixels * PlayerWidthHeight,
+					PlayerR, PlayerG, PlayerB);
+			}
+		
 	}
 
 }

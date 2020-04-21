@@ -59,6 +59,13 @@ operator*(real32 A, v2 B) {
 	Result.Y = A * B.Y;
 	return (Result);
 }
+inline v2
+operator*(v2 B, real32 A) {
+	v2 Result;
+	Result.X = A * B.X;
+	Result.Y = A * B.Y;
+	return (Result);
+}
 
 inline v2&
 v2::operator*=(real32 A) {

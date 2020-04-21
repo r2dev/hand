@@ -59,6 +59,8 @@ typedef size_t memory_index;
 #define Assert(Expression)
 #endif
 
+#define InvalidCodePath Assert(!"InvalidCodePath")
+
 #include <math.h>
 
 #define Kilobytes(Value) ((Value)*1024)
