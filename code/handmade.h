@@ -12,7 +12,7 @@ struct memory_arena {
 	memory_index Used;
 };
 
-#define PushSize(Arena, type) (type*) _PushSize(Arena, sizeof(type))
+#define PushStruct(Arena, type) (type*) _PushSize(Arena, sizeof(type))
 #define PushArray(Arena, Count, type) (type*) _PushSize(Arena, (Count)*sizeof(type))
 void*
 _PushSize(memory_arena* Arena, memory_index Size) {

@@ -608,6 +608,11 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
 						}
 					}
 				}
+				else if (VKCode == '1') {
+					if (IsDown) {
+						GlobalRunning = false;
+					}
+				}
 
 #endif
 				if (IsDown) {
