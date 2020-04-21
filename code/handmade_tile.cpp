@@ -1,6 +1,6 @@
 #include "handmade_tile.h"
 
-#define TILE_CHUNK_SAFE_MARGIN INT32_MAX / 64
+#define TILE_CHUNK_SAFE_MARGIN (INT32_MAX / 64)
 #define TILE_CHUNK_UNINITIALIZED INT32_MAX
 
 inline void

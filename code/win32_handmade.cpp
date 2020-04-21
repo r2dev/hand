@@ -799,7 +799,7 @@ int CALLBACK WinMain(
 
 			game_memory GameMemory = {};
 			GameMemory.PermanentStorageSize = Megabytes(64);
-#if 1
+#if 0
 			GameMemory.TransientStorageSize = Gigabytes(1);
 #else
 			GameMemory.TransientStorageSize = Megabytes(20);
