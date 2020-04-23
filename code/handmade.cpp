@@ -1,5 +1,5 @@
 #include "handmade.h"
-#include "handmade_tile.cpp"
+#include "handmade_world.cpp"
 #include <cstdlib>
 
 internal void
@@ -17,7 +17,7 @@ GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer, in
 #else
 		int16 SampleValue = 0;
 #endif
-		* SampleOut++ = SampleValue;
+		*SampleOut++ = SampleValue;
 		*SampleOut++ = SampleValue;
 #if 0
 		GameState->tSine += 2.0f * Pi32 * 1.0f / (real32)WavePeriod;
@@ -223,8 +223,8 @@ MakeEntityHighFrequency(game_state* GameState, uint32 LowIndex) {
 			uint32 HighIndex = GameState->HighEntityCount++;
 			HighEntity = GameState->HighEntities_ + HighIndex;
 
-			tile_map_difference Diff =
-				Subtract(GameState->World->TileMap, &LowEntity->P, &GameState->CameraP);
+			world_difference Diff =
+				Subtract(GameState->World, &LowEntity->P, &GameState->CameraP);
 			HighEntity->P = Diff.dXY;
 			HighEntity->dP = v2{ 0, 0 };
 			HighEntity->AbsTileZ = LowEntity->P.AbsTileZ;
@@ -332,7 +332,7 @@ AddWall(game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ
 	Entity->P.AbsTileX = AbsTileX;
 	Entity->P.AbsTileY = AbsTileY;
 	Entity->P.AbsTileZ = AbsTileZ;
-	Entity->Height = GameState->World->TileMap->TileSideInMeters;;
+	Entity->Height = GameState->World->TileSideInMeters;;
 	Entity->Width = Entity->Height;
 	Entity->Collides = true;
 	return(EntityIndex);
@@ -361,7 +361,7 @@ TestWall(real32 WallX, real32 RelX, real32 RelY,
 internal void
 MovePlayer(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 
-	tile_map* TileMap = GameState->World->TileMap;
+	world* World = GameState->World;
 	real32 ddpLength = LengthSq(ddP);
 	if (ddpLength > 1.0f) {
 		ddP *= (1.0f / SquareRoot(ddpLength));
@@ -480,24 +480,24 @@ MovePlayer(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 			Entity.High->FacingDirection = 3;
 		}
 	}
-	Entity.Low->P = MapIntoTileSpace(GameState->World->TileMap, GameState->CameraP, Entity.High->P);
+	Entity.Low->P = MapIntoTileSpace(GameState->World, GameState->CameraP, Entity.High->P);
 }
 
 #endif
 
 internal void
-SetCamera(game_state* GameState, tile_map_position NewCameraP)
+SetCamera(game_state* GameState, world_position NewCameraP)
 {
-	tile_map* TileMap = GameState->World->TileMap;
+	world* World = GameState->World;
 
-	tile_map_difference dCameraP = Subtract(TileMap, &NewCameraP, &GameState->CameraP);
+	world_difference dCameraP = Subtract(World, &NewCameraP, &GameState->CameraP);
 	GameState->CameraP = NewCameraP;
 
 	// TODO(casey): I am totally picking these numbers randomly!
 	uint32 TileSpanX = 17 * 3;
 	uint32 TileSpanY = 9 * 3;
 	rectangle2 CameraBounds = RectCenterDim(V2(0, 0),
-		TileMap->TileSideInMeters * V2((real32)TileSpanX,
+		World->TileSideInMeters * V2((real32)TileSpanX,
 			(real32)TileSpanY));
 	v2 EntityOffsetForFrame = -dCameraP.dXY;
 	OffsetAndCheckFrequencyByArea(GameState, EntityOffsetForFrame, CameraBounds);
@@ -571,10 +571,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			(uint8*)Memory->PermanentStorage + sizeof(game_state));
 		GameState->World = PushStruct(&GameState->WorldArena, world);
 		world* World = GameState->World;
-		World->TileMap = PushStruct(&GameState->WorldArena, tile_map);
-		tile_map* TileMap = World->TileMap;
 
-		InitializeTileMap(TileMap, 1.4f);
+		InitializeWorld(World, 1.4f);
 
 		uint32 TilesPerWidth = 17;
 		uint32 TilesPerHeight = 9;
@@ -649,7 +647,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				}
 
 			}
-			SetTileValue(&GameState->WorldArena, World->TileMap, AbsTileX, AbsTileY, AbsTileZ, TileValue);
+
 			if (TileValue == 2) {
 				AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
 			}
@@ -688,7 +686,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	}
 		}
 
-		tile_map_position NewCameraP = {};
+		world_position NewCameraP = {};
 		NewCameraP.AbsTileX = ScreenBaseX * TilesPerWidth + 17 / 2;
 		NewCameraP.AbsTileY = ScreenBaseY * TilesPerHeight + 9 / 2;
 		NewCameraP.AbsTileZ = ScreenBaseZ;
@@ -698,10 +696,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	}
 
 	world* World = GameState->World;
-	tile_map* TileMap = World->TileMap;
 
 	int32 TileSideInPixels = 60;
-	real32 MetersToPixels = (real32)TileSideInPixels / (real32)TileMap->TileSideInMeters;
+	real32 MetersToPixels = (real32)TileSideInPixels / (real32)World->TileSideInMeters;
 	real32 LowerLeftX = -(real32)(TileSideInPixels / 2);
 	real32 LowerLeftY = (real32)Buffer->Height;
 
@@ -747,19 +744,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	entity CameraFollowingEntity = GetHighEntity(GameState, GameState->CameraFollowingEntityIndex);
 	if (CameraFollowingEntity.High) {
-		tile_map_position NewCameraP = GameState->CameraP;
+		world_position NewCameraP = GameState->CameraP;
 		NewCameraP.AbsTileZ = CameraFollowingEntity.Low->P.AbsTileZ;
 
-		if (CameraFollowingEntity.High->P.X > (9.0f * TileMap->TileSideInMeters)) {
+		if (CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters)) {
 			NewCameraP.AbsTileX += 17;
 		}
-		if (CameraFollowingEntity.High->P.X < -(9.0f * TileMap->TileSideInMeters)) {
+		if (CameraFollowingEntity.High->P.X < -(9.0f * World->TileSideInMeters)) {
 			NewCameraP.AbsTileX -= 17;
 		}
-		if (CameraFollowingEntity.High->P.Y > (5.0f * TileMap->TileSideInMeters)) {
+		if (CameraFollowingEntity.High->P.Y > (5.0f * World->TileSideInMeters)) {
 			NewCameraP.AbsTileY += 9;
 		}
-		if (CameraFollowingEntity.High->P.Y < -(5.0f * TileMap->TileSideInMeters)) {
+		if (CameraFollowingEntity.High->P.Y < -(5.0f * World->TileSideInMeters)) {
 			NewCameraP.AbsTileY -= 9;
 		}
 		SetCamera(GameState, NewCameraP);
