@@ -28,6 +28,8 @@ struct world {
 	real32 TileSideInMeters;
 	real32 ChunkSideInMeters;
 	world_chunk ChunkHash[4096];
+
+	world_entity_block* FirstFree;
 };
 
 struct world_difference {

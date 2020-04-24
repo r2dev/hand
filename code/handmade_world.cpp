@@ -129,10 +129,10 @@ AreInSameChunk(world_position a, world_position b) {
 }
 
 inline void
-ChangeEntityLocation(memory_arena * Arena, world* World, uint32 LowEntityIndex,
+ChangeEntityLocation(memory_arena* Arena, world* World, uint32 LowEntityIndex,
 	world_position* OldP, world_position* NewP) {
 	if (OldP && AreInSameChunk(*OldP, *NewP)) {
-		
+
 	}
 	else {
 		if (OldP) {
@@ -143,22 +143,21 @@ ChangeEntityLocation(memory_arena * Arena, world* World, uint32 LowEntityIndex,
 				for (world_entity_block* Block = FirstBlock Block; Block = Block->Next) {
 					for (uint32 Index = 0; Index < Chunk->EntityCount; Index++) {
 						if (Block->LowEntityIndex[Index] == LowEntityIndex) {
-							if (FirstBlock == Block) {
-								if (FirstBlock->EntityCount == 1) {
-									if (FirstBlock->Next) {
-										world_entity_block* NextBlock = FirstBlock->Next;
-										FirstBlock = NextBlock;
-										FreeBlock(NextBlock);
-									}
-								}
-								else {
-									// note --
-									FirstBlock->LowEntityIndex[Index] = Block->LowEntityIndex[--Block->EntityCount];
-								}
-							}
-							else {
 
+							Block->LowEntityIndex[Index]
+								= FirstBlock->LowEntityIndex[--FirstBlock->EntityCount];
+
+							if (FirstBlock->EntityCount == 0) {
+								if (FirstBlock->Next) {
+									world_entity_block* NextBlock = FirstBlock->Next;
+									FirstBlock = NextBlock;
+
+									NextBlock->Next = World->FirstFree;
+									World->FirstFree = NextBlock
+								}
 							}
+							Block = 0;     
+							break;
 						}
 					}
 				}
@@ -168,7 +167,13 @@ ChangeEntityLocation(memory_arena * Arena, world* World, uint32 LowEntityIndex,
 		world_chunk* TargetChunk = GetWorldChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
 		world_entity_block* Block = &TargetChunk->FirstBlock;
 		if (Block->EntityCount == ArrayCount(Block->LowEntityIndex)) {
-			world_entity_block *OldBlock = PushStruct(Arena, world_entity_block);
+			world_entity_block* OldBlock = World->FirstFree;
+			if (OldBlock) {
+				World->FirstFree = OldBlock->Next;
+			}
+			else {
+				OldBlock = PushStruct(Arena, world_entity_block);
+			}
 			*OldBlock = *Block;
 			Block->Next = OldBlock;
 			Block->EntityCount = 0;
