@@ -590,7 +590,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		bool32 DoorUp = false;
 		bool32 DoorDown = false;
 
-		for (uint32 ScreenIndex = 0; ScreenIndex < 2; ++ScreenIndex) {
+		for (uint32 ScreenIndex = 0; ScreenIndex < 2000; ++ScreenIndex) {
 			uint32 RandomChoice;
 			//if (DoorUp || DoorDown) 
 			{
