@@ -43,7 +43,7 @@ struct hero_bitmaps {
 struct high_entity {
 	v2 P;
 	v2 dP;
-	uint32 AbsTileZ;
+	uint32 ChunkZ;
 	uint32 FacingDirection;
 
 	real32 Z;
