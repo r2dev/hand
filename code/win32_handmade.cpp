@@ -608,11 +608,6 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
 						}
 					}
 				}
-				else if (VKCode == '1') {
-					if (IsDown) {
-						GlobalRunning = false;
-					}
-				}
 
 #endif
 				if (IsDown) {
@@ -799,7 +794,7 @@ int CALLBACK WinMain(
 
 			game_memory GameMemory = {};
 			GameMemory.PermanentStorageSize = Megabytes(64);
-#if 0
+#if 1
 			GameMemory.TransientStorageSize = Gigabytes(1);
 #else
 			GameMemory.TransientStorageSize = Megabytes(20);

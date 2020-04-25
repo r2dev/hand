@@ -95,6 +95,7 @@ struct game_state {
 
 	loaded_bitmap Background;
 	loaded_bitmap Shadow;
+	loaded_bitmap Tree;
 	
 	hero_bitmaps HeroBitmaps[4];
 };
