@@ -713,7 +713,8 @@ Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End) {
 int CALLBACK WinMain(
 	HINSTANCE Instance,
 	HINSTANCE PrevInstance,
-	LPSTR     CommandLine,	int       showCode
+	LPSTR CommandLine,
+	int showCode
 	) {
 	win32_state Win32State = {};
 	LARGE_INTEGER PerfCountFrequencyResult;
