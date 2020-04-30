@@ -39,6 +39,13 @@ struct hero_bitmaps {
 	loaded_bitmap Torso;
 };
 
+#define HIT_POINT_SUB_COUNT 4
+struct hit_point {
+	uint8 Flag;
+	uint8 FilledAmount;
+};
+
+
 struct high_entity {
 	v2 P;
 	v2 dP;
@@ -70,26 +77,19 @@ struct low_entity {
 	int32 dAbsTileZ;
 
 	uint32 HighEntityIndex;
+
+	uint32 HitPointMax;
+	hit_point HitPoint[16];
 };
 
 
 struct entity {
 	uint32 LowIndex;
-	low_entity *Low;
-	high_entity *High;
+	low_entity* Low;
+	high_entity* High;
 };
 
-struct entity_visible_piece {
-	loaded_bitmap* Bitmap;
-	v2 Offset;
-	real32 OffsetZ;
-	real32 Alpha;
-};
 
-struct entity_visible_piece_group {
-	uint32 PieceCount;
-	entity_visible_piece Pieces[8];
-};
 
 struct game_state {
 	memory_arena WorldArena;
@@ -109,9 +109,24 @@ struct game_state {
 	loaded_bitmap Background;
 	loaded_bitmap Shadow;
 	loaded_bitmap Tree;
-	
+
 	hero_bitmaps HeroBitmaps[4];
+	real32 MetersToPixels;
 };
 
+struct entity_visible_piece {
+	loaded_bitmap* Bitmap;
+	v2 Offset;
+	real32 OffsetZ;
+	real32 R, G, B, A;
+	v2 Dim;
+	real32 EntityZC;
+};
+
+struct entity_visible_piece_group {
+	game_state* GameState;
+	uint32 PieceCount;
+	entity_visible_piece Pieces[8];
+};
 
 #endif
