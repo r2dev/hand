@@ -64,7 +64,8 @@ enum entity_type {
 	EntityType_Hero,
 	EntityType_Wall,
 	EntityType_Familiar,
-	EntityType_Monster
+	EntityType_Monster,
+	EntityType_Sword
 };
 
 struct low_entity {
@@ -80,6 +81,9 @@ struct low_entity {
 
 	uint32 HitPointMax;
 	hit_point HitPoint[16];
+
+	uint32 SwordLowIndex;
+	real32 DistanceRemaining;
 };
 
 
