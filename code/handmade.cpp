@@ -320,10 +320,9 @@ AddLowEntity(game_state* GameState, entity_type Type, world_position* P) {
 	low_entity* LowEntity = GameState->LowEntities + EntityIndex;
 	*LowEntity = {};
 	LowEntity->Type = Type;
-	if (P) {
-		LowEntity->P = *P;
-		ChangeEntityLocation(&GameState->WorldArena, GameState->World, EntityIndex, 0, P);
-	}
+
+	ChangeEntityLocation(&GameState->WorldArena, GameState->World, EntityIndex, LowEntity, 0, P);
+
 	Result.Low = LowEntity;
 	Result.LowIndex = EntityIndex;
 	return(Result);
@@ -587,8 +586,7 @@ MoveEntity(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 		}
 	}
 	world_position NewP = MapIntoChunkSpace(GameState->World, GameState->CameraP, Entity.High->P);
-	ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, &Entity.Low->P, &NewP);
-	Entity.Low->P = NewP;
+	ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, Entity.Low, &Entity.Low->P, &NewP);
 }
 
 #endif
@@ -693,6 +691,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_shadow.bmp");
 		GameState->Tree =
 			DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/tree00.bmp");
+		GameState->Sword =
+			DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/rock03.bmp");
 		hero_bitmaps* Bitmap = GameState->HeroBitmaps;
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_cape.bmp");
@@ -750,7 +750,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 #if 0
 	else {
 		RandomChoice = rand() % 3;
-			}
+	}
 #endif
 	bool32 CreatedZDoor = false;
 	if (RandomChoice == 2) {
@@ -888,10 +888,33 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					ddPlayer.X = 1.0f;
 				}
 			}
-			if (Controller->ActionUp.EndedDown) {
+			if (Controller->Start.EndedDown) {
 				ControllingEntity.High->dZ = 3.0f;
 			}
+
 			MoveEntity(GameState, ControllingEntity, Input->dtForFrame, ddPlayer);
+
+			v2 dSword = {};
+			if (Controller->ActionUp.EndedDown) {
+				dSword = v2{ 0.0f, 1.0f };
+			}
+			else if (Controller->ActionDown.EndedDown) {
+				dSword = v2{ 0.0f, -1.0f };
+			}
+			else if (Controller->ActionLeft.EndedDown) {
+				dSword = v2{ -1.0f, 0.0f };
+			}
+			else if (Controller->ActionRight.EndedDown) {
+				dSword = v2{ 1.0f, 0.0f };
+			}
+			if (dSword.X != 0.0f || dSword.Y != 0.0f) {
+				low_entity* Sword = GetLowEntity(GameState, ControllingEntity.Low->SwordLowIndex);
+				if (Sword && !IsValid(Sword->P)) {
+					world_position SwordP = ControllingEntity.Low->P;
+					ChangeEntityLocation(&GameState->WorldArena, GameState->World,
+						ControllingEntity.Low->SwordLowIndex, Sword, 0, &SwordP);
+				}
+			}
 		}
 	}
 
@@ -911,12 +934,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		}
 		if (CameraFollowingEntity.High->P.Y < -(5.0f * World->TileSideInMeters)) {
 			NewCameraP.AbsTileY -= 9;
-	}
+		}
 #else
 		NewCameraP = CameraFollowingEntity.Low->P;
 #endif
 		SetCamera(GameState, NewCameraP);
-}
+	}
 	//
 
 #if 1
@@ -973,6 +996,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 		case EntityType_Wall: {
 			PushBitmap(&PieceGroup, &GameState->Tree, v2{ 0, 0 }, 0, v2{ 40, 80 });
+		} break;
+		case EntityType_Sword: {
+			PushBitmap(&PieceGroup, &GameState->Shadow, v2{ 0, 0 }, 0, HeroBitmap->Align, ShadowAlpha, 0);
+			PushBitmap(&PieceGroup, &GameState->Sword, v2{ 0, 0 }, 0, v2{ 29, 10 });
 		} break;
 		case EntityType_Familiar: {
 			UpdateFamiliar(GameState, Entity, dt);

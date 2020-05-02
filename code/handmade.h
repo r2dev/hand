@@ -113,6 +113,7 @@ struct game_state {
 	loaded_bitmap Background;
 	loaded_bitmap Shadow;
 	loaded_bitmap Tree;
+	loaded_bitmap Sword;
 
 	hero_bitmaps HeroBitmaps[4];
 	real32 MetersToPixels;
