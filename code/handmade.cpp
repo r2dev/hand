@@ -274,8 +274,9 @@ inline void
 OffsetAndCheckFrequencyByArea(game_state* GameState, v2 Offset, rectangle2 CameraBounds) {
 	for (uint32 EntityIndex = 1; EntityIndex < GameState->HighEntityCount;) {
 		high_entity* High = GameState->HighEntities_ + EntityIndex;
+		low_entity* Low = GameState->LowEntities + High->LowEntityIndex;
 		High->P += Offset;
-		if (IsInRectangle(CameraBounds, High->P)) {
+		if (IsValid(Low->P) && IsInRectangle(CameraBounds, High->P)) {
 			++EntityIndex;
 		}
 		else {
@@ -432,8 +433,6 @@ AddMonster(game_state* GameState, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ
 	return(Entity);
 }
 
-
-
 internal add_low_entity_result
 AddFamiliar(game_state* GameState, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
 	world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
@@ -462,20 +461,27 @@ TestWall(real32 WallX, real32 RelX, real32 RelY,
 	return(Hit);
 }
 
+struct move_spec {
+	bool32 UnitMaxAccelVector;
+	real32 Speed;
+	real32 Drag;
+};
 
 #if 1
 internal void
-MoveEntity(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
+MoveEntity(game_state* GameState, entity Entity, real32 dt, move_spec* MoveSpec, v2 ddP) {
 
 	world* World = GameState->World;
-	real32 ddpLength = LengthSq(ddP);
-	if (ddpLength > 1.0f) {
-		ddP *= (1.0f / SquareRoot(ddpLength));
+	if (MoveSpec->UnitMaxAccelVector) {
+		real32 ddpLength = LengthSq(ddP);
+		if (ddpLength > 1.0f) {
+			ddP *= (1.0f / SquareRoot(ddpLength));
+		}
 	}
-	real32 PlayerSpeed = 50.0f;
-	ddP *= PlayerSpeed;
 
-	ddP += -8.0f * Entity.High->dP;
+	ddP *= MoveSpec->Speed;
+
+	ddP += -MoveSpec->Drag * Entity.High->dP;
 	v2 OldPlayerP = Entity.High->P;
 	v2 PlayerDelta = 0.5f * Square(dt) * ddP +
 		dt * Entity.High->dP;
@@ -509,44 +515,46 @@ MoveEntity(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 		uint32 HitHighEntityIndex = 0;
 
 		v2 DesiredPosition = Entity.High->P + PlayerDelta;
-		for (uint32 TestHighEntityIndex = 1;
-			TestHighEntityIndex < GameState->HighEntityCount;
-			++TestHighEntityIndex) {
-			if (TestHighEntityIndex != Entity.Low->HighEntityIndex) {
-				entity TestEntity;
-				TestEntity.High = GameState->HighEntities_ + TestHighEntityIndex;
-				TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
-				TestEntity.Low = GameState->LowEntities + TestEntity.LowIndex;
+		if (Entity.Low->Collides) {
+			for (uint32 TestHighEntityIndex = 1;
+				TestHighEntityIndex < GameState->HighEntityCount;
+				++TestHighEntityIndex) {
+				if (TestHighEntityIndex != Entity.Low->HighEntityIndex) {
+					entity TestEntity;
+					TestEntity.High = GameState->HighEntities_ + TestHighEntityIndex;
+					TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
+					TestEntity.Low = GameState->LowEntities + TestEntity.LowIndex;
 
-				if (TestEntity.Low->Collides) {
-					real32 DiameterW = TestEntity.Low->Width + Entity.Low->Width;
-					real32 DiameterH = TestEntity.Low->Height + Entity.Low->Height;
+					if (TestEntity.Low->Collides) {
+						real32 DiameterW = TestEntity.Low->Width + Entity.Low->Width;
+						real32 DiameterH = TestEntity.Low->Height + Entity.Low->Height;
 
-					v2 MinCorner = -0.5f * v2{ DiameterW, DiameterH };
-					v2 MaxCorner = 0.5f * v2{ DiameterW, DiameterH };
+						v2 MinCorner = -0.5f * v2{ DiameterW, DiameterH };
+						v2 MaxCorner = 0.5f * v2{ DiameterW, DiameterH };
 
-					v2 Rel = Entity.High->P - TestEntity.High->P;
+						v2 Rel = Entity.High->P - TestEntity.High->P;
 
-					//tResult = (MinCorner.X - RelOldPlayerP.dXY.X) / PlayerDelta.X;
-					if (TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
-						PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
-						WallNormal = v2{ -1, 0 };
-						HitHighEntityIndex = TestHighEntityIndex;
-					}
-					if (TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
-						PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
-						WallNormal = v2{ 1, 0 };
-						HitHighEntityIndex = TestHighEntityIndex;
-					}
-					if (TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
-						PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
-						WallNormal = v2{ 0, 1 };
-						HitHighEntityIndex = TestHighEntityIndex;
-					}
-					if (TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
-						PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
-						WallNormal = v2{ 0, -1 };
-						HitHighEntityIndex = TestHighEntityIndex;
+						//tResult = (MinCorner.X - RelOldPlayerP.dXY.X) / PlayerDelta.X;
+						if (TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
+							PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
+							WallNormal = v2{ -1, 0 };
+							HitHighEntityIndex = TestHighEntityIndex;
+						}
+						if (TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
+							PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
+							WallNormal = v2{ 1, 0 };
+							HitHighEntityIndex = TestHighEntityIndex;
+						}
+						if (TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
+							PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
+							WallNormal = v2{ 0, 1 };
+							HitHighEntityIndex = TestHighEntityIndex;
+						}
+						if (TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
+							PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
+							WallNormal = v2{ 0, -1 };
+							HitHighEntityIndex = TestHighEntityIndex;
+						}
 					}
 				}
 			}
@@ -591,6 +599,15 @@ MoveEntity(game_state* GameState, entity Entity, real32 dt, v2 ddP) {
 
 #endif
 
+inline move_spec
+DefaultMoveSpec() {
+	move_spec Result = {};
+	Result.UnitMaxAccelVector = false;
+	Result.Speed = 1.0f;
+	Result.Drag = 0.0f;
+	return(Result);
+}
+
 internal void
 UpdateFamiliar(game_state* GameState, entity Entity, real32 dt) {
 	entity ClosestHero = {};
@@ -610,8 +627,29 @@ UpdateFamiliar(game_state* GameState, entity Entity, real32 dt) {
 		real32 Acceleration = 0.5f;
 		real32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
 		ddp = OneOverLength * (ClosestHero.High->P - Entity.High->P);
-		MoveEntity(GameState, Entity, dt, ddp);
 	}
+	move_spec MoveSpec = DefaultMoveSpec();
+	MoveSpec.UnitMaxAccelVector = true;
+	MoveSpec.Speed = 50.0f;
+	MoveSpec.Drag = 8.0f;
+	MoveEntity(GameState, Entity, dt, &MoveSpec, ddp);
+}
+internal void
+UpdateSword(game_state* GameState, entity Entity, real32 dt) {
+	move_spec MoveSpec = DefaultMoveSpec();
+	MoveSpec.UnitMaxAccelVector = false;
+	MoveSpec.Speed = 0.0f;
+	MoveSpec.Drag = 0.0f;
+	
+	v2 OldP = Entity.High->P;
+	MoveEntity(GameState, Entity, dt, &MoveSpec, v2{ 0, 0 });
+	real32 DistanceTraveled = Length(Entity.High->P - OldP);
+	Entity.Low->DistanceRemaining -= DistanceTraveled;
+	if (Entity.Low->DistanceRemaining < 0.0f) {
+		ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, Entity.Low, &Entity.Low->P, 0);
+	}
+
+
 }
 
 internal void
@@ -891,8 +929,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			if (Controller->Start.EndedDown) {
 				ControllingEntity.High->dZ = 3.0f;
 			}
+			move_spec MoveSpec = DefaultMoveSpec();
+			MoveSpec.UnitMaxAccelVector = true;
+			MoveSpec.Speed = 50.0f;
+			MoveSpec.Drag = 8.0f;
 
-			MoveEntity(GameState, ControllingEntity, Input->dtForFrame, ddPlayer);
+			MoveEntity(GameState, ControllingEntity, Input->dtForFrame, &MoveSpec, ddPlayer);
 
 			v2 dSword = {};
 			if (Controller->ActionUp.EndedDown) {
@@ -908,11 +950,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				dSword = v2{ 1.0f, 0.0f };
 			}
 			if (dSword.X != 0.0f || dSword.Y != 0.0f) {
-				low_entity* Sword = GetLowEntity(GameState, ControllingEntity.Low->SwordLowIndex);
-				if (Sword && !IsValid(Sword->P)) {
+				low_entity* LowSword = GetLowEntity(GameState, ControllingEntity.Low->SwordLowIndex);
+				if (LowSword && !IsValid(LowSword->P)) {
 					world_position SwordP = ControllingEntity.Low->P;
 					ChangeEntityLocation(&GameState->WorldArena, GameState->World,
-						ControllingEntity.Low->SwordLowIndex, Sword, 0, &SwordP);
+						ControllingEntity.Low->SwordLowIndex, LowSword, 0, &SwordP);
+					entity Sword = ForceEntityIntoHigh(GameState, ControllingEntity.Low->SwordLowIndex);
+					Sword.Low->DistanceRemaining = 5.0f;
+					Sword.High->dP = 5.0f * dSword;
 				}
 			}
 		}
@@ -931,7 +976,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		}
 		if (CameraFollowingEntity.High->P.Y > (5.0f * World->TileSideInMeters)) {
 			NewCameraP.AbsTileY += 9;
-		}
+}
 		if (CameraFollowingEntity.High->P.Y < -(5.0f * World->TileSideInMeters)) {
 			NewCameraP.AbsTileY -= 9;
 		}
@@ -944,7 +989,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 #if 1
 	DrawRectangle(Buffer, v2{ 0, 0 },
-		v2{ (real32)Buffer->Width ,  (real32)Buffer->Height }, 0, 1, 1);
+		v2{ (real32)Buffer->Width ,  (real32)Buffer->Height }, 0, 0.5, 1);
 #else
 	DrawBitmap(Buffer, &GameState->Background, 0, 0);
 #endif
@@ -998,6 +1043,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			PushBitmap(&PieceGroup, &GameState->Tree, v2{ 0, 0 }, 0, v2{ 40, 80 });
 		} break;
 		case EntityType_Sword: {
+			UpdateSword(GameState, Entity, dt);
 			PushBitmap(&PieceGroup, &GameState->Shadow, v2{ 0, 0 }, 0, HeroBitmap->Align, ShadowAlpha, 0);
 			PushBitmap(&PieceGroup, &GameState->Sword, v2{ 0, 0 }, 0, v2{ 29, 10 });
 		} break;

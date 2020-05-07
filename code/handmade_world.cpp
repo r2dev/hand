@@ -146,7 +146,7 @@ inline void
 ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex, world_position* OldP, world_position* NewP) {
 	Assert(!OldP || IsValid(*OldP));
 	Assert(!NewP || IsValid(*NewP));
-	if (OldP && AreInSameChunk(World, OldP, NewP)) {
+	if (OldP && NewP && AreInSameChunk(World, OldP, NewP)) {
 
 	}
 	else {

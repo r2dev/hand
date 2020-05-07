@@ -134,6 +134,12 @@ LengthSq(v2 A) {
 	return (Result);
 }
 
+inline real32
+Length(v2 A) {
+	real32 Result = SquareRoot(LengthSq(A));
+	return(Result);
+}
+
 inline int32
 SignOf(int32 Value) {
 	int32 Result = (Value >= 0) ? 1 : -1;
