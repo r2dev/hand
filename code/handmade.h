@@ -25,6 +25,7 @@ _PushSize(memory_arena* Arena, memory_index Size) {
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 #include "handmade_world.h"
+#include "handmade_sim_region.h"
 
 struct loaded_bitmap {
 	int32 Width;
@@ -46,19 +47,6 @@ struct hit_point {
 };
 
 
-struct high_entity {
-	v2 P;
-	v2 dP;
-	uint32 ChunkZ;
-	uint32 FacingDirection;
-
-	real32 Z;
-	real32 dZ;
-
-	uint32 LowEntityIndex;
-};
-
-
 enum entity_type {
 	EntityType_Null,
 	EntityType_Hero,
@@ -69,30 +57,8 @@ enum entity_type {
 };
 
 struct low_entity {
-	entity_type Type;
-
-	world_position P;
-	real32 Width, Height;
-
-	bool32 Collides;
-	int32 dAbsTileZ;
-
-	uint32 HighEntityIndex;
-
-	uint32 HitPointMax;
-	hit_point HitPoint[16];
-
-	uint32 SwordLowIndex;
-	real32 DistanceRemaining;
+	sim_entity Sim;
 };
-
-
-struct entity {
-	uint32 LowIndex;
-	low_entity* Low;
-	high_entity* High;
-};
-
 
 
 struct game_state {
@@ -104,8 +70,7 @@ struct game_state {
 
 	uint32 PlayerIndexForController[ArrayCount(((game_input*)0)->Controllers)];
 
-	uint32 HighEntityCount;
-	high_entity HighEntities_[256];
+	
 
 	uint32 LowEntityCount;
 	low_entity LowEntities[100000];
