@@ -1,6 +1,60 @@
 
 #include "handmade_sim_region.h"
 
+internal sim_entity_hash*
+GetHashFromStorageIndex(sim_region* SimRegion, uint32 StorageIndex) {
+	Assert(StorageIndex);
+	sim_entity_hash* Result = 0;
+	uint32 HashValue = StorageIndex;
+	for (uint32 Offset = 0; Offset < ArrayCount(SimRegion->Hash); ++Offset) {
+		uint32 HashIndex = ((HashValue + Offset) & (ArrayCount(SimRegion->Hash) - 1));
+		sim_entity_hash* Entry = SimRegion->Hash + HashIndex;
+		if (Entry->Index == StorageIndex || Entry->Index == 0) {
+			Result = Entry;
+			break;
+		}
+	}
+	return(Result);
+}
+internal void
+MapStorageIndexToEntity(sim_region* SimRegion, uint32 StorageIndex, sim_entity* Entity) {
+
+	sim_entity_hash* Entry = GetHashFromStorageIndex(SimRegion, StorageIndex);
+	Assert((Entry->Index == 0) || (Entry->Index == StorageIndex));
+	Entry->Index = StorageIndex;
+	Entry->Ptr = Entity;
+
+}
+internal sim_entity*
+AddEntity(game_state* GameState, sim_region* SimRegion, uint32 StorageIndex, low_entity* Source);
+
+inline sim_entity*
+GetEntityByStorageIndex(sim_region* SimRegion, uint32 StorageIndex) {
+	sim_entity_hash* Entry = GetHashFromStorageIndex(SimRegion, StorageIndex);
+	sim_entity* Result = Entry->Ptr;
+	return(Result);
+}
+inline void
+LoadEntityReference(game_state *GameState, sim_region* SimRegion, 
+	entity_reference* Ref) {
+	if (Ref->Index != 0) {
+		sim_entity_hash* Entry = GetHashFromStorageIndex(SimRegion, Ref->Index);
+		if (Entry->Ptr == 0) {
+			AddEntity(GameState, SimRegion, Ref->Index, GetLowEntity(GameState, Ref->Index));
+		}
+
+		Ref->Ptr = Entry->Ptr;
+	}
+
+}
+
+inline void
+StoreEntityReference(entity_reference* Ref) {
+	if (Ref->Ptr != 0) {
+		Ref->Index = Ref->Ptr->StorageIndex;
+	}
+}
+
 inline v2
 GetSimSpaceP(sim_region* SimRegion, low_entity* Stored) {
 
@@ -11,11 +65,19 @@ GetSimSpaceP(sim_region* SimRegion, low_entity* Stored) {
 }
 
 internal sim_entity*
-AddEntity(sim_region* SimRegion) {
+AddEntity(game_state *GameState, sim_region* SimRegion, uint32 StorageIndex, low_entity* Source) {
+	Assert(StorageIndex);
 	sim_entity* Entity = 0;
 	if (SimRegion->EntityCount < SimRegion->MaxEntityCount) {
 		Entity = SimRegion->Entities + SimRegion->EntityCount++;
-		Entity = {};
+		MapStorageIndexToEntity(SimRegion, StorageIndex, Entity);
+		if (Source) {
+			// decompression
+			*Entity = Source->Sim;
+			LoadEntityReference(GameState, SimRegion, &Entity->Sword);
+		}
+		Entity->StorageIndex = StorageIndex;
+		
 	}
 	else {
 		InvalidCodePath
@@ -25,9 +87,10 @@ AddEntity(sim_region* SimRegion) {
 }
 
 internal sim_entity*
-AddEntity(sim_region* SimRegion, low_entity* Source, v2* SimP) {
-	sim_entity* Dest = AddEntity(SimRegion);
+AddEntity(game_state* GameState, sim_region* SimRegion, uint32 StorageIndex, low_entity* Source, v2* SimP) {
+	sim_entity* Dest = AddEntity(GameState, SimRegion, StorageIndex, Source);
 	if (Dest) {
+
 		if (SimP) {
 			Dest->P = *SimP;
 		}
@@ -35,15 +98,14 @@ AddEntity(sim_region* SimRegion, low_entity* Source, v2* SimP) {
 			Dest->P = GetSimSpaceP(SimRegion, Source);
 		}
 	}
-	else {
-	}
+	return(Dest);
 }
 
 
 internal sim_region*
 BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_position Origin, rectangle2 Bounds) {
 	sim_region* SimRegion = PushStruct(SimArena, sim_region);
-
+	ZeroStruct(SimRegion->Hash);
 	SimRegion->World = World;
 	SimRegion->Origin = Origin;
 	SimRegion->Bounds = Bounds;
@@ -61,17 +123,20 @@ BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_posi
 			if (Chunk) {
 				for (world_entity_block* Block = &Chunk->FirstBlock; Block; Block = Block->Next) {
 					for (uint32 EntityIndex = 0; EntityIndex < Block->EntityCount; ++EntityIndex) {
-						low_entity* Low = GameState->LowEntities + Block->LowEntityIndex[EntityIndex];
+						uint32 LowEntityIndex = Block->LowEntityIndex[EntityIndex];
+
+						low_entity* Low = GameState->LowEntities + LowEntityIndex;
 
 						v2 SimSpaceP = GetSimSpaceP(SimRegion, Low);
 						if (IsInRectangle(SimRegion->Bounds, SimSpaceP)) {
-							AddEntity(SimRegion, Low, &SimSpaceP);
+							AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
 						}
 					}
 				}
 			}
 		}
 	}
+	return(SimRegion);
 }
 
 internal void
@@ -79,13 +144,15 @@ EndSim(sim_region* Region, game_state* GameState) {
 	sim_entity* Entity = Region->Entities;
 	for (uint32 EntityIndex = 0; EntityIndex < Region->EntityCount; ++EntityIndex, ++Entity) {
 		low_entity* Stored = GameState->LowEntities + Entity->StorageIndex;
+		Stored->Sim = *Entity;
+		StoreEntityReference(&Stored->Sim.Sword);
+
 		world_position NewP = MapIntoChunkSpace(GameState->World, Region->Origin, Entity->P);
 		ChangeEntityLocation(&GameState->WorldArena, GameState->World,
 			Entity->StorageIndex, Stored, &Stored->P, &NewP);
-		entity CameraFollowingEntity = ForceEntityIntoHigh(GameState, GameState->CameraFollowingEntityIndex);
-		if (CameraFollowingEntity.High) {
+		if (Entity->StorageIndex == GameState->CameraFollowingEntityIndex) {
 			world_position NewCameraP = GameState->CameraP;
-			NewCameraP.ChunkZ = CameraFollowingEntity.Low->P.ChunkZ;
+			NewCameraP.ChunkZ = Stored->P.ChunkZ;
 #if 0
 			if (CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters)) {
 				NewCameraP.AbsTileX += 17;
@@ -100,9 +167,108 @@ EndSim(sim_region* Region, game_state* GameState) {
 				NewCameraP.AbsTileY -= 9;
 			}
 #else
-			NewCameraP = CameraFollowingEntity.Low->P;
+			NewCameraP = Stored->P;
 #endif
-			SetCamera(GameState, NewCameraP);
+	}
+}
+}
+
+
+internal void
+MoveEntity(sim_region * SimRegion, sim_entity* Entity, real32 dt, move_spec* MoveSpec, v2 ddP) {
+
+	world* World = SimRegion->World;
+	if (MoveSpec->UnitMaxAccelVector) {
+		real32 ddpLength = LengthSq(ddP);
+		if (ddpLength > 1.0f) {
+			ddP *= (1.0f / SquareRoot(ddpLength));
+		}
+	}
+
+	ddP *= MoveSpec->Speed;
+
+	ddP += -MoveSpec->Drag * Entity->dP;
+	v2 OldPlayerP = Entity->P;
+	v2 PlayerDelta = 0.5f * Square(dt) * ddP +
+		dt * Entity->dP;
+	Entity->dP = dt * ddP + Entity->dP;
+
+	for (uint32 Iteration = 0; (Iteration < 4); ++Iteration) {
+		real32 tMin = 1.0f;
+		v2 WallNormal = {};
+		sim_entity *Hit = 0;
+
+		v2 DesiredPosition = Entity->P + PlayerDelta;
+		if (Entity->Collides) {
+			for (uint32 TestHighEntityIndex = 0;
+				TestHighEntityIndex < SimRegion->EntityCount;
+				++TestHighEntityIndex) {
+				sim_entity* TestEntity = SimRegion->Entities + TestHighEntityIndex;
+				if (Entity != TestEntity) {
+					if (TestEntity->Collides) {
+						real32 DiameterW = TestEntity->Width + Entity->Width;
+						real32 DiameterH = TestEntity->Height + Entity->Height;
+
+						v2 MinCorner = -0.5f * v2{ DiameterW, DiameterH };
+						v2 MaxCorner = 0.5f * v2{ DiameterW, DiameterH };
+
+						v2 Rel = Entity->P - TestEntity->P;
+
+						//tResult = (MinCorner.X - RelOldPlayerP.dXY.X) / PlayerDelta.X;
+						if (TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
+							PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
+							WallNormal = v2{ -1, 0 };
+							Hit = TestEntity;
+						}
+						if (TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
+							PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
+							WallNormal = v2{ 1, 0 };
+							Hit = TestEntity;
+						}
+						if (TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
+							PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
+							WallNormal = v2{ 0, 1 };
+							Hit = TestEntity;
+						}
+						if (TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
+							PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
+							WallNormal = v2{ 0, -1 };
+							Hit = TestEntity;
+						}
+					}
+				}
+			}
+		}
+		Entity->P += tMin * PlayerDelta;
+		if (Hit) {
+			Entity->dP = Entity->dP - 1 * Inner(Entity->dP, WallNormal) * WallNormal;
+			PlayerDelta = DesiredPosition - Entity->P;
+			PlayerDelta = PlayerDelta - 1 * Inner(PlayerDelta, WallNormal) * WallNormal;
+		}
+		else {
+			break;
+		}
+
+	}
+	if (Entity->dP.X == 0.0f && Entity->dP.Y == 0.0f) {
+
+	}
+	else if (AbsoluteValue(Entity->dP.X) > AbsoluteValue(Entity->dP.Y)) {
+		if (Entity->dP.X > 0) {
+			Entity->FacingDirection = 0;
+		}
+		else {
+			Entity->FacingDirection = 2;
+		}
+	}
+	else if (AbsoluteValue(Entity->dP.X) < AbsoluteValue(Entity->dP.Y)) {
+		if (Entity->dP.Y > 0) {
+			Entity->FacingDirection = 1;
+		}
+		else {
+			Entity->FacingDirection = 3;
 		}
 	}
 }
+
+

@@ -21,8 +21,9 @@ IsValid(world_position P) {
 
 inline bool32
 IsCanonical(world* World, real32 TileRel) {
-	bool32 Result = ((TileRel >= -0.5f * World->ChunkSideInMeters)
-		&& (TileRel <= 0.5f * World->ChunkSideInMeters));
+	real32 Epsilon = 0.0001f;
+	bool32 Result = ((TileRel >= -(0.5f * World->ChunkSideInMeters + Epsilon))
+		&& (TileRel <= (0.5f * World->ChunkSideInMeters + Epsilon)));
 	return(Result);
 }
 
@@ -102,7 +103,7 @@ AreInSameChunk(world* World, world_position* A, world_position* B) {
 	Assert(IsCanonical(World, B->Offset_));
 	bool32 Result = (A->ChunkX == B->ChunkX
 		&& A->ChunkY == B->ChunkY && A->ChunkZ == B->ChunkZ);
-	return false;
+	return(Result);
 }
 
 
@@ -119,14 +120,6 @@ Subtract(world* World, world_position* A, world_position* B) {
 	return(Result);
 }
 
-inline world_position
-CenteredTilePoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
-	world_position Result = {};
-	Result.ChunkX = ChunkX;
-	Result.ChunkY = ChunkY;
-	Result.ChunkZ = ChunkZ;
-	return(Result);
-}
 
 void
 InitializeWorld(world* World, real32 TileSideInMeter) {
@@ -141,6 +134,28 @@ InitializeWorld(world* World, real32 TileSideInMeter) {
 	}
 }
 
+inline world_position
+ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
+	world_position Result = {};
+	Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
+	Result.ChunkY = AbsTileY / TILES_PER_CHUNK;
+	Result.ChunkZ = AbsTileZ / TILES_PER_CHUNK;
+
+	if (AbsTileX < 0) {
+		--Result.ChunkX;
+	}
+	if (AbsTileY < 0) {
+		--Result.ChunkY;
+	}
+	if (AbsTileZ < 0) {
+		--Result.ChunkZ;
+	}
+
+	Result.Offset_.X = (real32)((AbsTileX - TILES_PER_CHUNK / 2) - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
+	Result.Offset_.Y = (real32)((AbsTileY - TILES_PER_CHUNK / 2) - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
+
+	return(Result);
+}
 
 inline void
 ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex, world_position* OldP, world_position* NewP) {
@@ -204,7 +219,7 @@ ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex
 }
 
 internal void
-ChangeEntityLocation(memory_arena* Arena, world* World, 
+ChangeEntityLocation(memory_arena* Arena, world* World,
 	uint32 LowEntityIndex, low_entity* LowEntity,
 	world_position* OldP, world_position* NewP) {
 	ChangeEntityLocationRaw(Arena, World, LowEntityIndex, OldP, NewP);
@@ -214,16 +229,4 @@ ChangeEntityLocation(memory_arena* Arena, world* World,
 	else {
 		LowEntity->P = NullPosition();
 	}
-}
-
-inline world_position
-ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
-	world_position Result = {};
-	Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
-	Result.ChunkY = AbsTileY / TILES_PER_CHUNK;
-	Result.ChunkZ = AbsTileZ / TILES_PER_CHUNK;
-	Result.Offset_.X = (real32)(AbsTileX - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
-	Result.Offset_.Y = (real32)(AbsTileY - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
-
-	return(Result);
 }
