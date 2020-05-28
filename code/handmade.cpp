@@ -281,7 +281,6 @@ AddSword(game_state* GameState) {
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Sword, 0);
 	Entity.Low->Sim.Height = 0.5f;
 	Entity.Low->Sim.Width = 1.0f;
-	Entity.Low->Sim.Collides = false;
 	return(Entity);
 }
 
@@ -291,7 +290,7 @@ AddPlayer(game_state* GameState) {
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, &P);
 	Entity.Low->Sim.Height = 0.5f;
 	Entity.Low->Sim.Width = 1.0f;
-	Entity.Low->Sim.Collides = true;
+	AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 	InitHitPoints(Entity.Low, 3);
 	//MakeEntityHighFrequency(GameState, Entity.LowIndex);
 	//ChangeEntityResidence(GameState, EntityIndex, EntityResidence_High);
@@ -309,7 +308,7 @@ AddWall(game_state* GameState, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Wall, &P);
 	Entity.Low->Sim.Height = GameState->World->TileSideInMeters;;
 	Entity.Low->Sim.Width = Entity.Low->Sim.Height;
-	Entity.Low->Sim.Collides = true;
+	AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 	return(Entity);
 }
 
@@ -319,7 +318,7 @@ AddMonster(game_state* GameState, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Monster, &P);
 	Entity.Low->Sim.Height = 0.5f;
 	Entity.Low->Sim.Width = 1.0f;
-	Entity.Low->Sim.Collides = true;
+	AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 	InitHitPoints(Entity.Low, 2);
 	return(Entity);
 }
@@ -330,7 +329,6 @@ AddFamiliar(game_state* GameState, int32 AbsTileX, int32 AbsTileY, int32 AbsTile
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Familiar, &P);
 	Entity.Low->Sim.Height = 0.5f;
 	Entity.Low->Sim.Width = 1.0f;
-	Entity.Low->Sim.Collides = false;
 	return(Entity);
 }
 

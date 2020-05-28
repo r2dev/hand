@@ -40,18 +40,22 @@ UpdateFamiliar(sim_region* SimRegion, sim_entity * Entity, real32 dt) {
 
 internal void
 UpdateSword(sim_region* SimRegion, sim_entity *Entity, real32 dt) {
-	move_spec MoveSpec = DefaultMoveSpec();
-	MoveSpec.UnitMaxAccelVector = false;
-	MoveSpec.Speed = 0.0f;
-	MoveSpec.Drag = 0.0f;
+	if (IsSet(Entity, EntityFlag_Nonsptial)) {
 
-	v2 OldP = Entity->P;
-	MoveEntity(SimRegion, Entity, dt, &MoveSpec, v2{ 0, 0 });
-	real32 DistanceTraveled = Length(Entity->P - OldP);
-	Entity->DistanceRemaining -= DistanceTraveled;
-	if (Entity->DistanceRemaining < 0.0f) {
-		Assert(!"Update Sword");
 	}
+	else {
+		move_spec MoveSpec = DefaultMoveSpec();
+		MoveSpec.UnitMaxAccelVector = false;
+		MoveSpec.Speed = 0.0f;
+		MoveSpec.Drag = 0.0f;
 
-
+		v2 OldP = Entity->P;
+		MoveEntity(SimRegion, Entity, dt, &MoveSpec, v2{ 0, 0 });
+		real32 DistanceTraveled = Length(Entity->P - OldP);
+		Entity->DistanceRemaining -= DistanceTraveled;
+		if (Entity->DistanceRemaining < 0.0f) {
+			MakeEntityNonSpatial(Entity);
+			
+		}
+	}
 }

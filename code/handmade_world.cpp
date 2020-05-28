@@ -225,8 +225,10 @@ ChangeEntityLocation(memory_arena* Arena, world* World,
 	ChangeEntityLocationRaw(Arena, World, LowEntityIndex, OldP, NewP);
 	if (NewP) {
 		LowEntity->P = *NewP;
+		ClearFlag(&LowEntity->Sim, EntityFlag_Nonsptial);
 	}
 	else {
 		LowEntity->P = NullPosition();
+		AddFlag(&LowEntity->Sim, EntityFlag_Nonsptial);
 	}
 }

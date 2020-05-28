@@ -21,6 +21,11 @@ struct hit_point {
 	uint8 FilledAmount;
 };
 
+enum sim_entity_flags {
+	EntityFlag_Collides = (1 << 1),
+	EntityFlag_Nonsptial = (1 << 2),
+};
+
 
 struct sim_entity;
 union entity_reference {
@@ -31,18 +36,18 @@ union entity_reference {
 struct sim_entity {
 	uint32 StorageIndex;
 	entity_type Type;
+	uint32 Flags;
 
 	v2 P;
-	uint32 ChunkZ;
+	v2 dP;
 
 	real32 Z;
 	real32 dZ;
 
-	v2 dP;
+	uint32 ChunkZ;
 
 	real32 Width, Height;
 
-	bool32 Collides;
 	int32 dAbsTileZ;
 
 	uint32 HitPointMax;
