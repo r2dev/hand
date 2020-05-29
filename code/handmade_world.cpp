@@ -158,7 +158,8 @@ ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int3
 }
 
 inline void
-ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex, world_position* OldP, world_position* NewP) {
+ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex, 
+	world_position* OldP, world_position* NewP) {
 	Assert(!OldP || IsValid(*OldP));
 	Assert(!NewP || IsValid(*NewP));
 	if (OldP && NewP && AreInSameChunk(World, OldP, NewP)) {
@@ -221,14 +222,23 @@ ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex
 internal void
 ChangeEntityLocation(memory_arena* Arena, world* World,
 	uint32 LowEntityIndex, low_entity* LowEntity,
-	world_position* OldP, world_position* NewP) {
+	world_position NewPInit) {
+	world_position* OldP = 0;
+	world_position* NewP = 0;
+	if (!IsSet(&LowEntity->Sim, EntityFlag_Nonspatial) && IsValid(LowEntity->P)) {
+		OldP = &LowEntity->P;
+	}
+	if (IsValid(NewPInit)) {
+		NewP = &NewPInit;
+	}
+
 	ChangeEntityLocationRaw(Arena, World, LowEntityIndex, OldP, NewP);
 	if (NewP) {
 		LowEntity->P = *NewP;
-		ClearFlag(&LowEntity->Sim, EntityFlag_Nonsptial);
+		ClearFlag(&LowEntity->Sim, EntityFlag_Nonspatial);
 	}
 	else {
 		LowEntity->P = NullPosition();
-		AddFlag(&LowEntity->Sim, EntityFlag_Nonsptial);
+		AddFlag(&LowEntity->Sim, EntityFlag_Nonspatial);
 	}
 }

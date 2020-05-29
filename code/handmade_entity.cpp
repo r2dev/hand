@@ -40,7 +40,7 @@ UpdateFamiliar(sim_region* SimRegion, sim_entity * Entity, real32 dt) {
 
 internal void
 UpdateSword(sim_region* SimRegion, sim_entity *Entity, real32 dt) {
-	if (IsSet(Entity, EntityFlag_Nonsptial)) {
+	if (IsSet(Entity, EntityFlag_Nonspatial)) {
 
 	}
 	else {
