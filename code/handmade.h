@@ -33,8 +33,8 @@ _PushSize(memory_arena* Arena, memory_index Size) {
 inline void
 ZeroSize(memory_index Size, void* Ptr) {
 	uint8* Byte = (uint8 *)Ptr;
-	while (Size--) {
-		*Byte = 0;
+	while(Size--) {
+		*Byte++ = 0;  // should be *Byte++ = 0
 	}
 }
 

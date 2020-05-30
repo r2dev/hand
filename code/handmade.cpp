@@ -711,6 +711,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	}
 	EndSim(SimRegion, GameState);
+
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
