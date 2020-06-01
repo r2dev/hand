@@ -26,20 +26,7 @@ GetEntityByStorageIndex(sim_region* SimRegion, uint32 StorageIndex) {
 	sim_entity* Result = Entry->Ptr;
 	return(Result);
 }
-inline void
-LoadEntityReference(game_state* GameState, sim_region* SimRegion,
-	entity_reference* Ref) {
-	if (Ref->Index != 0) {
-		sim_entity_hash* Entry = GetHashFromStorageIndex(SimRegion, Ref->Index);
-		if (Entry->Ptr == 0) {
-			Entry->Index = Ref->Index;
-			Entry->Ptr = AddEntity(GameState, SimRegion, Ref->Index, GetLowEntity(GameState, Ref->Index), 0);
-		}
 
-		Ref->Ptr = Entry->Ptr;
-	}
-
-}
 
 inline void
 StoreEntityReference(entity_reference* Ref) {
@@ -57,6 +44,23 @@ GetSimSpaceP(sim_region* SimRegion, low_entity* Stored) {
 		Result = Diff.dXY;
 	}
 	return(Result);
+}
+
+inline void
+LoadEntityReference(game_state* GameState, sim_region* SimRegion,
+	entity_reference* Ref) {
+	if (Ref->Index != 0) {
+		sim_entity_hash* Entry = GetHashFromStorageIndex(SimRegion, Ref->Index);
+		if (Entry->Ptr == 0) {
+			Entry->Index = Ref->Index;
+			low_entity* LowEntitiy = GetLowEntity(GameState, Ref->Index);
+			v2 SimP = GetSimSpaceP(SimRegion, LowEntitiy);
+			Entry->Ptr = AddEntity(GameState, SimRegion, Ref->Index, LowEntitiy, &SimP);
+		}
+
+		Ref->Ptr = Entry->Ptr;
+	}
+
 }
 
 internal sim_entity*
@@ -77,7 +81,9 @@ AddEntityRaw(game_state* GameState, sim_region* SimRegion, uint32 StorageIndex, 
 				AddFlag(&Source->Sim, EntityFlag_Simming);
 			}
 			Entity->StorageIndex = StorageIndex;
-
+			Entity->Updatable = false;
+				
+				
 		}
 		else {
 			InvalidCodePath
@@ -94,6 +100,7 @@ AddEntity(game_state* GameState, sim_region* SimRegion, uint32 StorageIndex, low
 
 		if (SimP) {
 			Dest->P = *SimP;
+			Dest->Updatable = IsInRectangle(SimRegion->UpdatableBounds, Dest->P);
 		}
 		else {
 			Dest->P = GetSimSpaceP(SimRegion, Source);
@@ -107,10 +114,13 @@ internal sim_region*
 BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_position Origin, rectangle2 Bounds) {
 	sim_region* SimRegion = PushStruct(SimArena, sim_region);
 	ZeroStruct(SimRegion->Hash);
+
+	real32 UpdateSafetyMargin = 1.0f; 
 	SimRegion->World = World;
 	SimRegion->Origin = Origin;
-	SimRegion->Bounds = Bounds;
-
+	SimRegion->UpdatableBounds = Bounds;
+	SimRegion->Bounds = AddRadiusTo(SimRegion->UpdatableBounds, UpdateSafetyMargin, UpdateSafetyMargin);
+	
 	SimRegion->MaxEntityCount = 4096;
 	SimRegion->EntityCount = 0;
 	SimRegion->Entities = PushArray(SimArena, SimRegion->MaxEntityCount, sim_entity);
@@ -200,6 +210,13 @@ MoveEntity(sim_region* SimRegion, sim_entity* Entity, real32 dt, move_spec* Move
 		dt * Entity->dP;
 	Entity->dP = dt * ddP + Entity->dP;
 
+	real32 ddZ = -9.8f;
+	Entity->Z += (0.5f * ddZ * Square(dt) + Entity->dZ * dt);
+	Entity->dZ = Entity->dZ + ddZ * dt;
+	if (Entity->Z < 0) {
+		Entity->Z = 0;
+	}
+
 	for (uint32 Iteration = 0; (Iteration < 4); ++Iteration) {
 		real32 tMin = 1.0f;
 		v2 WallNormal = {};
@@ -212,7 +229,7 @@ MoveEntity(sim_region* SimRegion, sim_entity* Entity, real32 dt, move_spec* Move
 				++TestHighEntityIndex) {
 				sim_entity* TestEntity = SimRegion->Entities + TestHighEntityIndex;
 				if (Entity != TestEntity) {
-					if (IsSet(TestEntity, EntityFlag_Collides) && (!IsSet(Entity, EntityFlag_Nonspatial))) {
+					if (IsSet(TestEntity, EntityFlag_Collides) && (!IsSet(TestEntity, EntityFlag_Nonspatial))) {
 						real32 DiameterW = TestEntity->Width + Entity->Width;
 						real32 DiameterH = TestEntity->Height + Entity->Height;
 
