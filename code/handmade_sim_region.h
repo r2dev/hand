@@ -48,6 +48,8 @@ struct sim_entity {
 	real32 Z;
 	real32 dZ;
 
+	real32 DistanceLimit;
+
 	uint32 ChunkZ;
 
 	real32 Width, Height;
@@ -59,7 +61,6 @@ struct sim_entity {
 
 	entity_reference Sword;
 	
-	real32 DistanceRemaining;
 	uint32 FacingDirection;
 
 };
