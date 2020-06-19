@@ -70,6 +70,13 @@ struct controlled_hero {
 	real32 dZ;
 };
 
+struct pairwise_collision_rule {
+	bool32 ShouldCollide;
+	uint32 StorageIndexA;
+	uint32 StorageIndexB;
+
+	pairwise_collision_rule* NextHash;
+};
 
 struct game_state {
 	memory_arena WorldArena;
@@ -92,6 +99,8 @@ struct game_state {
 
 	hero_bitmaps HeroBitmaps[4];
 	real32 MetersToPixels;
+
+	pairwise_collision_rule* CollisionRuleHash[256];
 };
 
 struct entity_visible_piece {

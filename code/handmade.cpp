@@ -293,10 +293,12 @@ AddPlayer(game_state* GameState) {
 	Entity.Low->Sim.Width = 1.0f;
 	AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 	InitHitPoints(Entity.Low, 3);
+
 	//MakeEntityHighFrequency(GameState, Entity.LowIndex);
 	//ChangeEntityResidence(GameState, EntityIndex, EntityResidence_High);
 	add_low_entity_result Sword = AddSword(GameState);
 	Entity.Low->Sim.Sword.Index = Sword.LowIndex;
+	AddCollisionRule(GameState, Sword.LowIndex, Entity.LowIndex, false);
 	if (GameState->CameraFollowingEntityIndex == 0) {
 		GameState->CameraFollowingEntityIndex = Entity.LowIndex;
 	}
@@ -718,7 +720,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 			if (!IsSet(Entity, EntityFlag_Nonspatial)) {
 				
-				MoveEntity(SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
+				MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
 			}
 			
 
