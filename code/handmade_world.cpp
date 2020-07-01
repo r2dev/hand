@@ -20,34 +20,38 @@ IsValid(world_position P) {
 }
 
 inline bool32
-IsCanonical(world* World, real32 TileRel) {
+IsCanonical(real32 ChunkDim, real32 TileRel) {
 	real32 Epsilon = 0.0001f;
-	bool32 Result = ((TileRel >= -(0.5f * World->ChunkSideInMeters + Epsilon))
-		&& (TileRel <= (0.5f * World->ChunkSideInMeters + Epsilon)));
+	bool32 Result = ((TileRel >= -(0.5f * ChunkDim + Epsilon))
+		&& (TileRel <= (0.5f * ChunkDim + Epsilon)));
 	return(Result);
 }
 
 inline bool32
-IsCanonical(world* World, v2 Offset) {
-	bool32 Result = ((IsCanonical(World, Offset.X)) && (IsCanonical(World, Offset.Y)));
+IsCanonical(world* World, v3 Offset) {
+	bool32 Result = ((IsCanonical(World->ChunkDimInMeters.X, Offset.X)) 
+		&& (IsCanonical(World->ChunkDimInMeters.Y, Offset.Y))
+		&& (IsCanonical(World->ChunkDimInMeters.Z, Offset.Z))
+		);
 	return(Result);
 }
 
 inline void
-RecanonicalizeCoord(world* World, int32* TileV, real32* TileRelV) {
-	int32 Offset = RoundReal32ToInt32(*TileRelV / World->ChunkSideInMeters);
+RecanonicalizeCoord(real32 ChunkDimInMeters, int32* TileV, real32* TileRelV) {
+	int32 Offset = RoundReal32ToInt32(*TileRelV / ChunkDimInMeters);
 	*TileV += Offset;
-	*TileRelV -= Offset * World->ChunkSideInMeters;
-	Assert(IsCanonical(World, *TileRelV));
+	*TileRelV -= Offset * ChunkDimInMeters;
+	Assert(IsCanonical(ChunkDimInMeters, *TileRelV));
 
 }
 
 inline world_position
-MapIntoChunkSpace(world* World, world_position BasePos, v2 Offset) {
+MapIntoChunkSpace(world* World, world_position BasePos, v3 Offset) {
 	world_position Result = BasePos;
 	Result.Offset_ += Offset;
-	RecanonicalizeCoord(World, &Result.ChunkX, &Result.Offset_.X);
-	RecanonicalizeCoord(World, &Result.ChunkY, &Result.Offset_.Y);
+	RecanonicalizeCoord(World->ChunkDimInMeters.X, &Result.ChunkX, &Result.Offset_.X);
+	RecanonicalizeCoord(World->ChunkDimInMeters.Y, &Result.ChunkY, &Result.Offset_.Y);
+	RecanonicalizeCoord(World->ChunkDimInMeters.Z, &Result.ChunkZ, &Result.Offset_.Z);
 	return(Result);
 }
 
@@ -107,16 +111,15 @@ AreInSameChunk(world* World, world_position* A, world_position* B) {
 }
 
 
-world_difference
+v3
 Subtract(world* World, world_position* A, world_position* B) {
-	world_difference Result = {};
-	v2 dTileXY = {
+	v3 dTile = {
 		(real32)A->ChunkX - (real32)B->ChunkX,
-		(real32)A->ChunkY - (real32)B->ChunkY
+		(real32)A->ChunkY - (real32)B->ChunkY,
+		(real32)A->ChunkZ - (real32)B->ChunkZ
 	};
-	real32 dTileZ = (real32)A->ChunkZ - (real32)B->ChunkZ;
-	Result.dXY = World->ChunkSideInMeters * dTileXY + (A->Offset_ - B->Offset_);
-	Result.dZ = dTileZ * World->ChunkSideInMeters;
+	
+	v3 Result = Hadamard(World->ChunkDimInMeters, dTile) + (A->Offset_ - B->Offset_);
 	return(Result);
 }
 
@@ -125,7 +128,8 @@ void
 InitializeWorld(world* World, real32 TileSideInMeter) {
 
 	World->TileSideInMeters = TileSideInMeter;
-	World->ChunkSideInMeters = (real32)TILES_PER_CHUNK * TileSideInMeter;
+	World->ChunkDimInMeters = v3{ (real32)TILES_PER_CHUNK * TileSideInMeter, (real32)TILES_PER_CHUNK * TileSideInMeter, (real32)TileSideInMeter };
+	World->TileDepthInMeters = (real32)TileSideInMeter;
 	World->FirstFree = 0;
 
 	for (uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex) {
@@ -136,23 +140,11 @@ InitializeWorld(world* World, real32 TileSideInMeter) {
 
 inline world_position
 ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
-	world_position Result = {};
-	Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
-	Result.ChunkY = AbsTileY / TILES_PER_CHUNK;
-	Result.ChunkZ = AbsTileZ / TILES_PER_CHUNK;
+	world_position BasePos = {};
 
-	if (AbsTileX < 0) {
-		--Result.ChunkX;
-	}
-	if (AbsTileY < 0) {
-		--Result.ChunkY;
-	}
-	if (AbsTileZ < 0) {
-		--Result.ChunkZ;
-	}
+	v3 Offset = Hadamard(World->ChunkDimInMeters, v3{(real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ});
 
-	Result.Offset_.X = (real32)((AbsTileX - TILES_PER_CHUNK / 2) - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
-	Result.Offset_.Y = (real32)((AbsTileY - TILES_PER_CHUNK / 2) - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
+	world_position Result = MapIntoChunkSpace(World, BasePos, Offset);
 
 	return(Result);
 }

@@ -26,21 +26,19 @@ struct world_chunk {
 
 struct world {
 	real32 TileSideInMeters;
-	real32 ChunkSideInMeters;
+	real32 TileDepthInMeters;
+	v3 ChunkDimInMeters;
+
 	world_chunk ChunkHash[4096];
 
 	world_entity_block* FirstFree;
 };
 
-struct world_difference {
-	v2 dXY;
-	real32 dZ;
-};
 
 struct world_position {
 	int32 ChunkX;
 	int32 ChunkY;
 	int32 ChunkZ;
 
-	v2 Offset_;
+	v3 Offset_;
 };

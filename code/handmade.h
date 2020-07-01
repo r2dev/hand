@@ -101,6 +101,7 @@ struct game_state {
 	real32 MetersToPixels;
 
 	pairwise_collision_rule* CollisionRuleHash[256];
+	pairwise_collision_rule* FirstFreeCollisionRule;
 };
 
 struct entity_visible_piece {
@@ -146,4 +147,6 @@ TestWall(real32 WallX, real32 RelX, real32 RelY,
 	return(Hit);
 }
 
+internal void AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide);
+internal void ClearCollisionRulesFor(game_state* GameState, uint32 StorageIndex);
 #endif

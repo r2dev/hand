@@ -202,15 +202,6 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 
 }
 
-inline v2
-GetCameraSpaceP(game_state* GameState, low_entity* LowEntity) {
-
-	world_difference Diff =
-		Subtract(GameState->World, &LowEntity->P, &GameState->CameraP);
-	v2 Result = Diff.dXY;
-	return(Result);
-}
-
 struct add_low_entity_result {
 	uint32 LowIndex;
 	low_entity* Low;
@@ -298,7 +289,8 @@ AddPlayer(game_state* GameState) {
 	//ChangeEntityResidence(GameState, EntityIndex, EntityResidence_High);
 	add_low_entity_result Sword = AddSword(GameState);
 	Entity.Low->Sim.Sword.Index = Sword.LowIndex;
-	AddCollisionRule(GameState, Sword.LowIndex, Entity.LowIndex, false);
+
+
 	if (GameState->CameraFollowingEntityIndex == 0) {
 		GameState->CameraFollowingEntityIndex = Entity.LowIndex;
 	}
@@ -357,6 +349,63 @@ DrawHitPoints(sim_entity* Entity, entity_visible_piece_group* PieceGroup) {
 	}
 }
 
+internal void
+ClearCollisionRulesFor(game_state* GameState, uint32 StorageIndex) {
+	for (uint32 HashBucket = 0; HashBucket < ArrayCount(GameState->CollisionRuleHash); ++HashBucket) {
+		for (pairwise_collision_rule** Rule = &GameState->CollisionRuleHash[HashBucket]; *Rule;) {
+			if ((*Rule)->StorageIndexA == StorageIndex || (*Rule)->StorageIndexB == StorageIndex) {
+				pairwise_collision_rule* RemovedRule = *Rule;
+				*Rule = (*Rule)->NextHash;
+
+				RemovedRule->NextHash = GameState->FirstFreeCollisionRule;
+				GameState->FirstFreeCollisionRule = RemovedRule;
+			}
+			else {
+				Rule = &(*Rule)->NextHash;
+			}
+		}
+	}
+
+}
+internal void
+AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide) {
+	if (StorageIndexA > StorageIndexB) {
+		uint32 Temp = StorageIndexA;
+		StorageIndexA = StorageIndexB;
+		StorageIndexB = Temp;
+	}
+	pairwise_collision_rule* Found = 0;
+	uint32 HashBucket = StorageIndexA & (ArrayCount(GameState->CollisionRuleHash) - 1);
+	for (pairwise_collision_rule* Rule = GameState->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextHash) {
+		if (Rule->StorageIndexA == StorageIndexA && Rule->StorageIndexB == StorageIndexB) {
+			Found = Rule;
+
+			break;
+		}
+	}
+
+
+	if (!Found) {
+		Found = GameState->FirstFreeCollisionRule;
+		if (Found) {
+			GameState->FirstFreeCollisionRule = Found->NextHash;
+		}
+		else {
+			Found = PushStruct(&GameState->WorldArena, pairwise_collision_rule);
+		}
+		Found->NextHash = GameState->CollisionRuleHash[HashBucket];
+		GameState->CollisionRuleHash[HashBucket] = Found;
+	}
+
+	if (Found) {
+		Found->StorageIndexA = StorageIndexA;
+		Found->StorageIndexB = StorageIndexB;
+		Found->ShouldCollide = ShouldCollide;
+	}
+
+	Assert(Found);
+
+}
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
@@ -592,8 +641,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	uint32 TileSpanX = 17 * 3;
 	uint32 TileSpanY = 9 * 3;
-	rectangle2 CameraBounds = RectCenterDim(V2(0, 0), World->TileSideInMeters * V2((real32)TileSpanX,
-		(real32)TileSpanY));
+	uint32 TileSpanZ = 1;
+	rectangle3 CameraBounds = RectCenterDim(V3(0, 0, 0), World->TileSideInMeters * V3((real32)TileSpanX,
+		(real32)TileSpanY, (real32)TileSpanZ));
 
 	memory_arena SimArena;
 	InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
@@ -618,13 +668,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			PieceGroup.PieceCount = 0;
 			real32 dt = Input->dtForFrame;
 
-			real32 ShadowAlpha = 1.0f - 0.5f * Entity->Z;
+			real32 ShadowAlpha = 1.0f - 0.5f * Entity->P.Z;
 			if (ShadowAlpha < 0) {
 				ShadowAlpha = 0.0f;
 			}
 
 			move_spec MoveSpec = DefaultMoveSpec();
-			v2 ddP = {};
+			v3 ddP = {};
 
 			hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
 			switch (Entity->Type) {
@@ -633,20 +683,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				for (uint32 ControlIndex = 0; ControlIndex < ArrayCount(GameState->ControlledHeroes); ++ControlIndex) {
 					controlled_hero* ConHero = GameState->ControlledHeroes + ControlIndex;
 					if (Entity->StorageIndex == ConHero->EntityIndex) {
-						if (ConHero->dZ) {
-							Entity->dZ = ConHero->dZ;
+						if (ConHero->dZ != 0.0f) {
+							Entity->dP.Z = ConHero->dZ;
 						}
 						MoveSpec.UnitMaxAccelVector = true;
 						MoveSpec.Speed = 50.0f;
 						MoveSpec.Drag = 8.0f;
-						ddP = ConHero->ddP;
-						
+						ddP = V3(ConHero->ddP, 0);
+
 
 						if (ConHero->dSword.X != 0.0f || ConHero->dSword.Y != 0.0f) {
 							sim_entity* Sword = Entity->Sword.Ptr;
 							if (Sword && IsSet(Sword, EntityFlag_Nonspatial)) {
 								Sword->DistanceLimit = 5.0f;
-								MakeEntitySpatial(Sword, Entity->P, 5.0f * ConHero->dSword);
+								MakeEntitySpatial(Sword, Entity->P, 5.0f * V3(ConHero->dSword, 0));
+								AddCollisionRule(GameState, Sword->StorageIndex, Entity->StorageIndex, false);
 							}
 						}
 					}
@@ -665,14 +716,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				PushBitmap(&PieceGroup, &GameState->Tree, v2{ 0, 0 }, 0, v2{ 40, 80 });
 			} break;
 			case EntityType_Sword: {
-				
+
 				MoveSpec.UnitMaxAccelVector = false;
 				MoveSpec.Speed = 0.0f;
 				MoveSpec.Drag = 0.0f;
 
-				v2 OldP = Entity->P;
-			
 				if (Entity->DistanceLimit == 0.0f) {
+					ClearCollisionRulesFor(GameState, Entity->StorageIndex);
 					MakeEntityNonSpatial(Entity);
 				}
 				PushBitmap(&PieceGroup, &GameState->Shadow, v2{ 0, 0 }, 0, HeroBitmap->Align, ShadowAlpha, 0);
@@ -686,20 +736,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				for (uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
 					if (TestEntity->Type == EntityType_Hero) {
 						real32 TestDSq = LengthSq(TestEntity->P - Entity->P);
-						TestDSq *= 0.75f;
+					
 						if (ClosestHeroSq > TestDSq) {
 							ClosestHero = TestEntity;
 							ClosestHeroSq = TestDSq;
 						}
 					}
 				}
-				
+
 				if (ClosestHero && (ClosestHeroSq > Square(3.0f))) {
 					real32 Acceleration = 0.5f;
 					real32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
 					ddP = OneOverLength * (ClosestHero->P - Entity->P);
 				}
-				
+
 				MoveSpec.UnitMaxAccelVector = true;
 				MoveSpec.Speed = 50.0f;
 				MoveSpec.Drag = 8.0f;
@@ -719,15 +769,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			} break;
 			}
 			if (!IsSet(Entity, EntityFlag_Nonspatial)) {
-				
+
 				MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
 			}
-			
+
 
 			real32 EntityGroundX = ScreenCenterX + MetersToPixels * Entity->P.X;
 			real32 EntityGroundY = ScreenCenterY - MetersToPixels * Entity->P.Y;
 
-			real32 EntityZ = -Entity->Z * MetersToPixels;
+			real32 EntityZ = -Entity->P.Z * MetersToPixels;
 
 			for (uint32 PieceIndex = 0; PieceIndex < PieceGroup.PieceCount; ++PieceIndex) {
 				entity_visible_piece* Piece = PieceGroup.Pieces + PieceIndex;
