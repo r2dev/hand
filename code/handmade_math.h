@@ -331,7 +331,7 @@ IsInRectangle(rectangle3 Rectangle, v3 Test) {
 		&& (Test.Y >= Rectangle.Min.Y)
 		&& (Test.Z >= Rectangle.Min.Z)
 		&& (Test.X < Rectangle.Max.X)
-		&& (Test.X < Rectangle.Max.Y)
+		&& (Test.Y < Rectangle.Max.Y)
 		&& (Test.Z < Rectangle.Max.Z)
 		);
 	return(Result);
