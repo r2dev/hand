@@ -337,6 +337,17 @@ IsInRectangle(rectangle3 Rectangle, v3 Test) {
 	return(Result);
 }
 
+inline bool32
+RectangleIntersect(rectangle3 A, rectangle3 B) {
+	bool32 Result = !((A.Min.X > B.Max.X)
+		|| (B.Min.X > A.Max.X)
+		|| (A.Min.Y > B.Max.Y)
+		|| (B.Min.Y > A.Max.Y)
+		|| (A.Min.Z > B.Max.Z)
+		|| (B.Min.Z > A.Max.Z));
+	return(Result);
+}
+
 //rect 2
 
 inline v2
