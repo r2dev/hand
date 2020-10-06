@@ -115,6 +115,26 @@ AddEntity(game_state* GameState, sim_region* SimRegion, uint32 StorageIndex, low
 	return(Dest);
 }
 
+internal bool32
+TestWall(real32 WallX, real32 RelX, real32 RelY,
+	real32 PlayerDeltaX, real32 PlayerDeltaY, real32* tMin, real32 MinY, real32 MaxY) {
+	real32 tEpsilon = 0.001f;
+	bool32 Hit = false;
+	if (PlayerDeltaX != 0.0f) {
+		real32 tResult = (WallX - RelX) / PlayerDeltaX;
+		real32 Y = RelY + tResult * PlayerDeltaY;
+		if ((tResult >= 0.0f) && (*tMin > tResult)) {
+			if ((Y >= MinY) && (Y <= MaxY)) {
+				Hit = true;
+				*tMin = Maximum(0.0f, tResult - tEpsilon);
+			}
+		}
+	}
+	return(Hit);
+}
+
+
+
 internal sim_region*
 BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_position Origin, rectangle3 Bounds, real32 dt) {
 	sim_region* SimRegion = PushStruct(SimArena, sim_region);
@@ -191,7 +211,9 @@ EndSim(sim_region* Region, game_state* GameState) {
 				NewCameraP.AbsTileY -= 9;
 			}
 #else
+			real32 CamZOffset = NewCameraP.Offset_.Z;
 			NewCameraP = Stored->P;
+			NewCameraP.Offset_.Z = CamZOffset;
 #endif
 			GameState->CameraP = NewCameraP;
 		}
@@ -213,9 +235,6 @@ CanCollide(game_state* GameState, sim_entity* A, sim_entity* B) {
 		}
 		if (!IsSet(A, EntityFlag_Nonspatial) && (!IsSet(B, EntityFlag_Nonspatial))) {
 			Result = true;
-		}
-		if (A->Type == EntityType_Stairwell || B->Type == EntityType_Stairwell) {
-			Result = false;
 		}
 		uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
 		for (pairwise_collision_rule* Rule = GameState->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextHash) {
@@ -256,13 +275,13 @@ HandleCollision(game_state* GameState, sim_entity* A, sim_entity* B) {
 
 internal bool32
 CanOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region) {
-	bool32 result = false;
+	bool32 Result = false;
 	if (Mover != Region) {
 		if (Region->Type == EntityType_Stairwell) {
-			result = true;
+			Result = true;
 		}
 	}
-	return(result);
+	return(Result);
 }
 
 internal void
@@ -274,6 +293,23 @@ HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region, real
 		*Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
 	}
 }
+
+internal bool32
+SpeculativeCollide(sim_entity* Mover, sim_entity* Region) {
+	bool32 Result = true;
+	if (Region->Type == EntityType_Stairwell) {
+		rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
+		v3 Bary = Clamp01(GetBarycentric(RegionRect, Mover->P));
+
+		real32 Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
+		real32 StepHeight = 0.1f;
+		Result = ((AbsoluteValue(Mover->P.Z - Ground) > StepHeight) ||
+			((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
+	}
+
+	return(Result);
+}
+
 
 internal void
 MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, real32 dt, move_spec* MoveSpec,
@@ -289,8 +325,11 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 	}
 
 	ddP *= MoveSpec->Speed;
-	ddP += v3{ 0, 0, -9.8f };
 	ddP += -MoveSpec->Drag * Entity->dP;
+	
+	if (!IsSet(Entity, EntityFlag_ZSupported)) {
+		ddP += v3{ 0, 0, -9.8f };
+	}
 	v3 OldPlayerP = Entity->P;
 	v3 PlayerDelta = 0.5f * Square(dt) * ddP +
 		dt * Entity->dP;
@@ -319,7 +358,7 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 					TestHighEntityIndex < SimRegion->EntityCount;
 					++TestHighEntityIndex) {
 					sim_entity* TestEntity = SimRegion->Entities + TestHighEntityIndex;
-					if (CanCollide(GameState, Entity, TestEntity) && (TestEntity->P.Z == Entity->P.Z)) {
+					if (CanCollide(GameState, Entity, TestEntity)) {
 						v3 MinkowskiDiameter = v3{ TestEntity->Dim.X + Entity->Dim.X, TestEntity->Dim.Y + Entity->Dim.Y, TestEntity->Dim.Z + Entity->Dim.Z };
 
 						v3 MinCorner = -0.5f * MinkowskiDiameter;
@@ -327,26 +366,39 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 
 						v3 Rel = Entity->P - TestEntity->P;
 
+						real32 tMinTest = tMin;
+						v3 TestWallNormal = {};
+						bool32 HitThis = false;
+
 						//tResult = (MinCorner.X - RelOldPlayerP.dXY.X) / PlayerDelta.X;
 						if (TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
-							PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
-							WallNormal = v3{ -1, 0, 0 };
-							Hit = TestEntity;
+							PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y)) {
+							TestWallNormal = v3{ -1, 0, 0 };
+							HitThis = true;
 						}
 						if (TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X,
-							PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y)) {
-							WallNormal = v3{ 1, 0, 0 };
-							Hit = TestEntity;
+							PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y)) {
+							TestWallNormal = v3{ 1, 0, 0 };
+							HitThis = true;
 						}
 						if (TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
-							PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
-							WallNormal = v3{ 0, 1, 0 };
-							Hit = TestEntity;
+							PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X)) {
+							TestWallNormal = v3{ 0, 1, 0 };
+							HitThis = true;
 						}
 						if (TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y,
-							PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X)) {
-							WallNormal = v3{ 0, -1, 0 };
-							Hit = TestEntity;
+							PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X)) {
+							TestWallNormal = v3{ 0, -1, 0 };
+							HitThis = true;
+						}
+
+						if (HitThis) {
+							v3 TestP = Entity->P + tMinTest * PlayerDelta;
+							if (SpeculativeCollide(Entity, TestEntity)) {
+								Hit = TestEntity;
+								tMin = tMinTest;
+								WallNormal = TestWallNormal;
+							}
 						}
 
 					}
@@ -392,10 +444,15 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 	}
 
 
-	if (Entity->P.Z < Ground) {
+	if ((Entity->P.Z <= Ground) || ((IsSet(Entity, EntityFlag_ZSupported) && (Entity->dP.Z == 0.0f)))) {
 		Entity->P.Z = Ground;
 		Entity->dP.Z = 0;
+		AddFlags(Entity, EntityFlag_ZSupported);
 	}
+	else {
+		ClearFlags(Entity, EntityFlag_ZSupported);
+	}
+
 	if (Entity->DistanceLimit != 0.0f) {
 		Entity->DistanceLimit = DistanceRemaining;
 	}

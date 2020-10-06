@@ -286,8 +286,6 @@ AddPlayer(game_state* GameState) {
 	AddFlags(&Entity.Low->Sim, EntityFlag_Collides | EntityFlag_Moveable);
 	InitHitPoints(Entity.Low, 3);
 
-	//MakeEntityHighFrequency(GameState, Entity.LowIndex);
-	//ChangeEntityResidence(GameState, EntityIndex, EntityResidence_High);
 	add_low_entity_result Sword = AddSword(GameState);
 	Entity.Low->Sim.Sword.Index = Sword.LowIndex;
 
@@ -302,9 +300,10 @@ internal add_low_entity_result
 AddStair(game_state* GameState, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ) {
 	world_position P = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ, v3{0.0f, 0.0f, 0.5f * GameState->World->TileSideInMeters});
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Stairwell, P);
-	Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
-	Entity.Low->Sim.Dim.X = Entity.Low->Sim.Dim.Y;
+	Entity.Low->Sim.Dim.X = GameState->World->TileSideInMeters;
+	Entity.Low->Sim.Dim.Y = 2.0f * GameState->World->TileSideInMeters;
 	Entity.Low->Sim.Dim.Z = GameState->World->TileDepthInMeters;
+	AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
 	return(Entity);
 }
 
@@ -744,6 +743,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				sim_entity* ClosestHero = 0;
 				real32 ClosestHeroSq = Square(10.0f);
 				sim_entity* TestEntity = SimRegion->Entities;
+
+#if 0
 				for (uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
 					if (TestEntity->Type == EntityType_Hero) {
 						real32 TestDSq = LengthSq(TestEntity->P - Entity->P);
@@ -754,7 +755,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 						}
 					}
 				}
-
+#endif
 				if (ClosestHero && (ClosestHeroSq > Square(3.0f))) {
 					real32 Acceleration = 0.5f;
 					real32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
@@ -791,9 +792,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
 			}
 
-
-			real32 EntityGroundX = ScreenCenterX + MetersToPixels * Entity->P.X;
-			real32 EntityGroundY = ScreenCenterY - MetersToPixels * Entity->P.Y;
+			real32 ZFudge = (1.0f + 0.1f * Entity->P.Z);
+			real32 EntityGroundX = ScreenCenterX + MetersToPixels * ZFudge * Entity->P.X;
+			real32 EntityGroundY = ScreenCenterY - MetersToPixels * ZFudge * Entity->P.Y;
 
 			real32 EntityZ = -Entity->P.Z * MetersToPixels;
 

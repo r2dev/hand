@@ -134,23 +134,5 @@ GetLowEntity(game_state* GameState, uint32 Index) {
 	return(Result);
 }
 
-bool32
-TestWall(real32 WallX, real32 RelX, real32 RelY,
-	real32 PlayerDeltaX, real32 PlayerDeltaY, real32* tMin, real32 MinY, real32 MaxY) {
-	real32 tEpsilon = 0.001f;
-	bool32 Hit = false;
-	if (PlayerDeltaX != 0.0f) {
-		real32 tResult = (WallX - RelX) / PlayerDeltaX;
-		real32 Y = RelY + tResult * PlayerDeltaY;
-		if ((tResult >= 0.0f) && (*tMin > tResult)) {
-			if ((Y >= MinY) && (Y <= MaxY)) {
-				Hit = true;
-				*tMin = Maximum(0.0f, tResult - tEpsilon);
-			}
-		}
-	}
-	return(Hit);
-}
-
 
 #endif
