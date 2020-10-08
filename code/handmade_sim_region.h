@@ -60,6 +60,9 @@ struct sim_entity {
 	
 	uint32 FacingDirection;
 
+	//@todo for stairwells
+	real32 WalkableHeight;
+
 };
 
 struct sim_entity_hash {
