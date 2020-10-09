@@ -127,6 +127,13 @@ Clamp01(v3 Value) {
 	Result.Z = Clamp01(Value.Z);
 	return(Result);
 }
+inline v2
+Clamp01(v2 Value) {
+	v2 Result;
+	Result.X = Clamp01(Value.X);
+	Result.Y = Clamp01(Value.Y);
+	return(Result);
+}
 
 ////
 
@@ -476,5 +483,20 @@ GetBarycentric(rectangle3 A, v3 P) {
 	return(Result);
 }
 
+inline v2
+GetBarycentric(rectangle2 A, v2 P) {
+	v2 Result;
+	Result.X = SafeRatio0(P.X - A.Min.X, A.Max.X - A.Min.X);
+	Result.Y = SafeRatio0(P.Y - A.Min.Y, A.Max.Y - A.Min.Y);
+	return(Result);
+}
+
+inline rectangle2
+ToRectangleXY(rectangle3 A) {
+	rectangle2 Result;
+	Result.Min = A.Min.XY;
+	Result.Max = A.Max.XY;
+	return(Result);
+}
 
 #endif

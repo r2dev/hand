@@ -37,6 +37,18 @@ union entity_reference {
 	uint32 Index;
 };
 
+
+struct sim_entity_collision_volume {
+	v3 OffsetP;
+	v3 Dim;
+};
+
+struct sim_entity_collision_volume_group {
+	sim_entity_collision_volume TotalVolume;
+	uint32 VolumeCount;
+	sim_entity_collision_volume* Volumes;
+};
+
 struct sim_entity {
 	uint32 StorageIndex;
 	bool32 Updatable;
@@ -48,8 +60,8 @@ struct sim_entity {
 	v3 dP;
 
 	real32 DistanceLimit;
-
-	v3 Dim;
+	
+	sim_entity_collision_volume_group* Collision;
 
 	int32 dAbsTileZ;
 
@@ -61,6 +73,7 @@ struct sim_entity {
 	uint32 FacingDirection;
 
 	//@todo for stairwells
+	v2 WalkableDim;
 	real32 WalkableHeight;
 
 };
