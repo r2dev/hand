@@ -2,7 +2,8 @@
 #include "handmade_world.cpp"
 #include "handmade_sim_region.cpp"
 #include "handmade_entity.cpp"
-#include <stdlib.h>
+#include "handmade_random.h"
+
 
 internal void
 GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer, int ToneHz) {
@@ -28,7 +29,7 @@ GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer, in
 }
 
 internal void
-DrawRectangle(game_offscreen_buffer* Buffer,
+DrawRectangle(loaded_bitmap* Buffer,
 	v2 vMin, v2 vMax,
 	real32 R, real32 G, real32 B) {
 	int32 MinX = RoundReal32ToInt32(vMin.X);
@@ -54,7 +55,7 @@ DrawRectangle(game_offscreen_buffer* Buffer,
 	uint32 Color = (uint32)(RoundReal32ToUInt32(R * 255) << 16 | RoundReal32ToUInt32(G * 255) << 8 |
 		RoundReal32ToUInt32(B * 255) << 0);
 
-	uint8* Row = ((uint8*)Buffer->Memory + MinX * Buffer->BytesPerPixel + MinY * Buffer->Pitch);
+	uint8* Row = ((uint8*)Buffer->Memory + MinX * BITMAP_BYTE_PER_PIXEL + MinY * Buffer->Pitch);
 
 	for (int Y = MinY; Y < MaxY; ++Y) {
 		uint32* Pixel = (uint32*)Row;
@@ -66,7 +67,7 @@ DrawRectangle(game_offscreen_buffer* Buffer,
 }
 
 internal void
-DrawBitmap(game_offscreen_buffer* Buffer, loaded_bitmap* Bitmap,
+DrawBitmap(loaded_bitmap* Buffer, loaded_bitmap* Bitmap,
 	real32 RealX, real32 RealY, real32 CAlpha = 1.0f) {
 
 	int32 MinX = RoundReal32ToInt32(RealX);
@@ -91,35 +92,36 @@ DrawBitmap(game_offscreen_buffer* Buffer, loaded_bitmap* Bitmap,
 		MaxX = Buffer->Width;
 	}
 
-	uint32* SourceRow = Bitmap->Pixels + Bitmap->Width * (Bitmap->Height - 1);
-	SourceRow += -SourceOfferY * Bitmap->Width + SourceOfferX;
-	uint8* DestRow = ((uint8*)Buffer->Memory + MinX * Buffer->BytesPerPixel + MinY * Buffer->Pitch);
+	uint8* SourceRow = (uint8*)Bitmap->Memory + SourceOfferY * Bitmap->Pitch + BITMAP_BYTE_PER_PIXEL * SourceOfferX;
+	uint8* DestRow = ((uint8*)Buffer->Memory + MinX * BITMAP_BYTE_PER_PIXEL + MinY * Buffer->Pitch);
 
 	for (int Y = MinY; Y < MaxY; ++Y) {
 		uint32* Dest = (uint32*)DestRow;
-		uint32* Source = SourceRow;
+		uint32* Source = (uint32*)SourceRow;
 		for (int X = MinX; X < MaxX; ++X) {
-			real32 A = ((real32)((*Source >> 24) & 0xFF)) / 255.0f;
+			real32 SA = ((real32)((*Source >> 24) & 0xFF)) / 255.0f;
 
-			A *= CAlpha;
+			SA *= CAlpha;
 			real32 SR = (real32)((*Source >> 16) & 0xFF);
 			real32 SG = (real32)((*Source >> 8) & 0xFF);
 			real32 SB = (real32)((*Source >> 0) & 0xFF);
 
+			real32 DA = (real32)((*Dest >> 24) & 0xFF);
 			real32 DR = (real32)((*Dest >> 16) & 0xFF);
 			real32 DG = (real32)((*Dest >> 8) & 0xFF);
 			real32 DB = (real32)((*Dest >> 0) & 0xFF);
 
-			real32 R = (1.0f - A) * DR + A * SR;
-			real32 G = (1.0f - A) * DG + A * SG;
-			real32 B = (1.0f - A) * DB + A * SB;
+			real32 A = Maximum(DA, 255.0f * SA);
+			real32 R = (1.0f - SA) * DR + SA * SR;
+			real32 G = (1.0f - SA) * DG + SA * SG;
+			real32 B = (1.0f - SA) * DB + SA * SB;
 
-			*Dest = (uint32)(R + 0.5f) << 16 | (uint32)(G + 0.5f) << 8 | (uint32)(B + 0.5f) << 0;
+			*Dest = (uint32)(A + 0.5f) << 24 | (uint32)(R + 0.5f) << 16 | (uint32)(G + 0.5f) << 8 | (uint32)(B + 0.5f) << 0;
 			++Dest;
 			++Source;
 		}
 		DestRow += Buffer->Pitch;
-		SourceRow -= Bitmap->Width;
+		SourceRow += Bitmap->Pitch;
 	}
 }
 
@@ -156,7 +158,7 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 		uint32* Pixels = (uint32*)((uint8*)ReadResult.Contents + Header->BitmapOffset);
 		Result.Height = Header->Height;
 		Result.Width = Header->Width;
-		Result.Pixels = Pixels;
+		Result.Memory = Pixels;
 		uint32 RedMask = Header->RedMask;
 		uint32 GreenMask = Header->GreenMask;
 		uint32 BlueMask = Header->BlueMask;
@@ -186,17 +188,15 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 				++X)
 			{
 				uint32 C = *SourceDest;
-				*SourceDest++ = (RotateLeft(C & RedMask, RedShift) | RotateLeft(C & GreenMask, GreenShift)
-					| RotateLeft(C & BlueMask, BlueShift) | RotateLeft(C & AlphaMask, AlphaShift));
-#if 0
-				((C >> AlphaShift.Index) & 0xFF) << 24 |
-					((C >> RedShift.Index) & 0xFF) << 16 |
-					((C >> GreenShift.Index) & 0xFF) << 8 |
-					((C >> BlueShift.Index) & 0xFF) << 0;
-#endif
+				*SourceDest++ = (RotateLeft(C & RedMask, RedShift) 
+					| RotateLeft(C & GreenMask, GreenShift)
+					| RotateLeft(C & BlueMask, BlueShift) 
+					| RotateLeft(C & AlphaMask, AlphaShift));
 			}
 		}
 	}
+	Result.Pitch = -Result.Width * BITMAP_BYTE_PER_PIXEL;
+	Result.Memory = (uint8*)Result.Memory - Result.Pitch * (Result.Height - 1);
 
 	return(Result);
 
@@ -464,6 +464,40 @@ AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageInde
 
 	Assert(Found);
 }
+
+internal void
+DrawTestGround(game_state* GameState, loaded_bitmap* Buffer) {
+	random_series Series = RandomSeed(1234);
+	v2 Center = 0.5f * V2i(Buffer->Width, Buffer->Height);
+	for (uint32 GrassIndex = 0; GrassIndex < 100; GrassIndex++) {
+		loaded_bitmap* Stamp = 0;
+		if (RandomChoice(&Series, 2)) {
+			Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
+		}
+		else {
+			Stamp = GameState->Ground + RandomChoice(&Series, ArrayCount(GameState->Ground));
+		}
+
+		real32 Radius = 5.0f;
+		v2 BitmapCenter = 0.5f * V2i(Stamp->Width, Stamp->Height);
+		v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
+		v2 P = Center + Offset * GameState->MetersToPixels * Radius - BitmapCenter;
+		DrawBitmap(Buffer, Stamp, P.X, P.Y);
+	}
+}
+
+internal loaded_bitmap
+MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height) {
+	loaded_bitmap Result = {};
+	Result.Width = Width;
+	Result.Height = Height;
+	Result.Pitch = Width * BITMAP_BYTE_PER_PIXEL;
+	int32 TotalBitmapSize = Result.Pitch * Height;
+	Result.Memory = _PushSize(Arena, TotalBitmapSize);
+	ZeroSize(TotalBitmapSize, Result.Memory);
+	return(Result);
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
@@ -492,6 +526,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		GameState->WallCollision = MakeSimpleGroundedCollision(GameState, GameState->World->TileSideInMeters, GameState->World->TileSideInMeters, GameState->World->TileDepthInMeters);
 		GameState->StandardRoomCollision = MakeSimpleGroundedCollision(GameState, TilesPerWidth * GameState->World->TileSideInMeters, TilesPerHeight * GameState->World->TileSideInMeters, 0.9f * GameState->World->TileDepthInMeters);
 		GameState->FamiliarCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
+	
+		GameState->Grass[0] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/grass00.bmp");
+		GameState->Grass[1] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/grass01.bmp");
+		GameState->Ground[0] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/ground00.bmp");
+		GameState->Ground[1] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/ground01.bmp");
+		GameState->Ground[2] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/ground02.bmp");
+		GameState->Ground[3] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/ground03.bmp");
+		GameState->Tuft[0] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/tuft00.bmp");
+		GameState->Tuft[1] = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test2/tuft01.bmp");
+
 
 		GameState->Background =
 			DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_background.bmp");
@@ -530,6 +574,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		Bitmap->Torso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_front_torso.bmp");
 		Bitmap->Align = v2{ 72, 182 };
 
+
+		random_series Series = RandomSeed(1234);
 		
 		
 		uint32 ScreenBaseX = 0;
@@ -547,17 +593,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		bool32 DoorDown = false;
 
 		for (uint32 ScreenIndex = 0; ScreenIndex < 30; ++ScreenIndex) {
-			uint32 RandomChoice;
+			uint32 DoorDirection;
 			if (DoorUp || DoorDown)
 			{
-				RandomChoice = rand() % 2;
+				DoorDirection = RandomChoice(&Series, 2);
 			}
 			else {
-				RandomChoice = rand() % 3;
+				DoorDirection = RandomChoice(&Series, 3);
 			}
 
 			bool32 CreatedZDoor = false;
-			if (RandomChoice == 2) {
+			if (DoorDirection == 2) {
 				CreatedZDoor = true;
 				if (AbsTileZ == ScreenBaseZ) {
 					DoorUp = true;
@@ -566,7 +612,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					DoorDown = true;
 				}
 			}
-			else if (RandomChoice == 1) {
+			else if (DoorDirection == 1) {
 				DoorRight = true;
 			}
 			else {
@@ -598,7 +644,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					}
 
 					if (ShouldBeDoor) {
-						AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+						if (ScreenIndex == 0) {
+							AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+						}
 					} else if (CreatedZDoor) {
 						if (TileY == 5 && TileX == 10) {
 							AddStair(GameState, AbsTileX, AbsTileY, DoorDown? AbsTileZ - 1: AbsTileZ);
@@ -624,7 +672,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			DoorRight = false;
 			DoorTop = false;
 
-			if (RandomChoice == 2) {
+			if (DoorDirection == 2) {
 				if (AbsTileZ == ScreenBaseZ) {
 					AbsTileZ = ScreenBaseZ + 1;
 				}
@@ -632,7 +680,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					AbsTileZ = ScreenBaseZ;
 				}
 			}
-			else if (RandomChoice == 1) {
+			else if (DoorDirection == 1) {
 				ScreenX += 1;
 			}
 			else {
@@ -649,6 +697,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		GameState->CameraP = NewCameraP;
 		AddMonster(GameState, CameraTileX - 3, CameraTileY + 2, CameraTileZ);
 		AddFamiliar(GameState, CameraTileX - 2, CameraTileY - 2, CameraTileZ);
+		GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena, 512, 512);
+		DrawTestGround(GameState, &GameState->GroundBuffer);
 		Memory->IsInitialized = true;
 	}
 
@@ -721,15 +771,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	sim_region* SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds, Input->dtForFrame);
 	//
 
-#if 1
-	DrawRectangle(Buffer, v2{ 0, 0 },
-		v2{ (real32)Buffer->Width ,  (real32)Buffer->Height },0.5f, 0.5f, 0.5f);
-#else
-	DrawBitmap(Buffer, &GameState->Background, 0, 0);
-#endif
+	loaded_bitmap DrawBuffer_ = {};
+	loaded_bitmap* DrawBuffer = &DrawBuffer_;
+	DrawBuffer->Height = Buffer->Height;
+	DrawBuffer->Width = Buffer->Width;
+	DrawBuffer->Pitch = Buffer->Pitch;
+	DrawBuffer->Memory = Buffer->Memory;
 
-	real32 ScreenCenterX = 0.5f * (real32)Buffer->Width;
-	real32 ScreenCenterY = 0.5f * (real32)Buffer->Height;
+
+	DrawRectangle(DrawBuffer, v2{ 0, 0 },
+		v2{ (real32)Buffer->Width ,  (real32)Buffer->Height },0.5f, 0.5f, 0.5f);
+	DrawBitmap(DrawBuffer, &GameState->GroundBuffer, 0, 0);
+
+	
+
+	real32 ScreenCenterX = 0.5f * (real32)DrawBuffer->Width;
+	real32 ScreenCenterY = 0.5f * (real32)DrawBuffer->Height;
 	entity_visible_piece_group PieceGroup;
 	PieceGroup.GameState = GameState;
 	sim_entity* Entity = SimRegion->Entities;
@@ -845,10 +902,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				//PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
 			} break;
 			case EntityType_Space: {
+#if 0
 				for (uint32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
 					sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
 					PushRectOutline(&PieceGroup, Volume->OffsetP.XY, 0, Volume->Dim.XY, v4{ 0, 0.5f, 1.0f, 1.0f }, 0.0f);
 				}
+#endif
 			} break;
 			default: {
 				InvalidCodePath
@@ -874,11 +933,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				};
 
 				if (Piece->Bitmap) {
-					DrawBitmap(Buffer, Piece->Bitmap, Center.X, Center.Y, Piece->A);
+					DrawBitmap(DrawBuffer, Piece->Bitmap, Center.X, Center.Y, Piece->A);
 				}
 				else {
 					v2 HalfDim = 0.5f * MetersToPixels * Piece->Dim;
-					DrawRectangle(Buffer, Center - HalfDim, Center + HalfDim, Piece->R, Piece->G, Piece->B);
+					DrawRectangle(DrawBuffer, Center - HalfDim, Center + HalfDim, Piece->R, Piece->G, Piece->B);
 				}
 
 			}

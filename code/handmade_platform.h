@@ -92,13 +92,13 @@ typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 
 #endif
 
+#define BITMAP_BYTE_PER_PIXEL 4
 
 struct game_offscreen_buffer {
 	void* Memory;
 	int Width;
 	int Height;
 	int Pitch;
-	int BytesPerPixel;
 };
 
 struct game_sound_output_buffer {
