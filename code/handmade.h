@@ -124,6 +124,7 @@ struct game_state {
 	sim_entity_collision_volume_group* StandardRoomCollision;
 
 	loaded_bitmap GroundBuffer;
+	world_position GroundP;
 
 };
 
