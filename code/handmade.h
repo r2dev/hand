@@ -10,8 +10,14 @@ struct memory_arena {
 	memory_index Size;
 	uint8* Base;
 	memory_index Used;
+
+	int32 TempCount;
 };
 
+struct temporary_memory {
+	memory_arena* Arena;
+	memory_index Used;
+};
 inline void
 InitializeArena(memory_arena* Arena, memory_index Size, void* Storage) {
 	Arena->Size = Size;
@@ -29,6 +35,28 @@ _PushSize(memory_arena* Arena, memory_index Size) {
 	Arena->Used += Size;
 	return(Result);
 }
+
+
+inline temporary_memory
+BeginTemporaryMemory(memory_arena* Arena) {
+	temporary_memory Result;
+	Result.Arena = Arena;
+	Result.Used = Arena->Used;
+	Arena->TempCount++;
+	return(Result);
+}
+
+inline void
+EndTemporaryMemory(temporary_memory TempMem) {
+	memory_arena* Arena = TempMem.Arena;
+	Assert(Arena->Used >= TempMem.Used)
+	Arena->Used = TempMem.Used;
+	Assert(Arena->TempCount > 0)
+	Arena->Used--;
+}
+
+
+
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
 inline void
 ZeroSize(memory_index Size, void* Ptr) {
@@ -78,6 +106,12 @@ struct pairwise_collision_rule {
 
 	pairwise_collision_rule* NextHash;
 };
+
+struct ground_buffer {
+	world_position P;
+	void* Memory;
+};
+
 struct game_state;
 internal void AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide);
 internal void ClearCollisionRulesFor(game_state* GameState, uint32 StorageIndex);
@@ -123,9 +157,16 @@ struct game_state {
 	sim_entity_collision_volume_group* FamiliarCollision;
 	sim_entity_collision_volume_group* StandardRoomCollision;
 
-	loaded_bitmap GroundBuffer;
-	world_position GroundP;
+};
 
+struct transient_state {
+	bool32 IsInitialized;
+	memory_arena TranArena;
+
+	uint32 GroundBufferCount;
+	ground_buffer* GroundBuffers;
+	loaded_bitmap GroundBufferTemplate;
+	
 };
 
 struct entity_visible_piece {
