@@ -4,7 +4,7 @@
 
 #define TILE_CHUNK_SAFE_MARGIN (INT32_MAX / 64)
 #define TILE_CHUNK_UNINITIALIZED INT32_MAX
-#define TILES_PER_CHUNK 16
+#define TILES_PER_CHUNK 8
 
 inline world_position
 NullPosition() {
@@ -53,6 +53,20 @@ MapIntoChunkSpace(world* World, world_position BasePos, v3 Offset) {
 	RecanonicalizeCoord(World->ChunkDimInMeters.Y, &Result.ChunkY, &Result.Offset_.Y);
 	RecanonicalizeCoord(World->ChunkDimInMeters.Z, &Result.ChunkZ, &Result.Offset_.Z);
 	return(Result);
+}
+
+inline world_position 
+CenteredChunkPoint(uint32 ChunkX, uint32 ChunkY, uint32 ChunkZ) {
+	world_position Result = {};
+	Result.ChunkX = ChunkX;
+	Result.ChunkY = ChunkY;
+	Result.ChunkZ = ChunkZ;
+	return(Result);
+}
+
+inline world_position
+CenteredChunkPoint(world_chunk * Chunk) {
+	return CenteredChunkPoint(Chunk->ChunkX, Chunk->ChunkY, Chunk->ChunkZ);
 }
 
 inline world_chunk*
@@ -125,11 +139,13 @@ Subtract(world* World, world_position* A, world_position* B) {
 
 
 void
-InitializeWorld(world* World, real32 TileSideInMeter, real32 TileDepthInMeter) {
+InitializeWorld(world* World, v3 ChunkDimInMeter) {
 
-	World->TileSideInMeters = TileSideInMeter;
-	World->ChunkDimInMeters = v3{ (real32)TILES_PER_CHUNK * TileSideInMeter, (real32)TILES_PER_CHUNK * TileSideInMeter, (real32)TileDepthInMeter };
-	World->TileDepthInMeters = (real32)TileDepthInMeter;
+	//World->TileSideInMeters = TileSideInMeter;
+	// = v3{ (real32)TILES_PER_CHUNK * TileSideInMeter, (real32)TILES_PER_CHUNK * TileSideInMeter, (real32)TileDepthInMeter };
+	//World->TileDepthInMeters = (real32)TileDepthInMeter;
+
+	World->ChunkDimInMeters = ChunkDimInMeter;
 	World->FirstFree = 0;
 
 	for (uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex) {
@@ -138,18 +154,6 @@ InitializeWorld(world* World, real32 TileSideInMeter, real32 TileDepthInMeter) {
 	}
 }
 
-inline world_position
-ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ, v3 AdditionalOffset = v3{ 0, 0, 0 }) {
-	world_position BasePos = {};
-
-	v3 TileDim = v3{ World->TileSideInMeters , World->TileSideInMeters , World->TileDepthInMeters };
-
-	v3 Offset = Hadamard(TileDim, v3{(real32)AbsTileX, (real32)AbsTileY, (real32)AbsTileZ});
-
-	world_position Result = MapIntoChunkSpace(World, BasePos, Offset + AdditionalOffset);
-
-	return(Result);
-}
 
 inline void
 ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex, 

@@ -125,7 +125,7 @@ struct game_state {
 
 	controlled_hero ControlledHeroes[ArrayCount(((game_input*)0)->Controllers)];
 
-	
+	real32 TypicalFloorHeight = 3.0f;
 
 	uint32 LowEntityCount;
 	low_entity LowEntities[100000];
@@ -143,7 +143,9 @@ struct game_state {
 	loaded_bitmap Stairwell;
 
 	hero_bitmaps HeroBitmaps[4];
+
 	real32 MetersToPixels;
+	real32 PixelsToMeters;
 
 	pairwise_collision_rule* CollisionRuleHash[256];
 	pairwise_collision_rule* FirstFreeCollisionRule;
