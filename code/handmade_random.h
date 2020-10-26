@@ -529,10 +529,12 @@ inline random_series RandomSeed(uint32 Value) {
 }
 
 inline uint32 RandomNextUInt32(random_series* Series) {
-    uint32 Result = RandomNumberTable[Series->Index++];
+    Series->Index++;
     if (Series->Index >= ArrayCount(RandomNumberTable)) {
         Series->Index = 0;
     }
+    uint32 Result = RandomNumberTable[Series->Index];
+   
     return(Result);
 }
 

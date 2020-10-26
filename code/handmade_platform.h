@@ -30,6 +30,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <float.h>
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -52,6 +53,8 @@ typedef size_t memory_index;
 #define global_variable static
 
 #define Pi32 3.14159265359f
+
+#define Real32Maximum FLT_MAX
 
 #if HANDMADE_SLOW
 #define Assert(Expression) if(!(Expression)) { *(int*)0 = 0; }
@@ -146,7 +149,10 @@ struct game_input {
 	game_button_state MouseBottons[5];
 	int32 MouseX, MouseY, MouseZ;
 	game_controller_input Controllers[5];
+	
+	bool32 ExecutableReloaded;
 	real32 dtForFrame;
+
 };
 
 struct game_memory {
