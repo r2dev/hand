@@ -483,7 +483,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 			for (uint32 GrassIndex = 0; GrassIndex < 40; GrassIndex++) {
 				loaded_bitmap* Stamp = 0;
 				//if (RandomChoice(&Series, 2)) {
-					Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
+				Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
 				//}
 				//else {
 					//Stamp = GameState->Ground + RandomChoice(&Series, ArrayCount(GameState->Ground));
@@ -499,11 +499,6 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 
 		}
 	}
-
-
-	
-	
-	
 }
 
 internal void
@@ -754,13 +749,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		
 		for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
 			ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-			GroundBuffer->Bitmap = MakeEmptyBitmap(&TranState->TranArena, GroundBufferWidth, GroundBufferHeight);
+			GroundBuffer->Bitmap = MakeEmptyBitmap(&TranState->TranArena, GroundBufferWidth, GroundBufferHeight, false);
 			GroundBuffer->P = NullPosition();
 		}
-
-		//FillGroundChunk(TranState, GameState, TranState->GroundBuffers, &GameState->CameraP);
-
-
 		TranState->IsInitialized = true;
 	}
 
@@ -825,7 +816,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	temporary_memory RenderMemory = BeginTemporaryMemory(&TranState->TranArena);
 
-	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->PixelsToMeters);
+	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->MetersToPixels);
 
 	loaded_bitmap DrawBuffer_ = {};
 	loaded_bitmap* DrawBuffer = &DrawBuffer_;
@@ -1084,21 +1075,3 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
 	GameOutputSound(GameState, SoundBuffer, 400);
 }
-
-/*
-internal void
-RenderWeirdGradient(game_offscreen_buffer* Buffer, int XOffset, int YOffset) {
-	uint8* Row = (uint8*)Buffer->Memory;
-	for (int Y = 0; Y < Buffer->Height; Y++) {
-		uint32* Pixel = (uint32*)Row;
-		for (int X = 0; X < Buffer->Width; X++) {
-			uint8 Blue = (uint8)(X + XOffset);
-			uint8 Green = (uint8)(Y + YOffset);
-			*Pixel++ = (Green << 16) | Blue;
-		}
-		Row += Buffer->Pitch;
-	}
-}
-
-
-**/
