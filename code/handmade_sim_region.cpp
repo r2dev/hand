@@ -306,10 +306,10 @@ HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region, real
 
 
 internal bool32
-SpeculativeCollide(sim_entity* Mover, sim_entity* Region) {
+SpeculativeCollide(sim_entity* Mover, sim_entity* Region, v3 TestP) {
 	bool32 Result = true;
 	if (Region->Type == EntityType_Stairwell) {
-		v3 MoverGroundPoint = GetEntityGroundPoint(Mover);
+		v3 MoverGroundPoint = GetEntityGroundPoint(Mover, TestP);
 		real32 Ground = GetStairGround(Region, MoverGroundPoint);
 		real32 StepHeight = 0.1f;
 		Result = (AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight);
@@ -440,7 +440,7 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 										}
 										if (HitThis) {
 											v3 TestP = Entity->P + tMinTest * PlayerDelta;
-											if (SpeculativeCollide(Entity, TestEntity)) {
+											if (SpeculativeCollide(Entity, TestEntity, TestP)) {
 												HitEntityMin = TestEntity;
 												tMin = tMinTest;
 												WallNormalMin = TestWallNormal;

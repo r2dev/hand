@@ -28,6 +28,7 @@ InitializeArena(memory_arena* Arena, memory_index Size, void* Storage) {
 
 #define PushStruct(Arena, type) (type*) _PushSize(Arena, sizeof(type))
 #define PushArray(Arena, Count, type) (type*) _PushSize(Arena, (Count)*sizeof(type))
+#define PushSize(Arena, Size) _PushSize(Arena, Size)
 inline void*
 _PushSize(memory_arena* Arena, memory_index Size) {
 	Assert((Arena->Used + Size) <= Arena->Size);
@@ -52,9 +53,13 @@ EndTemporaryMemory(temporary_memory TempMem) {
 	Assert(Arena->Used >= TempMem.Used)
 	Arena->Used = TempMem.Used;
 	Assert(Arena->TempCount > 0)
-	Arena->Used--;
+	--Arena->TempCount;
 }
 
+inline void
+CheckArena(memory_arena* Arena) {
+	Assert(Arena->TempCount == 0);
+}
 
 
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
@@ -109,7 +114,7 @@ struct pairwise_collision_rule {
 
 struct ground_buffer {
 	world_position P;
-	void* Memory;
+	loaded_bitmap Bitmap;
 };
 
 struct game_state;
@@ -167,23 +172,6 @@ struct transient_state {
 
 	uint32 GroundBufferCount;
 	ground_buffer* GroundBuffers;
-	loaded_bitmap GroundBufferTemplate;
-	
-};
-
-struct entity_visible_piece {
-	loaded_bitmap* Bitmap;
-	v2 Offset;
-	real32 OffsetZ;
-	real32 R, G, B, A;
-	v2 Dim;
-	real32 EntityZC;
-};
-
-struct entity_visible_piece_group {
-	game_state* GameState;
-	uint32 PieceCount;
-	entity_visible_piece Pieces[8];
 };
 
 inline low_entity*
