@@ -524,17 +524,17 @@ struct random_series {
 
 inline random_series RandomSeed(uint32 Value) {
     random_series Series;
-	Series.Index = Value;
+	Series.Index = Value % ArrayCount(RandomNumberTable);
 	return(Series);
 }
 
 inline uint32 RandomNextUInt32(random_series* Series) {
-    Series->Index++;
-    if (Series->Index >= ArrayCount(RandomNumberTable)) {
+    uint32 Result = RandomNumberTable[Series->Index++];
+    if (Series->Index >= ArrayCount(RandomNumberTable))
+    {
         Series->Index = 0;
     }
-    uint32 Result = RandomNumberTable[Series->Index];
-   
+
     return(Result);
 }
 
