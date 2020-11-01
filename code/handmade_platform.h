@@ -63,6 +63,7 @@ typedef size_t memory_index;
 #endif
 
 #define InvalidCodePath Assert(!"InvalidCodePath")
+#define InvalidDefaultCase default: {InvalidCodePath;} break
 
 #include <math.h>
 
