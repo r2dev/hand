@@ -957,7 +957,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	v2 Offset = v2{ 20 * Sin(Angle), 0 };
 	v2 AxisX = 200 * v2{ 1, 0 };
 	v2 AxisY = Perp(AxisX);
-	CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{AxisX.x, AxisY.y}, AxisX, AxisY, v4{ 1.0f, 0.0f, 0.0f, 1.0f }, & GameState->Tree);
+	v4 Color = v4{ 1.0f, 1.0f, 0.0f, 1.0f };
+	CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{AxisX.x, AxisY.y}, AxisX, AxisY, Color, & GameState->Tree);
 	
 
 	RenderGroupToOutput(RenderGroup, DrawBuffer);

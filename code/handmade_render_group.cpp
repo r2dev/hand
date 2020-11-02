@@ -177,6 +177,31 @@ DrawBitmap(loaded_bitmap* Buffer, loaded_bitmap* Bitmap,
 	}
 }
 
+internal v4
+SRGBToLinear1(v4 C) {
+	v4 Result = {};
+	real32 Inv255C = 1.0f / 255.0f;
+	Result.r = Square(Inv255C * C.r);
+	Result.g = Square(Inv255C * C.g);
+	Result.b = Square(Inv255C * C.b);
+	Result.a = Inv255C * C.a;
+	return(Result);
+}
+
+
+internal v4
+Linear1ToSRGB(v4 C) {
+	v4 Result = {};
+	real32 One255C = 255.0f;
+	Result.r = One255C * SquareRoot(C.r);
+	Result.g = One255C * SquareRoot(C.g);
+	Result.b = One255C * SquareRoot(C.b);
+	Result.a = One255C * C.a;
+	return(Result);
+}
+
+
+
 internal void
 DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture) {
 #if 0
@@ -281,28 +306,40 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 					(real32)((ColorD >> 0) & 0xFF),
 					(real32)((ColorD >> 24) & 0xFF)
 				};
+				TexelA = SRGBToLinear1(TexelA);
+				TexelB = SRGBToLinear1(TexelB);
+				TexelC = SRGBToLinear1(TexelC);
+				TexelD = SRGBToLinear1(TexelD);
 
 				v4 Texel = Lerp(Lerp(TexelA, dU, TexelB), dV, Lerp(TexelC, dU, TexelD));
-				real32 SA = Texel.a;
-				real32 SR = Texel.r;
-				real32 SG = Texel.g;
-				real32 SB = Texel.b;
-				real32 RSA = (SA / 255.0f) * Color.a;
 
-				real32 DA = (real32)((*Pixel >> 24) & 0xFF);
-				real32 DR = (real32)((*Pixel >> 16) & 0xFF);
-				real32 DG = (real32)((*Pixel >> 8) & 0xFF);
-				real32 DB = (real32)((*Pixel >> 0) & 0xFF);
-				real32 RDA = (DA / 255.0f);
+				real32 RSA = Texel.a * Color.a;
 
+				v4 Dest = {
+					(real32)((*Pixel >> 16) & 0xFF),
+					(real32)((*Pixel >> 8) & 0xFF),
+					(real32)((*Pixel >> 0) & 0xFF),
+					(real32)((*Pixel >> 24) & 0xFF)
+				};
+
+				Dest = SRGBToLinear1(Dest);
+				real32 RDA = Dest.a;
 				real32 InvRSA = (1.0f - RSA);
 
-				real32 A = 255.0f * (RSA + RDA - RSA * RDA);
-				real32 R = InvRSA * DR + SR;
-				real32 G = InvRSA * DG + SG;
-				real32 B = InvRSA * DB + SB;
+				
+				v4 Blended = {
+					InvRSA * Dest.r + Color.a * Color.r * Texel.r,
+					InvRSA * Dest.g + Color.a * Color.g * Texel.g,
+					InvRSA * Dest.b + Color.a * Color.b * Texel.b,
+					RSA + RDA - RSA * RDA
+				};
 
-				*Pixel = (uint32)(A + 0.5f) << 24 | (uint32)(R + 0.5f) << 16 | (uint32)(G + 0.5f) << 8 | (uint32)(B + 0.5f) << 0;
+				Blended = Linear1ToSRGB(Blended);
+
+				*Pixel = (uint32)(Blended.a + 0.5f) << 24 |
+					(uint32)(Blended.r + 0.5f) << 16 |
+					(uint32)(Blended.g + 0.5f) << 8 |
+					(uint32)(Blended.b + 0.5f) << 0;
 
 			}
 			*Pixel++;
@@ -413,9 +450,6 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 				P = Entry->Origin + Entry->AxisY + Entry->AxisX;
 
 				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color.r, Color.g, Color.b);
-
-
-				
 
 				BaseAddress += sizeof(*Entry);
 			} break;
