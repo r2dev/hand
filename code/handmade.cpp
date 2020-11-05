@@ -115,18 +115,20 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 				++X)
 			{
 				uint32 C = *SourceDest;
-				real32 R = (real32)((C & RedMask) >> RedShiftDown);
-				real32 G = (real32)((C & GreenMask) >> GreenShiftDown);
-				real32 B = (real32)((C & BlueMask) >> BlueShiftDown);
-				real32 A = (real32)((C & AlphaMask) >> AlphaShiftDown);
-				real32 AN = (A / 255.0f);
-				R *= AN;
-				G *= AN;
-				B *= AN;
-				*SourceDest++ = ((uint32)(A + 0.5f) << 24) |
-					((uint32)(R + 0.5f) << 16) |
-					((uint32)(G + 0.5f) << 8) |
-					((uint32)(B + 0.5f) << 0);
+				v4 Texel = { 
+					(real32)((C & RedMask) >> RedShiftDown),
+					(real32)((C & GreenMask) >> GreenShiftDown),
+					(real32)((C & BlueMask) >> BlueShiftDown),
+					(real32)((C & AlphaMask) >> AlphaShiftDown)
+				};
+				Texel = SRGBToLinear1(Texel);
+				Texel.rgb *= Texel.a;
+				Texel = Linear1ToSRGB(Texel);
+				
+				*SourceDest++ = ((uint32)(Texel.a + 0.5f) << 24) |
+					((uint32)(Texel.r + 0.5f) << 16) |
+					((uint32)(Texel.g + 0.5f) << 8) |
+					((uint32)(Texel.b + 0.5f) << 0);
 			}
 		}
 	}
@@ -278,7 +280,8 @@ DrawHitPoints(sim_entity* Entity, render_group* PieceGroup) {
 	}
 }
 
-internal sim_entity_collision_volume_group* MakeSimpleGroundedCollision(game_state* GameState, real32 DimX, real32 DimY, real32 DimZ) {
+internal sim_entity_collision_volume_group*
+MakeSimpleGroundedCollision(game_state* GameState, real32 DimX, real32 DimY, real32 DimZ) {
 	sim_entity_collision_volume_group* Group = PushStruct(&GameState->WorldArena, sim_entity_collision_volume_group);
 	Group->VolumeCount = 1;
 	Group->Volumes = PushArray(&GameState->WorldArena, 1, sim_entity_collision_volume);
@@ -288,7 +291,8 @@ internal sim_entity_collision_volume_group* MakeSimpleGroundedCollision(game_sta
 	return(Group);
 }
 
-internal sim_entity_collision_volume_group* MakeNullCollision(game_state* GameState) {
+internal sim_entity_collision_volume_group*
+MakeNullCollision(game_state* GameState) {
 	sim_entity_collision_volume_group* Group = PushStruct(&GameState->WorldArena, sim_entity_collision_volume_group);
 	Group->VolumeCount = 0;
 	Group->Volumes = 0;
@@ -439,6 +443,40 @@ MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool32 ClearToZe
 		ClearBitmap(&Result);
 	}
 	return(Result);
+}
+
+internal void
+MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
+	real32 InvWidth = 1.0f / (real32)(Bitmap->Width - 1);
+	real32 InvHeight = 1.0f / (real32)(Bitmap->Height - 1);
+	uint8* Row = (uint8*)Bitmap->Memory;
+	for (int32 Y = 0; Y < Bitmap->Height; ++Y) {
+		uint32* Pixel = (uint32*)Row;
+		for (int32 X = 0; X < Bitmap->Width; ++X) {
+			v2 BitmapUV = { InvWidth * real32(X), InvHeight * real32(Y) };
+			real32 Nx = 2.0f * BitmapUV.x - 1.0f;
+			real32 Ny = 2.0f * BitmapUV.y - 1.0f;
+			real32 Nz = 0;
+			real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
+			v3 Normal = v3{ 0, 0, 1.0f };
+			if (RootTerm >= 0.0f) {
+				Nz = SquareRoot(RootTerm);
+				Normal = v3{ Nx, Ny, Nz };
+			}
+			
+			v4 Color = 255.0f * v4{
+				(Normal.x + 1.0f) * 0.5f,
+				(Normal.y + 1.0f) * 0.5f,
+				(Normal.z + 1.0f) * 0.5f,
+				Roughness
+			};
+			*Pixel++ = (uint32)(Color.a + 0.5f) << 24 |
+				(uint32)(Color.r + 0.5f) << 16 |
+				(uint32)(Color.g + 0.5f) << 8 |
+				(uint32)(Color.b + 0.5f) << 0;
+		}
+		Row += Bitmap->Pitch;
+	}
 }
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
@@ -670,6 +708,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			GroundBuffer->Bitmap = MakeEmptyBitmap(&TranState->TranArena, GroundBufferWidth, GroundBufferHeight, false);
 			GroundBuffer->P = NullPosition();
 		}
+
+		// normal map
+		GameState->TreeNormal = MakeEmptyBitmap(&TranState->TranArena, GameState->Tree.Width, GameState->Tree.Height, 0);
+		MakeSphereNormalMap(&GameState->TreeNormal, 0.0f);
+
 		TranState->IsInitialized = true;
 	}
 
@@ -957,10 +1000,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	v2 Offset = v2{ 20 * Sin(Angle), 0 };
 	v2 AxisX = 200 * v2{ 1, 0 };
 	v2 AxisY = Perp(AxisX);
-	v4 Color = v4{ 1.0f, 1.0f, 0.0f, 1.0f };
-	CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{AxisX.x, AxisY.y}, AxisX, AxisY, Color, & GameState->Tree);
+	v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
+	CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{ AxisX.x, AxisY.y }, AxisX, AxisY, Color, 
+		&GameState->Tree, & GameState->TreeNormal, 0, 0, 0);
 	
-
 	RenderGroupToOutput(RenderGroup, DrawBuffer);
 	EndSim(SimRegion, GameState);
 	EndTemporaryMemory(SimMemory);

@@ -1,5 +1,12 @@
 #pragma once
 
+struct environment_map {
+
+	int32 WidthPow2, HeightPow2;
+	loaded_bitmap* LOD[4];
+};
+
+
 enum render_group_entry_type {
 	RenderGroupEntryType_render_entry_clear,
 	RenderGroupEntryType_render_entry_rectangle,
@@ -33,12 +40,10 @@ struct render_group {
 };
 
 struct render_entry_clear {
-	render_group_entry_header Header;
 	v4 Color;
 };
 
 struct render_entry_rectangle {
-	render_group_entry_header Header;
 	render_entity_basis EntityBasis;
 	real32 R, G, B, A;
 	v2 Dim;
@@ -46,19 +51,21 @@ struct render_entry_rectangle {
 };
 
 struct render_entry_bitmap {
-	render_group_entry_header Header;
 	render_entity_basis EntityBasis;
 	loaded_bitmap* Bitmap;
 	real32 R, G, B, A;
 };
 
 struct render_entry_coordinate_system {
-	render_group_entry_header Header;
-
 	v2 Origin;
 	v2 AxisX;
 	v2 AxisY;
 	v4 Color;
 
 	loaded_bitmap* Texture;
+	loaded_bitmap* NormalMap;
+
+	environment_map* Top;
+	environment_map* Middle;
+	environment_map* Bottom;
 };

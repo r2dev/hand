@@ -147,6 +147,8 @@ struct game_state {
 
 	loaded_bitmap Stairwell;
 
+	loaded_bitmap TreeNormal;
+
 	hero_bitmaps HeroBitmaps[4];
 
 	real32 MetersToPixels;

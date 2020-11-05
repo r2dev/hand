@@ -14,6 +14,14 @@ struct v2 {
 	inline v2& operator+=(v2 A);
 };
 
+inline v2
+V2(real32 X, real32 Y) {
+	v2 Result;
+	Result.x = X;
+	Result.y = Y;
+	return Result;
+}
+
 struct v3 {
 	union {
 		struct {
@@ -49,26 +57,6 @@ inline v3 V3(v2 XY, real32 Z) {
 	return(Result);
 }
 
-struct v4 {
-	union {
-		struct {
-			real32 x, y, z, w;
-		};
-		struct {
-			real32 r, g, b, a;
-		};
-		real32 E[4];
-	};
-};
-
-inline v2
-V2(real32 X, real32 Y) {
-	v2 Result;
-	Result.x = X;
-	Result.y = Y;
-	return Result;
-}
-
 inline v3
 V3(real32 X, real32 Y, real32 Z) {
 	v3 Result;
@@ -77,6 +65,37 @@ V3(real32 X, real32 Y, real32 Z) {
 	Result.z = Z;
 	return Result;
 }
+
+//v4
+struct v4 {
+	union {
+		struct {
+
+			union {
+				v3 xyz;
+				struct {
+					real32 x, y, z;	
+				};
+			};
+			real32 w;
+		};
+		struct {
+			union {
+				v3 rgb;
+				struct {
+					real32 r, g, b;
+				};
+			};
+			real32 a;
+		};
+		real32 E[4];
+	};
+
+	inline v4& operator*=(real32 A);
+	inline v4& operator+=(v4 A);
+};
+
+
 
 inline v4
 V4(real32 X, real32 Y, real32 Z, real32 W) {
@@ -87,6 +106,104 @@ V4(real32 X, real32 Y, real32 Z, real32 W) {
 	Result.w = W;
 	return Result;
 }
+
+inline v4
+operator-(v4 A) {
+	v4 Result;
+	Result.x = -A.x;
+	Result.y = -A.y;
+	Result.z = -A.z;
+	Result.w = -A.w;
+	return (Result);
+}
+
+inline v4
+operator+(v4 A, v4 B) {
+	v4 Result;
+	Result.x = A.x + B.x;
+	Result.y = A.y + B.y;
+	Result.z = A.z + B.z;
+	Result.w = A.w + B.w;
+	return (Result);
+}
+
+inline v4&
+v4::operator+=(v4 A) {
+	*this = *this + A;
+	return (*this);
+}
+
+inline v4
+operator-(v4 A, v4 B) {
+	v4 Result;
+	Result.x = A.x - B.x;
+	Result.y = A.y - B.y;
+	Result.z = A.z - B.z;
+	Result.w = A.w - B.w;
+	return Result;
+}
+
+inline v4
+operator*(real32 A, v4 B) {
+	v4 Result;
+	Result.x = A * B.x;
+	Result.y = A * B.y;
+	Result.z = A * B.z;
+	Result.w = A * B.w;
+	return (Result);
+}
+inline v4
+operator*(v4 B, real32 A) {
+	v4 Result;
+	Result.x = A * B.x;
+	Result.y = A * B.y;
+	Result.z = A * B.z;
+	Result.w = A * B.w;
+	return (Result);
+}
+
+inline v4&
+v4::operator*=(real32 A) {
+	*this = A * *this;
+	return (*this);
+}
+inline v4
+Hadamard(v4 A, v4 B) {
+	v4 Result = { A.x * B.x, A.y * B.y, A.z * B.z, A.w * B.w };
+	return(Result);
+
+}
+
+inline real32
+Inner(v4 A, v4 B) {
+	real32 Result = A.x * B.x + A.y * B.y + A.z * B.z + A.w * B.w;
+	return(Result);
+}
+
+inline real32
+LengthSq(v4 A) {
+	real32 Result = Inner(A, A);
+	return (Result);
+}
+
+inline real32
+Length(v4 A) {
+	real32 Result = SquareRoot(LengthSq(A));
+	return(Result);
+}
+
+inline v4
+Lerp(v4 A, real32 t, v4 B) {
+	v4 Result = {};
+	Result.r = A.r * (1.0f - t) + B.r * t;
+	Result.g = A.g * (1.0f - t) + B.g * t;
+	Result.b = A.b * (1.0f - t) + B.b * t;
+	Result.a = A.a * (1.0f - t) + B.a * t;
+	return Result;
+}
+
+
+
 
 inline real32
 Square(real32 A) {
@@ -100,15 +217,7 @@ Lerp(real32 A, real32 t, real32 B) {
 	return(Result);
 }
 
-inline v4
-Lerp(v4 A, real32 t, v4 B) {
-	v4 Result = {};
-	Result.r = A.r * (1.0f - t) + B.r * t;
-	Result.g = A.g * (1.0f - t) + B.g * t;
-	Result.b = A.b * (1.0f - t) + B.b * t;
-	Result.a = A.a * (1.0f - t) + B.a * t;
-	return Result;
-}
+
 
 inline real32
 Clamp(real32 Min, real32 Value, real32 Max) {
@@ -150,7 +259,6 @@ Clamp01(v2 Value) {
 	Result.y = Clamp01(Value.y);
 	return(Result);
 }
-
 ////
 
 inline v2
@@ -327,6 +435,23 @@ Length(v3 A) {
 	return(Result);
 }
 
+inline v3
+Normalize(v3 A) {
+	real32 InvLength = 1.0f / Length(A);
+	v3 Result = A * InvLength;
+	return(Result);
+}
+
+
+inline v3
+Lerp(v3 A, real32 t, v3 B) {
+	v3 Result = {};
+	Result.r = A.r * (1.0f - t) + B.r * t;
+	Result.g = A.g * (1.0f - t) + B.g * t;
+	Result.b = A.b * (1.0f - t) + B.b * t;
+	return Result;
+}
+
 
 
 inline int32
@@ -353,6 +478,8 @@ GetCenter(rectangle3 Rect) {
 	v3 Result = 0.5f * (Rect.Min + Rect.Max);
 	return(Result);
 }
+
+
 
 inline rectangle3
 RectMinMax(v3 Min, v3 Max) {
