@@ -202,6 +202,22 @@ Lerp(v4 A, real32 t, v4 B) {
 	return Result;
 }
 
+inline v4
+ToV4(v3 A, real32 V) {
+	v4 Result;
+	Result.xyz = A;
+	Result.w = V;
+	return(Result);
+}
+
+inline v3
+ToV3(v2 A, real32 V) {
+	v3 Result;
+	Result.xy = A;
+	Result.z = V;
+	return(Result);
+}
+
 
 
 

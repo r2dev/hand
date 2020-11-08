@@ -76,13 +76,8 @@ ZeroSize(memory_index Size, void* Ptr) {
 #include "handmade_world.h"
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
+#include "handmade_render_group.h"
 
-struct loaded_bitmap {
-	int32 Width;
-	int32 Height;
-	int32 Pitch;
-	void* Memory;
-};
 
 struct hero_bitmaps {
 	v2 Align;
@@ -147,7 +142,7 @@ struct game_state {
 
 	loaded_bitmap Stairwell;
 
-	loaded_bitmap TreeNormal;
+	
 
 	hero_bitmaps HeroBitmaps[4];
 
@@ -168,6 +163,10 @@ struct game_state {
 
 	real32 time;
 
+	loaded_bitmap TestDiffuse;
+	loaded_bitmap TestNormal;
+
+
 };
 
 struct transient_state {
@@ -176,6 +175,12 @@ struct transient_state {
 
 	uint32 GroundBufferCount;
 	ground_buffer* GroundBuffers;
+
+
+	uint32 EnvMapWidth;
+	uint32 EnvMapHeight;
+	environment_map EnvMaps[3];
+
 };
 
 inline low_entity*

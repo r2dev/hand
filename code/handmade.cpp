@@ -371,7 +371,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 	real32 Width = (real32)Buffer->Width;
 	real32 Height = (real32)Buffer->Height;
 
-	Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
+	Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 0.0f });
 
 	for (int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
 		for (int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
@@ -709,9 +709,30 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			GroundBuffer->P = NullPosition();
 		}
 
+		GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
+		
+		DrawRectangle(&GameState->TestDiffuse, v2{ 0, 0 }, 
+			V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), v4{ 0.5, 0.5, 0.5f, 1.0f });
+
 		// normal map
-		GameState->TreeNormal = MakeEmptyBitmap(&TranState->TranArena, GameState->Tree.Width, GameState->Tree.Height, 0);
-		MakeSphereNormalMap(&GameState->TreeNormal, 0.0f);
+		GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena, GameState->TestDiffuse.Width, GameState->TestDiffuse.Height, 0);
+		MakeSphereNormalMap(&GameState->TestNormal, 0.0f);
+
+		TranState->EnvMapWidth = 512;
+		TranState->EnvMapHeight = 256;
+		for (uint32 MapIndex = 0; MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
+			environment_map* Map = TranState->EnvMaps + MapIndex;
+			uint32 Width = TranState->EnvMapWidth;
+			uint32 Height = TranState->EnvMapHeight;
+			for (uint32 LODIndex = 0; LODIndex < ArrayCount(Map->LOD); ++LODIndex) {
+				Map->LOD[LODIndex] = MakeEmptyBitmap(&TranState->TranArena, Width, Height, 0);
+				Width >>= 1;
+				Height >>= 1;
+			}
+		}
+
+
+
 
 		TranState->IsInitialized = true;
 	}
@@ -785,7 +806,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	DrawBuffer->Pitch = Buffer->Pitch;
 	DrawBuffer->Memory = Buffer->Memory;
 	
-	Clear(RenderGroup, v4{ 0.5f, 0.5f, 0.5f, 1.0f });
+	Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 1.0f });
 	
 	v2 ScreenCenter = v2{ 0.5f * DrawBuffer->Width, 0.5f * DrawBuffer->Height };
 	real32 ScreenWidthInMeters = DrawBuffer->Width * PixelsToMeters;
@@ -997,13 +1018,50 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	
 	real32 Angle = GameState->time;
 	v2 Origin = ScreenCenter;
-	v2 Offset = v2{ 20 * Sin(Angle), 0 };
+	v2 Offset = v2{ 0, 0 };
 	v2 AxisX = 200 * v2{ 1, 0 };
 	v2 AxisY = Perp(AxisX);
 	v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+	v3 MapColor[] = {
+		{1, 0, 0},
+		{0, 1, 0},
+		{0, 0, 1}
+	};
+
+	for (uint32 MapIndex = 0;
+		MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
+		environment_map* Map = TranState->EnvMaps + MapIndex;
+		loaded_bitmap* LOD = Map->LOD + 0;
+		bool32 RowCheckerOn = false;
+		int32 CheckerWidth = 16;
+		int32 CheckerHeight = 16;
+		for (int32 Y = 0; Y < LOD->Height; Y += CheckerHeight) {
+			bool32 CheckerOn = RowCheckerOn;
+			for (int32 X = 0; X < LOD->Width; X += CheckerWidth) {
+				v4 Color = CheckerOn ? ToV4(MapColor[MapIndex], 1.0f) : v4{ 0, 0, 0, 1.0f };
+				v2 MinP = V2i(X, Y);
+				v2 MaxP = MinP + V2i(CheckerWidth, CheckerHeight);
+				DrawRectangle(LOD, MinP, MaxP, Color);
+				CheckerOn = !CheckerOn;
+			}
+			RowCheckerOn = !RowCheckerOn;
+		}
+	}
+
 	CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{ AxisX.x, AxisY.y }, AxisX, AxisY, Color, 
-		&GameState->Tree, & GameState->TreeNormal, 0, 0, 0);
-	
+		&GameState->TestDiffuse, &GameState->TestNormal, TranState->EnvMaps + 2, TranState->EnvMaps + 1, TranState->EnvMaps + 0);
+	v2 MapP = { 0.0f, 0.0f };
+	for (uint32 MapIndex = 0; MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
+		environment_map* Map = TranState->EnvMaps + MapIndex;
+		loaded_bitmap* LOD = Map->LOD + 0;
+
+		v2 XAxis = 0.5f * v2{ (real32)LOD->Width, 0 };
+		v2 YAxis = 0.5f * v2{ 0, (real32)LOD->Height };
+		CoordinateSystem(RenderGroup, MapP, XAxis, YAxis, v4{ 1.0f, 1.0f, 1.0f, 1.0f },
+			LOD, 0, 0, 0, 0);
+		MapP += YAxis + v2{ 0.0f, 6.0f };
+	}
 	RenderGroupToOutput(RenderGroup, DrawBuffer);
 	EndSim(SimRegion, GameState);
 	EndTemporaryMemory(SimMemory);

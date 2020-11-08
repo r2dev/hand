@@ -1,5 +1,4 @@
 
-#include "handmade_render_group.h"
 #include "handmade.h"
 
 #define PushRenderElement(Group, type)(type *)PushRenderElement_(Group, sizeof(type), RenderGroupEntryType_##type)
@@ -33,10 +32,7 @@ PushPiece(render_group* Group, loaded_bitmap* Bitmap,
 		Piece->EntityBasis.OffsetZ = OffsetZ;
 		Piece->EntityBasis.EntityZC = EntityZC;
 
-		Piece->R = Color.r;
-		Piece->G = Color.g;
-		Piece->B = Color.b;
-		Piece->A = Color.a;
+		Piece->Color = Color;
 	}
 }
 
@@ -59,10 +55,7 @@ PushRect(render_group* Group, v2 Offset, real32 OffsetZ,
 		Piece->EntityBasis.OffsetZ = OffsetZ;
 		Piece->EntityBasis.EntityZC = EntityZC;
 
-		Piece->R = Color.r;
-		Piece->G = Color.g;
-		Piece->B = Color.b;
-		Piece->A = Color.a;
+		Piece->Color = Color;
 
 		Piece->Dim = Group->MetersToPixels * Dim;
 	}
@@ -299,11 +292,11 @@ internal v3
 SampleEnvironmentMap(v2 ScreenUV, v3 Normal, real32 Roughness, environment_map* Map) {
 
 	uint32 LODIndex = (uint32)(Roughness * (real32)(ArrayCount(Map->LOD) - 1) + 0.5f);
-	loaded_bitmap* LOD = Map->LOD[LODIndex];
+	loaded_bitmap* LOD = Map->LOD + LODIndex;
 
 
-	real32 tX = 0.0f;
-	real32 tY = 0.0f;
+	real32 tX = LOD->Width / 2 + Normal.x * (real32)(LOD->Width / 2);
+	real32 tY = LOD->Height / 2 + Normal.y * (real32)(LOD->Height / 2);
 	int32 X = (int32)tX;
 	int32 Y = (int32)tY;
 
@@ -415,9 +408,9 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 					environment_map* FarMap = 0;
 					real32 tEnvMap = Normal.y;
 					real32 tFarMap = 0.0f;
-					if (tEnvMap <- 0.5f) {
+					if (tEnvMap < -0.5f) {
 						FarMap = Bottom;
-						tFarMap = 2 * (1.0f + tEnvMap);
+						tFarMap = -1 - 2.0f * tEnvMap;
 					}
 					else if (tEnvMap > 0.5f) {
 						FarMap = Top;
@@ -458,7 +451,13 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 internal void
 DrawRectangle(loaded_bitmap* Buffer,
 	v2 vMin, v2 vMax,
-	real32 R, real32 G, real32 B) {
+	v4 Color) {
+
+	real32 R = Color.r;
+	real32 G = Color.g;
+	real32 B = Color.b;
+	real32 A = Color.a;
+
 	int32 MinX = RoundReal32ToInt32(vMin.x);
 	int32 MinY = RoundReal32ToInt32(vMin.y);
 	int32 MaxX = RoundReal32ToInt32(vMax.x);
@@ -479,7 +478,9 @@ DrawRectangle(loaded_bitmap* Buffer,
 	}
 
 	// BIT PATTERN AA RR GG BB
-	uint32 Color = (uint32)(RoundReal32ToUInt32(R * 255) << 16 | 
+	uint32 Color32 = (uint32)
+		(RoundReal32ToUInt32(A * 255) << 24 |
+		RoundReal32ToUInt32(R * 255) << 16 | 
 		RoundReal32ToUInt32(G * 255) << 8 |
 		RoundReal32ToUInt32(B * 255) << 0);
 
@@ -488,7 +489,7 @@ DrawRectangle(loaded_bitmap* Buffer,
 	for (int Y = MinY; Y < MaxY; ++Y) {
 		uint32* Pixel = (uint32*)Row;
 		for (int X = MinX; X < MaxX; ++X) {
-			*Pixel++ = Color;
+			*Pixel++ = Color32;
 		}
 		Row += Buffer->Pitch;
 	}
@@ -524,21 +525,21 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 			case RenderGroupEntryType_render_entry_clear: {
 				render_entry_clear* Entry = (render_entry_clear*)Data;
 
-				DrawRectangle(OutputTarget, v2{ 0, 0 }, v2{ (real32)OutputTarget->Width, (real32)OutputTarget->Height }, Entry->Color.r, Entry->Color.g, Entry->Color.b);
+				DrawRectangle(OutputTarget, v2{ 0, 0 }, v2{ (real32)OutputTarget->Width, (real32)OutputTarget->Height }, Entry->Color);
 				BaseAddress += sizeof(*Entry);
 			} break;
 
 			case RenderGroupEntryType_render_entry_rectangle: {
 				render_entry_rectangle* Entry = (render_entry_rectangle*)Data;
 				v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
-				DrawRectangle(OutputTarget, P, P + Entry->Dim, Entry->R, Entry->G, Entry->B);
+				DrawRectangle(OutputTarget, P, P + Entry->Dim, Entry->Color);
 
 				BaseAddress += sizeof(*Entry);
 			} break;
 			case RenderGroupEntryType_render_entry_bitmap: {
 				render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
 				v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
-				DrawBitmap(OutputTarget, Entry->Bitmap, P.x, P.y, Entry->A);
+				DrawBitmap(OutputTarget, Entry->Bitmap, P.x, P.y, Entry->Color.a);
 				BaseAddress += sizeof(*Entry);
 			} break;
 			case RenderGroupEntryType_render_entry_coordinate_system: {
@@ -549,16 +550,16 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 					Entry->NormalMap, Entry->Top, Entry->Middle, Entry->Bottom);
 				v2 Dim = { 2, 2 };
 				v4 Color = { 1.0f, 1.0f, 0.0f, 1.0f };
-				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color.r, Color.g, Color.b);
+				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color);
 
 				P = Entry->Origin + Entry->AxisX;
-				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color.r, Color.g, Color.b);
+				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color);
 
 				P = Entry->Origin + Entry->AxisY;
-				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color.r, Color.g, Color.b);
+				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color);
 				P = Entry->Origin + Entry->AxisY + Entry->AxisX;
 
-				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color.r, Color.g, Color.b);
+				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color);
 
 				BaseAddress += sizeof(*Entry);
 			} break;
