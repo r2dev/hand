@@ -289,14 +289,20 @@ UnscaleAndBiasNormal(v4 Normal)
 }
 
 internal v3 
-SampleEnvironmentMap(v2 ScreenUV, v3 Normal, real32 Roughness, environment_map* Map) {
+SampleEnvironmentMap(v2 ScreenUV, v3 SampleDirection, real32 Roughness, environment_map* Map, real32 DistanceFromMapInZ) {
 
 	uint32 LODIndex = (uint32)(Roughness * (real32)(ArrayCount(Map->LOD) - 1) + 0.5f);
 	loaded_bitmap* LOD = Map->LOD + LODIndex;
+	real32 UVsPerMeter = 0.01f;
+	real32 C = (UVsPerMeter * DistanceFromMapInZ) / SampleDirection.y;
+	v2 Offset = C * v2{ SampleDirection.x, SampleDirection.z};
+	v2 UV = ScreenUV + Offset;
+	UV.x = Clamp01(UV.x);
+	UV.y = Clamp01(UV.y);
 
+	real32 tX = UV.x * (real32)(LOD->Width - 2);
+	real32 tY = UV.y * (real32)(LOD->Height - 2);
 
-	real32 tX = LOD->Width / 2 + Normal.x * (real32)(LOD->Width / 2);
-	real32 tY = LOD->Height / 2 + Normal.y * (real32)(LOD->Height / 2);
 	int32 X = (int32)tX;
 	int32 Y = (int32)tY;
 
@@ -318,6 +324,13 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 		RoundReal32ToUInt32(Color.b * 255) << 0);
 #endif
 
+	real32 AxisXLength = Length(AxisX);
+	real32 AxisYLength = Length(AxisY);
+
+	v2 NxAxis = (AxisYLength / AxisXLength) * AxisX;
+	v2 NyAxis = (AxisXLength / AxisYLength) * AxisY;
+
+	real32 NzScale = 0.5f * (AxisXLength + AxisYLength);
 
 	real32 InvAxisXLengthSq = 1.0f / LengthSq(AxisX);
 	real32 InvAxisYLengthSq = 1.0f / LengthSq(AxisY);
@@ -366,6 +379,7 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 		for (int X = MinX; X < MaxX; ++X) {
 			v2 tempP = V2i(X, Y);
 			v2 D = tempP - Origin;
+
 			real32 Edge0 = Inner(D, -Perp(AxisX));
 			real32 Edge1 = Inner(D - AxisX, -Perp(AxisY));
 			real32 Edge2 = Inner(D - AxisY - AxisX, Perp(AxisX));
@@ -402,23 +416,34 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 						fY,
 						Lerp(NormalC, fX, NormalD));
 					Normal = UnscaleAndBiasNormal(Normal);
+					Normal.xy = Normal.x * NxAxis + Normal.y * NyAxis;
+					Normal.z *= NzScale;
 					Normal.xyz = Normalize(Normal.xyz);
 
+					v3 EyeDirection = v3{0, 0, 1.0f};
+					real32 projectionLength = 2.0f * Inner(EyeDirection, Normal.xyz);
+					v3 BounceDirection = -EyeDirection + projectionLength * Normal.xyz;
+
+					BounceDirection.z = -BounceDirection.z;
+					real32 DistanceFromMapInZ = 2.0f;
+					//v3 BounceDirection = 2.0f * Normal.z * Normal.xyz;
+					//BounceDirection.z -= 1.0f;
 
 					environment_map* FarMap = 0;
-					real32 tEnvMap = Normal.y;
+					real32 tEnvMap = BounceDirection.y;
 					real32 tFarMap = 0.0f;
 					if (tEnvMap < -0.5f) {
 						FarMap = Bottom;
 						tFarMap = -1 - 2.0f * tEnvMap;
+						DistanceFromMapInZ = -DistanceFromMapInZ;
 					}
 					else if (tEnvMap > 0.5f) {
 						FarMap = Top;
 						tFarMap = 2 * (tEnvMap - 0.5f);
 					}
-					v3 LightColor = { 0,0,0 };
+					v3 LightColor = { 0, 0, 0 };
 					if (FarMap) {
-						v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.xyz, Normal.w, FarMap);
+						v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection, Normal.w, FarMap, DistanceFromMapInZ);
 						LightColor = Lerp(LightColor, tFarMap, FarMapColor);
 					}
 

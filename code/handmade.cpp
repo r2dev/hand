@@ -458,7 +458,7 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
 			real32 Ny = 2.0f * BitmapUV.y - 1.0f;
 			real32 Nz = 0;
 			real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
-			v3 Normal = v3{ 0, 0, 1.0f };
+			v3 Normal = v3{ 0, 0.7071067811865475f, 0.7071067811865475f };
 			if (RootTerm >= 0.0f) {
 				Nz = SquareRoot(RootTerm);
 				Normal = v3{ Nx, Ny, Nz };
@@ -1018,8 +1018,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	
 	real32 Angle = GameState->time;
 	v2 Origin = ScreenCenter;
-	v2 Offset = v2{ 0, 0 };
-	v2 AxisX = 200 * v2{ 1, 0 };
+	v2 Offset = v2{ 0.5f + 10.0f  * (Sin(GameState->time) + 0.5f), 0 };
+	v2 AxisX = 200 * v2{ Sin(GameState->time), 1 };
 	v2 AxisY = Perp(AxisX);
 	v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
 
