@@ -132,8 +132,11 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 			}
 		}
 	}
+	Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;
+#if 0
 	Result.Pitch = -Result.Width * BITMAP_BYTE_PER_PIXEL;
 	Result.Memory = (uint8*)Result.Memory - Result.Pitch * (Result.Height - 1);
+#endif
 
 	return(Result);
 
@@ -360,6 +363,17 @@ AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageInde
 	Assert(Found);
 }
 
+inline v2
+GetTopDownAlign(loaded_bitmap* Bitmap, v2 Align) {
+	Align.y = (real32)(Bitmap->Height - 1 - Align.y);
+	return Align;
+}
+
+internal void
+SetTopDownAlign(hero_bitmaps* Bitmaps, v2 Align) {
+	Bitmaps->Align = GetTopDownAlign(&Bitmaps->Head, Align);
+}
+
 internal void
 FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer* GroundBuffer, world_position *ChunkP) {
 	temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
@@ -381,7 +395,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 			int32 ChunkZ = ChunkP->ChunkZ;
 			random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
 
-			v2 Center = v2{ ChunkOffsetX * Width, -ChunkOffsetY * Height };
+			v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
 			for (uint32 GrassIndex = 0; GrassIndex < 100; GrassIndex++) {
 				loaded_bitmap* Stamp = 0;
@@ -406,7 +420,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 			int32 ChunkZ = ChunkP->ChunkZ;
 			random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
 
-			v2 Center = v2{ ChunkOffsetX * Width, -ChunkOffsetY * Height };
+			v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
 			for (uint32 GrassIndex = 0; GrassIndex < 100; GrassIndex++) {
 				loaded_bitmap* Stamp = 0;
@@ -443,6 +457,42 @@ MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool32 ClearToZe
 		ClearBitmap(&Result);
 	}
 	return(Result);
+}
+
+internal void
+MakeSphereDiffuseMap(loaded_bitmap* Bitmap) {
+	real32 InvWidth = 1.0f / (real32)(Bitmap->Width - 1);
+	real32 InvHeight = 1.0f / (real32)(Bitmap->Height - 1);
+	uint8* Row = (uint8*)Bitmap->Memory;
+	for (int32 Y = 0; Y < Bitmap->Height; ++Y) {
+		uint32* Pixel = (uint32*)Row;
+		for (int32 X = 0; X < Bitmap->Width; ++X) {
+			v2 BitmapUV = { InvWidth * real32(X), InvHeight * real32(Y) };
+			real32 Nx = 2.0f * BitmapUV.x - 1.0f;
+			real32 Ny = 2.0f * BitmapUV.y - 1.0f;
+			real32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
+			real32 Alpha = 0.0f;
+
+			if (RootTerm >= 0.0f) {
+				Alpha = 1.0f;
+			}
+
+			v3 BasedColor = { 0.0f, 0.0f, 0.0f };
+			Alpha *= 255.0f;
+			v4 Color = {
+				Alpha * BasedColor.r, 
+				Alpha * BasedColor.g,
+				Alpha * BasedColor.b,
+				Alpha
+			};
+			
+			*Pixel++ = (uint32)(Color.a + 0.5f) << 24 |
+				(uint32)(Color.r + 0.5f) << 16 |
+				(uint32)(Color.g + 0.5f) << 8 |
+				(uint32)(Color.b + 0.5f) << 0;
+		}
+		Row += Bitmap->Pitch;
+	}
 }
 
 internal void
@@ -545,26 +595,27 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_cape.bmp");
 		Bitmap->Torso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_right_torso.bmp");
-		Bitmap->Align = v2{ 72, 182 };
+		SetTopDownAlign(Bitmap, v2{ 72, 182 });
 
 		++Bitmap;
 
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_back_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_back_cape.bmp");
 		Bitmap->Torso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_back_torso.bmp");
-		Bitmap->Align = v2{ 72, 182 };
+		SetTopDownAlign(Bitmap, v2{ 72, 182 });
+		
 		++Bitmap;
 
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_left_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_left_cape.bmp");
 		Bitmap->Torso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_left_torso.bmp");
-		Bitmap->Align = v2{ 72, 182 };
+		SetTopDownAlign(Bitmap, v2{ 72, 182 });
 		++Bitmap;
 
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_front_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_front_cape.bmp");
 		Bitmap->Torso = DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "test/test_hero_front_torso.bmp");
-		Bitmap->Align = v2{ 72, 182 };
+		SetTopDownAlign(Bitmap, v2{ 72, 182 });
 
 
 		random_series Series = RandomSeed(1234);
@@ -717,6 +768,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		// normal map
 		GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena, GameState->TestDiffuse.Width, GameState->TestDiffuse.Height, 0);
 		MakeSphereNormalMap(&GameState->TestNormal, 0.0f);
+		MakeSphereDiffuseMap(&GameState->TestDiffuse);
 
 		TranState->EnvMapWidth = 512;
 		TranState->EnvMapHeight = 256;
@@ -730,9 +782,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				Height >>= 1;
 			}
 		}
-
-
-
 
 		TranState->IsInitialized = true;
 	}
@@ -835,12 +884,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					v3 RelP = Subtract(World, &ChunkCenterP, &GameState->CameraP);
 					real32 FurthestBufferLengthSq = 0.0f;
 					ground_buffer* FurthestBuffer = 0;
-
 					for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
-						
 						ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-
-
 						if (AreInSameChunk(World, &GroundBuffer->P, &ChunkCenterP)) {
 							FurthestBuffer = 0;
 							break;
@@ -919,7 +964,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 							}
 						}
 					}
-
 				}
 
 				PushBitmap(RenderGroup, &GameState->Shadow, v2{ 0, 0 }, 0, HeroBitmap->Align, ShadowAlpha, 0);
@@ -931,7 +975,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			} break;
 
 			case EntityType_Wall: {
-				PushBitmap(RenderGroup, &GameState->Tree, v2{ 0, 0 }, 0, v2{ 40, 80 });
+				v2 Align = GetTopDownAlign(&GameState->Tree, v2{ 40, 80 });
+				PushBitmap(RenderGroup, &GameState->Tree, v2{ 0, 0 }, 0, Align);
 			} break;
 			case EntityType_Sword: {
 
@@ -944,7 +989,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					MakeEntityNonSpatial(Entity);
 				}
 				PushBitmap(RenderGroup, &GameState->Shadow, v2{ 0, 0 }, 0, HeroBitmap->Align, ShadowAlpha, 0);
-				PushBitmap(RenderGroup, &GameState->Sword, v2{ 0, 0 }, 0, v2{ 29, 10 });
+				v2 Align = GetTopDownAlign(&GameState->Shadow, v2{ 29, 10 });
+				PushBitmap(RenderGroup, &GameState->Sword, v2{ 0, 0 }, 0, Align);
 			} break;
 			case EntityType_Familiar: {
 
@@ -973,8 +1019,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				MoveSpec.UnitMaxAccelVector = true;
 				MoveSpec.Speed = 50.0f;
 				MoveSpec.Drag = 8.0f;
-
-
 				PushBitmap(RenderGroup, &GameState->Shadow, v2{ 0, 0 }, 0, HeroBitmap->Align, ShadowAlpha, 0);
 				PushBitmap(RenderGroup, &HeroBitmap->Head, v2{ 0, 0 }, 0, HeroBitmap->Align);
 			}
@@ -1014,12 +1058,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		}
 
 	}
+#if 0
 	GameState->time += Input->dtForFrame;
 	
 	real32 Angle = GameState->time;
 	v2 Origin = ScreenCenter;
 	v2 Offset = v2{ 0.5f + 10.0f  * (Sin(GameState->time) + 0.5f), 0 };
-	v2 AxisX = 200 * v2{ Sin(GameState->time), 1 };
+	v2 AxisX = 200 * v2{ Sin(GameState->time), Cos(GameState->time) };
 	v2 AxisY = Perp(AxisX);
 	v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -1049,6 +1094,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		}
 	}
 
+	TranState->EnvMaps[0].Pz = -1.5f;
+	TranState->EnvMaps[1].Pz = 0.0f;
+	TranState->EnvMaps[2].Pz = 1.5f;
+
 	CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{ AxisX.x, AxisY.y }, AxisX, AxisY, Color, 
 		&GameState->TestDiffuse, &GameState->TestNormal, TranState->EnvMaps + 2, TranState->EnvMaps + 1, TranState->EnvMaps + 0);
 	v2 MapP = { 0.0f, 0.0f };
@@ -1062,6 +1111,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			LOD, 0, 0, 0, 0);
 		MapP += YAxis + v2{ 0.0f, 6.0f };
 	}
+
+#endif
+
 	RenderGroupToOutput(RenderGroup, DrawBuffer);
 	EndSim(SimRegion, GameState);
 	EndTemporaryMemory(SimMemory);

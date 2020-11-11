@@ -9,9 +9,8 @@ struct loaded_bitmap {
 
 struct environment_map {
 	loaded_bitmap LOD[4];
+	real32 Pz;
 };
-
-
 
 enum render_group_entry_type {
 	RenderGroupEntryType_render_entry_clear,

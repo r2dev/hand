@@ -28,7 +28,7 @@ PushPiece(render_group* Group, loaded_bitmap* Bitmap,
 		Piece->EntityBasis.Basis = Group->DefaultBasis;
 		Piece->Bitmap = Bitmap;
 
-		Piece->EntityBasis.Offset = Group->MetersToPixels * v2{ Offset.x, -Offset.y } -Align;
+		Piece->EntityBasis.Offset = Group->MetersToPixels * v2{ Offset.x, Offset.y } - Align;
 		Piece->EntityBasis.OffsetZ = OffsetZ;
 		Piece->EntityBasis.EntityZC = EntityZC;
 
@@ -51,7 +51,7 @@ PushRect(render_group* Group, v2 Offset, real32 OffsetZ,
 		v2 HalfDim = 0.5f * Group->MetersToPixels * Dim;
 
 		Piece->EntityBasis.Basis = Group->DefaultBasis;
-		Piece->EntityBasis.Offset = Group->MetersToPixels * v2{ Offset.x, -Offset.y } - HalfDim;
+		Piece->EntityBasis.Offset = Group->MetersToPixels * v2{ Offset.x, Offset.y } - HalfDim;
 		Piece->EntityBasis.OffsetZ = OffsetZ;
 		Piece->EntityBasis.EntityZC = EntityZC;
 
@@ -143,7 +143,6 @@ Linear1ToSRGB(v4 C) {
 internal void
 DrawBitmap(loaded_bitmap* Buffer, loaded_bitmap* Bitmap,
 	real32 RealX, real32 RealY, real32 CAlpha = 1.0f) {
-#if 0
 	int32 MinX = RoundReal32ToInt32(RealX);
 	int32 MinY = RoundReal32ToInt32(RealY);
 	int32 MaxX = MinX + Bitmap->Width;
@@ -224,7 +223,6 @@ DrawBitmap(loaded_bitmap* Buffer, loaded_bitmap* Bitmap,
 		DestRow += Buffer->Pitch;
 		SourceRow += Bitmap->Pitch;
 	}
-#endif
 }
 
 
@@ -293,9 +291,11 @@ SampleEnvironmentMap(v2 ScreenUV, v3 SampleDirection, real32 Roughness, environm
 
 	uint32 LODIndex = (uint32)(Roughness * (real32)(ArrayCount(Map->LOD) - 1) + 0.5f);
 	loaded_bitmap* LOD = Map->LOD + LODIndex;
-	real32 UVsPerMeter = 0.01f;
+
+	real32 UVsPerMeter = 0.1f;
 	real32 C = (UVsPerMeter * DistanceFromMapInZ) / SampleDirection.y;
 	v2 Offset = C * v2{ SampleDirection.x, SampleDirection.z};
+
 	v2 UV = ScreenUV + Offset;
 	UV.x = Clamp01(UV.x);
 	UV.y = Clamp01(UV.y);
@@ -317,7 +317,7 @@ SampleEnvironmentMap(v2 ScreenUV, v3 SampleDirection, real32 Roughness, environm
 
 internal void
 DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, loaded_bitmap* NormalMap,
-	environment_map* Top, environment_map* Middle, environment_map* Bottom) {
+	environment_map* Top, environment_map* Middle, environment_map* Bottom, real32 PixelsToMeters) {
 #if 0
 	uint32 Color32 = (uint32)(RoundReal32ToUInt32(Color.r * 255) << 16 |
 		RoundReal32ToUInt32(Color.g * 255) << 8 |
@@ -334,6 +334,10 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 
 	real32 InvAxisXLengthSq = 1.0f / LengthSq(AxisX);
 	real32 InvAxisYLengthSq = 1.0f / LengthSq(AxisY);
+	uint32 Color32 = (RoundReal32ToUInt32(Color.a * 255.0f) << 24 |
+		RoundReal32ToUInt32(Color.r * 255.0f) << 16	|
+		RoundReal32ToUInt32(Color.g * 255.0f) << 8	|
+		RoundReal32ToUInt32(Color.b * 255.0f) << 0);
 	int32 WidthMax = Buffer->Width - 1;
 	int32 HeightMax = Buffer->Height - 1;
 
@@ -345,6 +349,10 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 	int32 MaxY = 0;
 	
 	v2 P[4] = { Origin, Origin + AxisX, Origin + AxisX + AxisY, Origin + AxisY };
+
+	real32 OriginZ = 0.0f;
+	real32 OriginY = (Origin + 0.5f * AxisX + 0.5f * AxisY).y;
+	real32 FixedCastY = invHeightMax * OriginY;
 	
 	for (int32 PIndex = 0; PIndex < ArrayCount(P); ++PIndex) {
 		v2 Cur = P[PIndex];
@@ -387,7 +395,8 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 
 			if (Edge0 < 0 && Edge1 < 0 && Edge2 < 0 && Edge3 < 0) {
 
-				v2 ScreenSpaceUV = { invWidthMax * (real32)X, invHeightMax * (real32)Y };
+				v2 ScreenSpaceUV = { invWidthMax * (real32)X, FixedCastY };
+				real32 ZDiff = PixelsToMeters * ((real32)Y - OriginY);
 
 				real32 U = InvAxisXLengthSq * Inner(D, AxisX);
 				real32 V = InvAxisYLengthSq * Inner(D, AxisY);
@@ -423,26 +432,26 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 					v3 EyeDirection = v3{0, 0, 1.0f};
 					real32 projectionLength = 2.0f * Inner(EyeDirection, Normal.xyz);
 					v3 BounceDirection = -EyeDirection + projectionLength * Normal.xyz;
-
 					BounceDirection.z = -BounceDirection.z;
-					real32 DistanceFromMapInZ = 2.0f;
-					//v3 BounceDirection = 2.0f * Normal.z * Normal.xyz;
-					//BounceDirection.z -= 1.0f;
 
 					environment_map* FarMap = 0;
+					real32 Pz = OriginZ + ZDiff;
 					real32 tEnvMap = BounceDirection.y;
 					real32 tFarMap = 0.0f;
 					if (tEnvMap < -0.5f) {
 						FarMap = Bottom;
 						tFarMap = -1 - 2.0f * tEnvMap;
-						DistanceFromMapInZ = -DistanceFromMapInZ;
 					}
 					else if (tEnvMap > 0.5f) {
 						FarMap = Top;
 						tFarMap = 2 * (tEnvMap - 0.5f);
 					}
+					tFarMap *= tFarMap;
+					tFarMap *= tFarMap;
+
 					v3 LightColor = { 0, 0, 0 };
 					if (FarMap) {
+						real32 DistanceFromMapInZ = FarMap->Pz - Pz;
 						v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection, Normal.w, FarMap, DistanceFromMapInZ);
 						LightColor = Lerp(LightColor, tFarMap, FarMapColor);
 					}
@@ -521,18 +530,13 @@ DrawRectangle(loaded_bitmap* Buffer,
 }
 
 
-
 internal v2
 GetRenderEntityBasisP(render_group* RenderGroup, render_entity_basis* EntityBasis, v2 ScreenCenter) {
 	v3 EntityBaseP = EntityBasis->Basis->P;
 	real32 ZFudge = (1.0f + 0.1f * (EntityBaseP.z + EntityBasis->OffsetZ));
-	real32 EntityGroundX = ScreenCenter.x + RenderGroup->MetersToPixels * ZFudge * EntityBaseP.x;
-	real32 EntityGroundY = ScreenCenter.y - RenderGroup->MetersToPixels * ZFudge * EntityBaseP.y;
-	real32 EntityZ = -EntityBaseP.z * RenderGroup->MetersToPixels;
-	v2 Center = {
-		EntityGroundX + EntityBasis->Offset.x,
-		EntityGroundY + EntityBasis->Offset.y + EntityZ * EntityBasis->EntityZC
-	};
+	v2 EntityGround = ScreenCenter + RenderGroup->MetersToPixels * ZFudge * EntityBaseP.xy;
+	real32 EntityZ = EntityBaseP.z * RenderGroup->MetersToPixels;
+	v2 Center = EntityGround + EntityBasis->Offset + v2{ 0, EntityZ * EntityBasis->EntityZC };
 	return(Center);
 }
 
@@ -572,7 +576,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 				v2 P = Entry->Origin;
 				
 				DrawRectangle1(OutputTarget, P, Entry->AxisX, Entry->AxisY, Entry->Color, Entry->Texture,
-					Entry->NormalMap, Entry->Top, Entry->Middle, Entry->Bottom);
+					Entry->NormalMap, Entry->Top, Entry->Middle, Entry->Bottom, 1.0f / RenderGroup->MetersToPixels);
 				v2 Dim = { 2, 2 };
 				v4 Color = { 1.0f, 1.0f, 0.0f, 1.0f };
 				DrawRectangle(OutputTarget, P - Dim, P + Dim, Color);
