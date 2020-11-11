@@ -880,7 +880,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		for (int32 ChunkZ = MinChunkP.ChunkZ; ChunkZ <= MaxChunkP.ChunkZ; ++ChunkZ) {
 			for (int32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY) {
 				for (int32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX) {
-					world_position ChunkCenterP = CenteredChunkPoint(ChunkX, ChunkY, ChunkY);
+					world_position ChunkCenterP = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
 					v3 RelP = Subtract(World, &ChunkCenterP, &GameState->CameraP);
 					real32 FurthestBufferLengthSq = 0.0f;
 					ground_buffer* FurthestBuffer = 0;
