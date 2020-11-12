@@ -643,13 +643,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 		for (uint32 ScreenIndex = 0; ScreenIndex < 30; ++ScreenIndex) {
 			uint32 DoorDirection;
-			//if (DoorUp || DoorDown)
-			//{
+#if 1
+			if (DoorUp || DoorDown)
+			{
 				DoorDirection = RandomChoice(&Series, 2);
-			/** }
+			}
 			else {
 				DoorDirection = RandomChoice(&Series, 3);
-			}**/
+			}
+#else
+			DoorDirection = RandomChoice(&Series, 2);
+#endif
+
 
 			bool32 CreatedZDoor = false;
 			if (DoorDirection == 2) {
@@ -835,6 +840,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 
 			ConHero->dSword = {};
+#if 0
 			if (Controller->ActionUp.EndedDown) {
 				ConHero->dSword = v2{ 0.0f, 1.0f };
 			}
@@ -847,13 +853,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			else if (Controller->ActionRight.EndedDown) {
 				ConHero->dSword = v2{ 1.0f, 0.0f };
 			}
+#else
+			real32 ZoomRate = 0.0f;
+			if (Controller->ActionUp.EndedDown) {
+				ZoomRate = 1.0f;
+			}
+			else if (Controller->ActionDown.EndedDown) {
+				ZoomRate = -1.0f;
+			}
+			GameState->ZOffset += Input->dtForFrame * ZoomRate;
+#endif
 		}
 	}
 
 	temporary_memory RenderMemory = BeginTemporaryMemory(&TranState->TranArena);
 
 	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->MetersToPixels);
-
 	loaded_bitmap DrawBuffer_ = {};
 	loaded_bitmap* DrawBuffer = &DrawBuffer_;
 	DrawBuffer->Height = Buffer->Height;
@@ -868,6 +883,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	real32 ScreenHeightInMeters = DrawBuffer->Height * PixelsToMeters;
 	rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0, 0, 0), v3{ ScreenWidthInMeters, ScreenHeightInMeters, 0.0f});
 
+#if 0
 	for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
 
 		ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
@@ -876,7 +892,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			loaded_bitmap* Bitmap = &GroundBuffer->Bitmap;
 			v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
 			Bitmap->Align = 0.5f * V2i(Bitmap->Width, Bitmap->Height);
-			PushBitmap(RenderGroup, Bitmap, Delta);
+
+			render_basis* Basis = PushStruct(&TranState->TranArena, render_basis);
+			RenderGroup->DefaultBasis = Basis;
+			Basis->P = Delta + v3{ 0, 0, GameState->ZOffset };
+
+			PushBitmap(RenderGroup, Bitmap, v3{ 0, 0, 0 });
 		}
 	}
 
@@ -921,6 +942,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 		}
 	}
+#endif
 
 	v3 SimBoundsExpansion = { 15.0f, 15.0f, 15.0f };
 	rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundsExpansion);
@@ -1036,8 +1058,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 			case EntityType_Stairwell: {
 
-				PushRect(RenderGroup, v3{ 0, 0 , 0 }, Entity->WalkableDim, v4{ 1.0f, 0.5f, 0, 1.0f });
-				PushRect(RenderGroup, v3{ 0, 0 , Entity->WalkableHeight }, Entity->WalkableDim, v4{ 1.0f, 1.0f, 0, 1.0f });
+				PushRect(RenderGroup, v3{ 0, 0, 0 }, Entity->WalkableDim, v4{ 1.0f, 0.5f, 0, 1.0f });
+				PushRect(RenderGroup, v3{ 0, 0, Entity->WalkableHeight }, Entity->WalkableDim, v4{ 1.0f, 1.0f, 0, 1.0f });
 
 				//PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
 			} break;
@@ -1057,13 +1079,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 				MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
 			}			
-			
-			Basis->P = GetEntityGroundPoint(Entity);
-			
+			Basis->P = GetEntityGroundPoint(Entity) + v3{ 0, 0, GameState->ZOffset };
 		}
 
 	}
-#if 1
+#if 0
 	GameState->time += Input->dtForFrame;
 	
 	real32 Angle = GameState->time;

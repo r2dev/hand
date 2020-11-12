@@ -165,7 +165,7 @@ struct game_state {
 	loaded_bitmap TestDiffuse;
 	loaded_bitmap TestNormal;
 
-
+	real32 ZOffset;
 };
 
 struct transient_state {
@@ -180,6 +180,7 @@ struct transient_state {
 	uint32 EnvMapHeight;
 	environment_map EnvMaps[3];
 
+	
 };
 
 inline low_entity*

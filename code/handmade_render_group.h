@@ -26,6 +26,7 @@ struct render_group_entry_header {
 
 struct render_basis {
 	v3 P;
+	real32 Scale;
 };
 
 struct render_entity_basis {
@@ -40,6 +41,8 @@ struct render_group {
 	uint32 MaxPushBufferSize;
 	uint32 PushBufferSize;
 	uint8* PushBufferBase;
+
+	real32 GlobalAlpha;
 };
 
 struct render_entry_clear {
