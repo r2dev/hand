@@ -1,6 +1,7 @@
 #pragma once
 
 struct loaded_bitmap {
+	v2 Align;
 	int32 Width;
 	int32 Height;
 	int32 Pitch;
@@ -28,11 +29,8 @@ struct render_basis {
 };
 
 struct render_entity_basis {
-	
 	render_basis* Basis;
-	v2 Offset;
-	real32 OffsetZ;
-	real32 EntityZC;
+	v3 Offset;
 };
 
 struct render_group {
