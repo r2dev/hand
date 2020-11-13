@@ -284,6 +284,20 @@ Clamp01(v3 Value) {
 	Result.z = Clamp01(Value.z);
 	return(Result);
 }
+
+inline real32 
+Clamp01MapToRange(real32 Min, real32 Value, real32 Max) {
+	real32 Result = 0.0f;
+	real32 Range = (Max - Min);
+	if (Range != 0.0f) {
+		Result = Clamp01((Value - Min) / Range);
+	}
+
+	return(Result);
+}
+
+
+
 inline v2
 Clamp01(v2 Value) {
 	v2 Result;

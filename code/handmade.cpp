@@ -78,16 +78,18 @@ struct bitmap_header {
 
 inline v2
 GetTopDownAlign(loaded_bitmap* Bitmap, v2 Align) {
-	Align.y = (real32)(Bitmap->Height - 1 - Align.y);
+	Align.y = (real32)(Bitmap->Height) - 1.0f - Align.y;
+	Align.x = SafeRatio0(Align.x, (real32)Bitmap->Width);
+	Align.y = SafeRatio0(Align.y, (real32)Bitmap->Height);
 	return Align;
 }
 
 internal void
 SetTopDownAlign(hero_bitmaps* Bitmaps, v2 Align) {
 	Align = GetTopDownAlign(&Bitmaps->Head, Align);
-	Bitmaps->Head.Align = Align;
-	Bitmaps->Torso.Align = Align;
-	Bitmaps->Cape.Align = Align;
+	Bitmaps->Head.AlignPercentage = Align;
+	Bitmaps->Torso.AlignPercentage = Align;
+	Bitmaps->Cape.AlignPercentage = Align;
 }
 
 internal loaded_bitmap
@@ -99,8 +101,9 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 		uint32* Pixels = (uint32*)((uint8*)ReadResult.Contents + Header->BitmapOffset);
 		Result.Height = Header->Height;
 		Result.Width = Header->Width;
-		Result.Align = GetTopDownAlign(&Result, V2i(AlignX, AlignY));
+		Result.AlignPercentage = GetTopDownAlign(&Result, V2i(AlignX, AlignY));
 		Result.Memory = Pixels;
+		Result.WidthOverHeight = SafeRatio0((real32)Result.Width, (real32)Result.Height);
 		uint32 RedMask = Header->RedMask;
 		uint32 GreenMask = Header->GreenMask;
 		uint32 BlueMask = Header->BlueMask;
@@ -161,8 +164,6 @@ struct add_low_entity_result {
 	uint32 LowIndex;
 	low_entity* Low;
 };
-
-
 
 inline add_low_entity_result
 AddLowEntity(game_state* GameState, entity_type Type, world_position P) {
@@ -383,7 +384,7 @@ AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageInde
 internal void
 FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer* GroundBuffer, world_position *ChunkP) {
 	temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), 1.0f);
+	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
 	
 	GroundBuffer->P = *ChunkP;
 	loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
@@ -414,7 +415,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 				v2 BitmapCenter = 0.5f * V2i(Stamp->Width, Stamp->Height);
 				v2 Offset = { Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series) };
 				v2 P = Center + Offset - BitmapCenter;
-				PushBitmap(RenderGroup, Stamp, V3(P, 0.0f));
+				PushBitmap(RenderGroup, Stamp, 1.0f, V3(P, 0.0f));
 			}
 		}
 	}
@@ -435,7 +436,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 				v2 BitmapCenter = 0.5f * V2i(Stamp->Width, Stamp->Height);
 				v2 Offset = { Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series) };
 				v2 P = Center + Offset - BitmapCenter;
-				PushBitmap(RenderGroup, Stamp, V3(P, 0.0f));
+				PushBitmap(RenderGroup, Stamp, 1.0f, V3(P, 0.0f));
 			}
 		}
 	}
@@ -541,15 +542,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	uint32 GroundBufferWidth = 256;
 	uint32 GroundBufferHeight = 256;
+	real32 PixelsToMeters = 1.0f / 42.0f;
 
 	if (!Memory->IsInitialized) {
 		
 
 		GameState->TypicalFloorHeight = 3.0f;
-		GameState->MetersToPixels = 42.0f;
-		GameState->PixelsToMeters = 1.0f / GameState->MetersToPixels;
-
-		v3 WorldChunkDimMeters = { GameState->PixelsToMeters * (GroundBufferWidth), GameState->PixelsToMeters * GroundBufferHeight, GameState->TypicalFloorHeight };
+		
+		v3 WorldChunkDimMeters = { PixelsToMeters * GroundBufferWidth, PixelsToMeters * GroundBufferHeight, GameState->TypicalFloorHeight };
 
 		InitializeArena(&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state),
 			(uint8*)Memory->PermanentStorage + sizeof(game_state));
@@ -655,9 +655,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			DoorDirection = RandomChoice(&Series, 2);
 #endif
 
+			DoorDirection = 3;
+
 
 			bool32 CreatedZDoor = false;
-			if (DoorDirection == 2) {
+			if (DoorDirection == 3) {
+				CreatedZDoor = true;
+				DoorDown = true;
+			}
+			else if (DoorDirection == 2) {
 				CreatedZDoor = true;
 				if (AbsTileZ == ScreenBaseZ) {
 					DoorUp = true;
@@ -699,12 +705,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 					if (ShouldBeDoor) {
 						//if (ScreenIndex == 0) {
+						if (TileX % 2  || TileY % 2) {
 							AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
+						}
 						//}
 					} else if (CreatedZDoor) {
-						if (TileY == 5 && TileX == 10) {
-							AddStair(GameState, AbsTileX, AbsTileY, DoorDown? AbsTileZ - 1: AbsTileZ);
+						if (((AbsTileZ % 2) && (TileX == 10) && (TileY == 5)) ||
+							(!(AbsTileZ % 2) && (TileX == 4) && (TileY == 5)))
+						{
+							AddStair(GameState, AbsTileX, AbsTileY, DoorDown ? AbsTileZ - 1 : AbsTileZ);
 						}
+						/**if (TileY == 5 && TileX == 10) {
+							AddStair(GameState, AbsTileX, AbsTileY, DoorDown? AbsTileZ - 1: AbsTileZ);
+						}*/
 					}
 
 
@@ -726,6 +739,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			DoorRight = false;
 			DoorTop = false;
 
+			if (DoorDirection == 3) {
+				AbsTileZ -= 1;
+			}
+#if 0
 			if (DoorDirection == 2) {
 				if (AbsTileZ == ScreenBaseZ) {
 					AbsTileZ = ScreenBaseZ + 1;
@@ -740,6 +757,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			else {
 				ScreenY += 1;
 			}
+#endif
 		}
 
 		world_position NewCameraP = {};
@@ -799,10 +817,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	world* World = GameState->World;
 
-	real32 MetersToPixels = GameState->MetersToPixels;
-	real32 PixelsToMeters = 1.0f / MetersToPixels;
-
-
 	for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
 		game_controller_input* Controller = GetController(Input, ControllerIndex);
 		controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
@@ -861,14 +875,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			else if (Controller->ActionDown.EndedDown) {
 				ZoomRate = -1.0f;
 			}
-			GameState->ZOffset += Input->dtForFrame * ZoomRate;
 #endif
 		}
 	}
 
 	temporary_memory RenderMemory = BeginTemporaryMemory(&TranState->TranArena);
 
-	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), GameState->MetersToPixels);
+	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
+
+
 	loaded_bitmap DrawBuffer_ = {};
 	loaded_bitmap* DrawBuffer = &DrawBuffer_;
 	DrawBuffer->Height = Buffer->Height;
@@ -944,16 +959,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	}
 #endif
 
-	v3 SimBoundsExpansion = { 15.0f, 15.0f, 15.0f };
+	v3 SimBoundsExpansion = { 15.0f, 15.0f, 0 };
 	rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundsExpansion);
 
 	temporary_memory SimMemory = BeginTemporaryMemory(&TranState->TranArena);
 
-	sim_region* SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World, GameState->CameraP, SimBounds, Input->dtForFrame);
+	world_position SimCenterP = GameState->CameraP;
+
+	sim_region* SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World,
+		SimCenterP, SimBounds, Input->dtForFrame);
+	v3 CameraP = Subtract(World, &GameState->CameraP, &SimCenterP);
 
 	sim_entity* Entity = SimRegion->Entities;
 	for (uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
 		if (Entity->Updatable) {
+
 			real32 dt = Input->dtForFrame;
 
 			real32 ShadowAlpha = 1.0f - 0.5f * Entity->P.z;
@@ -966,6 +986,25 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 			render_basis* Basis = PushStruct(&TranState->TranArena, render_basis);
 			RenderGroup->DefaultBasis = Basis;
+
+			v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
+			real32 FadeTopEnd = 0.75f * GameState->TypicalFloorHeight;
+			real32 FadeTopStart = 0.5f * GameState->TypicalFloorHeight;
+
+			real32 FadeBottomStart = -2.0f * GameState->TypicalFloorHeight;
+			real32 FadeBottomEnd = -2.25f * GameState->TypicalFloorHeight;
+
+			RenderGroup->GlobalAlpha = 1.0f;
+
+
+			if (CameraRelativeGroundP.z > FadeTopStart) {
+
+				RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeTopStart, CameraRelativeGroundP.z, FadeTopEnd);
+
+			}
+			else if (CameraRelativeGroundP.z < FadeBottomStart) {
+				RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
+			}
 
 			hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
 			switch (Entity->Type) {
@@ -993,18 +1032,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 						}
 					}
 				}
-
-				PushBitmap(RenderGroup, &GameState->Shadow, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, &HeroBitmap->Torso, v3{ 0, 0, 0 });
-				PushBitmap(RenderGroup, &HeroBitmap->Cape, v3{ 0, 0, 0 });
-				PushBitmap(RenderGroup, &HeroBitmap->Head, v3{ 0, 0, 0 });
+				real32 HeroSizeC = 2.5f;
+				PushBitmap(RenderGroup, &GameState->Shadow, HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, &HeroBitmap->Torso, HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, &HeroBitmap->Cape, HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, &HeroBitmap->Head, HeroSizeC * 1.2f, v3{ 0, 0, 0 });
 				DrawHitPoints(Entity, RenderGroup);
 
 			} break;
 
 			case EntityType_Wall: {
 				
-				PushBitmap(RenderGroup, &GameState->Tree, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, &GameState->Tree, 2.5f, v3{ 0, 0, 0 });
 			} break;
 			case EntityType_Sword: {
 
@@ -1016,8 +1055,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					ClearCollisionRulesFor(GameState, Entity->StorageIndex);
 					MakeEntityNonSpatial(Entity);
 				}
-				PushBitmap(RenderGroup, &GameState->Shadow, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, &GameState->Sword, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, &GameState->Shadow, 0.4f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, &GameState->Sword, 0.5f, v3{ 0, 0, 0 });
 			} break;
 			case EntityType_Familiar: {
 
@@ -1046,13 +1085,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				MoveSpec.UnitMaxAccelVector = true;
 				MoveSpec.Speed = 50.0f;
 				MoveSpec.Drag = 8.0f;
-				PushBitmap(RenderGroup, &GameState->Shadow, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, &HeroBitmap->Head, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, &GameState->Shadow, 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, &HeroBitmap->Head, 1.0f, v3{ 0, 0, 0 });
 			}
 			case EntityType_Monster: {
 
-				PushBitmap(RenderGroup, &GameState->Shadow, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, &HeroBitmap->Torso, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, &GameState->Shadow, 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, &HeroBitmap->Torso, 1.2f, v3{ 0, 0, 0 });
 				DrawHitPoints(Entity, RenderGroup);
 			} break;
 
@@ -1064,7 +1103,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				//PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
 			} break;
 			case EntityType_Space: {
-#if 1
+#if 0
 				for (uint32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
 					sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
 					PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
@@ -1079,10 +1118,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 				MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
 			}			
-			Basis->P = GetEntityGroundPoint(Entity) + v3{ 0, 0, GameState->ZOffset };
+			Basis->P = GetEntityGroundPoint(Entity);
 		}
 
 	}
+	RenderGroup->GlobalAlpha = 1.0;
 #if 0
 	GameState->time += Input->dtForFrame;
 	

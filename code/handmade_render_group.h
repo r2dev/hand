@@ -1,7 +1,9 @@
 #pragma once
 
 struct loaded_bitmap {
-	v2 Align;
+	v2 AlignPercentage;
+	real32 WidthOverHeight;
+
 	int32 Width;
 	int32 Height;
 	int32 Pitch;
@@ -35,7 +37,6 @@ struct render_entity_basis {
 };
 
 struct render_group {
-	real32 MetersToPixels;
 	render_basis* DefaultBasis;
 
 	uint32 MaxPushBufferSize;
@@ -60,6 +61,7 @@ struct render_entry_bitmap {
 	render_entity_basis EntityBasis;
 	loaded_bitmap* Bitmap;
 	v4 Color;
+	v2 Size;
 };
 
 struct render_entry_coordinate_system {

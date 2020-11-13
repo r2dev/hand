@@ -141,12 +141,7 @@ struct game_state {
 
 	loaded_bitmap Stairwell;
 
-	
-
 	hero_bitmaps HeroBitmaps[4];
-
-	real32 MetersToPixels;
-	real32 PixelsToMeters;
 
 	pairwise_collision_rule* CollisionRuleHash[256];
 	pairwise_collision_rule* FirstFreeCollisionRule;
@@ -164,8 +159,6 @@ struct game_state {
 
 	loaded_bitmap TestDiffuse;
 	loaded_bitmap TestNormal;
-
-	real32 ZOffset;
 };
 
 struct transient_state {
