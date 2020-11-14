@@ -658,11 +658,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		bool32 DoorDown = false;
 
 		for (uint32 ScreenIndex = 0; ScreenIndex < 30; ++ScreenIndex) {
-			uint32 DoorDirection;
+			
 #if 1
-			DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown)? 2: 4);
+			uint32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown)? 2: 4);
 #else
-			DoorDirection = RandomChoice(&Series, 2);
+			uint32 DoorDirection = RandomChoice(&Series, 2);
 #endif
 
 			bool32 CreatedZDoor = false;
@@ -747,7 +747,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				AbsTileZ -= 1;
 			}
 #if 1
-			if (DoorDirection == 2) {
+			else if (DoorDirection == 2) {
 				AbsTileZ += 1;
 			}
 			else if (DoorDirection == 1) {

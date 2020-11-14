@@ -101,7 +101,7 @@ AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize, uint32 Resolu
 	Result->GameCamera.DistanceAboveTarget = 9.0f;
 
 	Result->RenderCamera = Result->GameCamera;
-	Result->RenderCamera.DistanceAboveTarget = 30.0f;
+	Result->RenderCamera.DistanceAboveTarget = 50.0f;
 
 	real32 WidthOfMonitor = 0.635f;
 	Result->MetersToPixels = (real32)ResolutionPixelX * WidthOfMonitor;
