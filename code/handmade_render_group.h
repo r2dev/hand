@@ -36,22 +36,27 @@ struct render_entity_basis {
 	v3 Offset;
 };
 
+struct render_group_camera {
+	real32 DistanceAboveTarget;
+	real32 FocalLength;
+};
+
 struct render_group {
 	render_basis* DefaultBasis;
 
 	uint32 MaxPushBufferSize;
 	uint32 PushBufferSize;
 	uint8* PushBufferBase;
-
 	real32 GlobalAlpha;
-
 	real32 MetersToPixels;
-	real32 CameraAboveTarget;
-	real32 FocalLength;
-
 	v2 MonitorHalfDimInMeters;
-
+	
+	render_group_camera GameCamera;
+	render_group_camera RenderCamera;
 };
+
+
+
 
 struct render_entry_clear {
 	v4 Color;

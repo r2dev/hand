@@ -97,8 +97,11 @@ AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize, uint32 Resolu
 	Result->PushBufferSize = 0;
 	Result->GlobalAlpha = 1.0f;
 	
-	Result->FocalLength = 0.6f;
-	Result->CameraAboveTarget = 9.0f;
+	Result->GameCamera.FocalLength = 0.6f;
+	Result->GameCamera.DistanceAboveTarget = 9.0f;
+
+	Result->RenderCamera = Result->GameCamera;
+	Result->RenderCamera.DistanceAboveTarget = 30.0f;
 
 	real32 WidthOfMonitor = 0.635f;
 	Result->MetersToPixels = (real32)ResolutionPixelX * WidthOfMonitor;
@@ -527,7 +530,6 @@ DrawRectangle(loaded_bitmap* Buffer,
 struct entity_basis_p_result {
 	v2 P;
 	real32 Scale;
-	bool32 Valid;
 };
 
 internal entity_basis_p_result
@@ -536,12 +538,12 @@ GetRenderEntityBasisP(render_group* RenderGroup, render_entity_basis* EntityBasi
 	entity_basis_p_result Result = {};
 	v3 EntityBaseP = EntityBasis->Basis->P;
 
-	real32 DistancePz = RenderGroup->CameraAboveTarget - EntityBaseP.z;
+	real32 DistancePz = RenderGroup->RenderCamera.DistanceAboveTarget - EntityBaseP.z;
 	v3 RawXY = V3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
 	real32 NearClipPlane = 0.2f;
 
 	if (DistancePz > NearClipPlane) {
-		v3 ProjectedXY = 1.0f / DistancePz * RenderGroup->FocalLength * RawXY;
+		v3 ProjectedXY = 1.0f / DistancePz * RenderGroup->RenderCamera.FocalLength * RawXY;
 		v2 EntityGround = ScreenCenter + RenderGroup->MetersToPixels * ProjectedXY.xy;
 		Result.P = EntityGround;
 		Result.Scale = RenderGroup->MetersToPixels * ProjectedXY.z;

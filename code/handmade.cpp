@@ -536,17 +536,19 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
 	}
 }
 
+
+
 inline rectangle2
 GetCameraRectAtDistance(render_group* RenderGroup, real32 CameraDistance) {
-	v2 HalfDimOnTarget = (CameraDistance / RenderGroup->FocalLength) * RenderGroup->MonitorHalfDimInMeters;
-	rectangle2 Result = RectCenterDim(v2{ 0, 0 }, HalfDimOnTarget);
+	v2 HalfDimOnTarget = (CameraDistance / RenderGroup->GameCamera.FocalLength) * RenderGroup->MonitorHalfDimInMeters;
+	rectangle2 Result = RectCenterHalfDim(v2{ 0, 0 }, HalfDimOnTarget);
 	return(Result);
 
 }
 
 inline rectangle2
 GetCameraRectAtTarget(render_group* RenderGroup) {
-	rectangle2 Result = GetCameraRectAtDistance(RenderGroup, RenderGroup->CameraAboveTarget);
+	rectangle2 Result = GetCameraRectAtDistance(RenderGroup, RenderGroup->GameCamera.DistanceAboveTarget);
 	return(Result);
 }
 
@@ -557,12 +559,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	uint32 GroundBufferWidth = 256;
 	uint32 GroundBufferHeight = 256;
-	real32 PixelsToMeters = 1.0f / 42.0f;
+	
 
 	if (!Memory->IsInitialized) {
-		
-
 		GameState->TypicalFloorHeight = 3.0f;
+		real32 PixelsToMeters = 1.0f / 42.0f;
 		
 		v3 WorldChunkDimMeters = { PixelsToMeters * GroundBufferWidth, PixelsToMeters * GroundBufferHeight, GameState->TypicalFloorHeight };
 
@@ -659,18 +660,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		for (uint32 ScreenIndex = 0; ScreenIndex < 30; ++ScreenIndex) {
 			uint32 DoorDirection;
 #if 1
-			if (DoorUp || DoorDown)
-			{
-				DoorDirection = RandomChoice(&Series, 2);
-			}
-			else {
-				DoorDirection = RandomChoice(&Series, 3);
-			}
+			DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown)? 2: 4);
 #else
 			DoorDirection = RandomChoice(&Series, 2);
 #endif
-
-
 
 			bool32 CreatedZDoor = false;
 			if (DoorDirection == 3) {
@@ -679,12 +672,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 			else if (DoorDirection == 2) {
 				CreatedZDoor = true;
-				if (AbsTileZ == ScreenBaseZ) {
-					DoorUp = true;
-				}
-				else {
-					DoorDown = true;
-				}
+				DoorUp = true;
 			}
 			else if (DoorDirection == 1) {
 				DoorRight = true;
@@ -692,7 +680,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			else {
 				DoorTop = true;
 			}
-			AddStandardRoom(GameState, (ScreenX * TilesPerWidth + TilesPerWidth / 2), (ScreenY * TilesPerHeight + TilesPerHeight / 2), AbsTileZ);
+			AddStandardRoom(GameState, 
+				(ScreenX * TilesPerWidth + TilesPerWidth / 2), 
+				(ScreenY * TilesPerHeight + TilesPerHeight / 2), 
+				AbsTileZ);
 
 
 			for (uint32 TileY = 0; TileY < TilesPerHeight; ++TileY) {
@@ -744,7 +735,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				DoorDown = !DoorDown;
 				DoorUp = !DoorUp;
 			}
-
 			else {
 				DoorUp = false;
 				DoorDown = false;
@@ -756,14 +746,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			if (DoorDirection == 3) {
 				AbsTileZ -= 1;
 			}
-#if 0
+#if 1
 			if (DoorDirection == 2) {
-				if (AbsTileZ == ScreenBaseZ) {
-					AbsTileZ = ScreenBaseZ + 1;
-				}
-				else {
-					AbsTileZ = ScreenBaseZ;
-				}
+				AbsTileZ += 1;
 			}
 			else if (DoorDirection == 1) {
 				ScreenX += 1;
@@ -915,6 +900,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	rectangle3 CameraBoundsInMeters = RectMinMax(V3(ScreenBound.Min, 0.0f), V3( ScreenBound.Max, 0.0f));
 	CameraBoundsInMeters.Min.z = -3.0f * GameState->TypicalFloorHeight;
 	CameraBoundsInMeters.Max.z = 1.0f * GameState->TypicalFloorHeight;
+	
 
 #if 0
 	for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
@@ -969,7 +955,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					if (FurthestBuffer) {
 						FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
 					}
-//					PushRectOutline(RenderGroup, RelP.xy, 0.0f, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
+//					
 
 				}
 			}
@@ -987,6 +973,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	sim_region* SimRegion = BeginSim(&TranState->TranArena, GameState, GameState->World,
 		SimCenterP, SimBounds, Input->dtForFrame);
 	v3 CameraP = Subtract(World, &GameState->CameraP, &SimCenterP);
+
+
+	PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
+
+	PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
+	PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
 
 	sim_entity* Entity = SimRegion->Entities;
 	for (uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
