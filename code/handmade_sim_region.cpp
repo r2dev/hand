@@ -294,16 +294,12 @@ CanOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region) {
 	return(Result);
 }
 
-
-
 internal void
 HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region, real32 dt, real32* Ground) {
 	if (Region->Type == EntityType_Stairwell) {
 		*Ground = GetStairGround(Region, GetEntityGroundPoint(Mover));
 	}
 }
-
-
 
 internal bool32
 SpeculativeCollide(sim_entity* Mover, sim_entity* Region, v3 TestP) {
@@ -497,7 +493,6 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 	real32 Ground = 0.0f;
 
 	{
-
 		for (uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex) {
 			sim_entity* TestEntity = SimRegion->Entities + TestEntityIndex;
 			if (CanOverlap(GameState, Entity, TestEntity) && EntitiesOverlap(Entity, TestEntity)) {

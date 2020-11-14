@@ -384,7 +384,7 @@ AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageInde
 internal void
 FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer* GroundBuffer, world_position *ChunkP) {
 	temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
+	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), 1920, 1080);
 	
 	GroundBuffer->P = *ChunkP;
 	loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
@@ -536,6 +536,21 @@ MakeSphereNormalMap(loaded_bitmap *Bitmap, real32 Roughness) {
 	}
 }
 
+inline rectangle2
+GetCameraRectAtDistance(render_group* RenderGroup, real32 CameraDistance) {
+	v2 HalfDimOnTarget = (CameraDistance / RenderGroup->FocalLength) * RenderGroup->MonitorHalfDimInMeters;
+	rectangle2 Result = RectCenterDim(v2{ 0, 0 }, HalfDimOnTarget);
+	return(Result);
+
+}
+
+inline rectangle2
+GetCameraRectAtTarget(render_group* RenderGroup) {
+	rectangle2 Result = GetCameraRectAtDistance(RenderGroup, RenderGroup->CameraAboveTarget);
+	return(Result);
+}
+
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
@@ -655,7 +670,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			DoorDirection = RandomChoice(&Series, 2);
 #endif
 
-			DoorDirection = 3;
 
 
 			bool32 CreatedZDoor = false;
@@ -881,22 +895,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	temporary_memory RenderMemory = BeginTemporaryMemory(&TranState->TranArena);
 
-	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
-
-
 	loaded_bitmap DrawBuffer_ = {};
 	loaded_bitmap* DrawBuffer = &DrawBuffer_;
 	DrawBuffer->Height = Buffer->Height;
 	DrawBuffer->Width = Buffer->Width;
 	DrawBuffer->Pitch = Buffer->Pitch;
 	DrawBuffer->Memory = Buffer->Memory;
-	
+
+	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, 
+		Megabytes(4), DrawBuffer->Width, DrawBuffer->Height);
+
+
 	Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 1.0f });
 	
 	v2 ScreenCenter = v2{ 0.5f * DrawBuffer->Width, 0.5f * DrawBuffer->Height };
-	real32 ScreenWidthInMeters = DrawBuffer->Width * PixelsToMeters;
-	real32 ScreenHeightInMeters = DrawBuffer->Height * PixelsToMeters;
-	rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0, 0, 0), v3{ ScreenWidthInMeters, ScreenHeightInMeters, 0.0f});
+
+	rectangle2 ScreenBound = GetCameraRectAtTarget(RenderGroup);
+
+	rectangle3 CameraBoundsInMeters = RectMinMax(V3(ScreenBound.Min, 0.0f), V3( ScreenBound.Max, 0.0f));
+	CameraBoundsInMeters.Min.z = -3.0f * GameState->TypicalFloorHeight;
+	CameraBoundsInMeters.Max.z = 1.0f * GameState->TypicalFloorHeight;
 
 #if 0
 	for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {

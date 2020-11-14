@@ -44,6 +44,13 @@ struct render_group {
 	uint8* PushBufferBase;
 
 	real32 GlobalAlpha;
+
+	real32 MetersToPixels;
+	real32 CameraAboveTarget;
+	real32 FocalLength;
+
+	v2 MonitorHalfDimInMeters;
+
 };
 
 struct render_entry_clear {
