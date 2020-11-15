@@ -101,7 +101,7 @@ AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize, uint32 Resolu
 	Result->GameCamera.DistanceAboveTarget = 9.0f;
 
 	Result->RenderCamera = Result->GameCamera;
-	Result->RenderCamera.DistanceAboveTarget = 50.0f;
+	//Result->RenderCamera.DistanceAboveTarget = 50.0f;
 
 	real32 WidthOfMonitor = 0.635f;
 	Result->MetersToPixels = (real32)ResolutionPixelX * WidthOfMonitor;
@@ -554,6 +554,7 @@ GetRenderEntityBasisP(render_group* RenderGroup, render_entity_basis* EntityBasi
 
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+	BEGIN_TIMED_BLOCK(RenderGroupToOutput);
 	v2 ScreenDim = { (real32)OutputTarget->Width, (real32)OutputTarget->Height };
 	for (uint32 BaseAddress = 0; BaseAddress < RenderGroup->PushBufferSize;) {
 		render_group_entry_header* Header = (render_group_entry_header*)(RenderGroup->PushBufferBase + BaseAddress);
@@ -608,4 +609,5 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 			InvalidDefaultCase;
 		}
 	}
+	END_TIMED_BLOCK(RenderGroupToOutput);
 }

@@ -92,8 +92,9 @@ SetTopDownAlign(hero_bitmaps* Bitmaps, v2 Align) {
 	Bitmaps->Cape.AlignPercentage = Align;
 }
 
+
 internal loaded_bitmap
-DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntireFile, char* FileName, int32 AlignX = 0, int32 AlignY = 0) {
+DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntireFile, char* FileName, int32 AlignX, int32 AlignY) {
 	loaded_bitmap Result = {};
 	debug_read_file_result ReadResult = ReadEntireFile(Thread, FileName);
 	if (ReadResult.ContentsSize != 0) {
@@ -158,6 +159,13 @@ DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntire
 
 	return(Result);
 
+}
+
+internal loaded_bitmap
+DEBUGLoadBMP(thread_context* Thread, debug_platform_read_entire_file* ReadEntireFile, char* FileName) {
+	loaded_bitmap Result = DEBUGLoadBMP(Thread, ReadEntireFile, FileName, 0, 0);
+	Result.AlignPercentage = v2{ 0.5f, 0.5f };
+	return(Result);
 }
 
 struct add_low_entity_result {
@@ -383,17 +391,17 @@ AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageInde
 
 internal void
 FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer* GroundBuffer, world_position *ChunkP) {
+
 	temporary_memory GroundMemory = BeginTemporaryMemory(&TranState->TranArena);
-	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), 1920, 1080);
-	
 	GroundBuffer->P = *ChunkP;
-	loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
-
-	real32 Width = (real32)Buffer->Width;
-	real32 Height = (real32)Buffer->Height;
-
-	Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 0.0f });
-
+	loaded_bitmap* Buffer = &GroundBuffer->Bitmap;
+	Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
+	Buffer->WidthOverHeight = 1.0f;
+	real32 Width = GameState->World->ChunkDimInMeters.x;
+	real32 Height = GameState->World->ChunkDimInMeters.y;
+	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4), Buffer->Width, Buffer->Height);
+	Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
+#if 1
 	for (int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
 		for (int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
 
@@ -404,7 +412,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 
 			v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
-			for (uint32 GrassIndex = 0; GrassIndex < 100; GrassIndex++) {
+			for (uint32 GrassIndex = 0; GrassIndex < 2; GrassIndex++) {
 				loaded_bitmap* Stamp = 0;
 				if (RandomChoice(&Series, 2)) {
 					Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
@@ -429,7 +437,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 
 			v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
-			for (uint32 GrassIndex = 0; GrassIndex < 100; GrassIndex++) {
+			for (uint32 GrassIndex = 0; GrassIndex < 2; GrassIndex++) {
 				loaded_bitmap* Stamp = 0;
 				Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
 				
@@ -440,6 +448,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 			}
 		}
 	}
+#endif
 	RenderGroupToOutput(RenderGroup, Buffer);
 	EndTemporaryMemory(GroundMemory);
 }
@@ -552,8 +561,14 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 	return(Result);
 }
 
-
+#if HANDMADE_INTERNAL
+game_memory* DebugGlobalMemory;
+#endif
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
+#if HANDMADE_INTERNAL
+	DebugGlobalMemory = Memory;
+#endif
+	BEGIN_TIMED_BLOCK(GameUpdateAndRender);
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
 
@@ -779,7 +794,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		InitializeArena(&TranState->TranArena, Memory->TransientStorageSize - sizeof(transient_state),
 			(uint8*)Memory->TransientStorage + sizeof(transient_state));
 
-		TranState->GroundBufferCount = 32;
+		TranState->GroundBufferCount = 64;
 		TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);
 		
 		for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
@@ -898,11 +913,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	rectangle2 ScreenBound = GetCameraRectAtTarget(RenderGroup);
 
 	rectangle3 CameraBoundsInMeters = RectMinMax(V3(ScreenBound.Min, 0.0f), V3( ScreenBound.Max, 0.0f));
-	CameraBoundsInMeters.Min.z = -3.0f * GameState->TypicalFloorHeight;
+	CameraBoundsInMeters.Min.z = -2.0f * GameState->TypicalFloorHeight;
 	CameraBoundsInMeters.Max.z = 1.0f * GameState->TypicalFloorHeight;
 	
 
-#if 0
+#if 1
 	for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
 
 		ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
@@ -910,13 +925,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		if (IsValid(GroundBuffer->P)) {
 			loaded_bitmap* Bitmap = &GroundBuffer->Bitmap;
 			v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
-			Bitmap->Align = 0.5f * V2i(Bitmap->Width, Bitmap->Height);
-
-			render_basis* Basis = PushStruct(&TranState->TranArena, render_basis);
-			RenderGroup->DefaultBasis = Basis;
-			Basis->P = Delta + v3{ 0, 0, GameState->ZOffset };
-
-			PushBitmap(RenderGroup, Bitmap, v3{ 0, 0, 0 });
+			if (Delta.z >= -1.0f && Delta.z < 1.0f) {
+				render_basis* Basis = PushStruct(&TranState->TranArena, render_basis);
+				RenderGroup->DefaultBasis = Basis;
+				Basis->P = Delta;
+				PushBitmap(RenderGroup, Bitmap, World->ChunkDimInMeters.y, v3{ 0, 0, 0 });
+				PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 1.0f, 1.0f });
+			}
 		}
 	}
 
@@ -974,6 +989,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		SimCenterP, SimBounds, Input->dtForFrame);
 	v3 CameraP = Subtract(World, &GameState->CameraP, &SimCenterP);
 
+	render_basis* Basis = PushStruct(&TranState->TranArena, render_basis);
+	Basis->P = v3{ 0, 0, 0 };
+	RenderGroup->DefaultBasis = Basis;
 
 	PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
 
@@ -1195,7 +1213,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	EndTemporaryMemory(RenderMemory);
 	CheckArena(&TranState->TranArena);
 	CheckArena(&GameState->WorldArena);
-
+	END_TIMED_BLOCK(GameUpdateAndRender);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {

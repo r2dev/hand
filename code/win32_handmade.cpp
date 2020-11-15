@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <Xinput.h>
 #include <malloc.h>
+#include <stdio.h>
 #include <dsound.h>
 
 #include "win32_handmade.h"
@@ -710,6 +711,31 @@ Win32GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End) {
 	return(Result);
 }
 
+internal void
+HandleDebugCycleCounters(game_memory* Memory) {
+#if HANDMADE_INTERNAL
+
+	OutputDebugStringA("Debug cycle count");
+	for (int CounterIndex = 0; CounterIndex < ArrayCount(Memory->Counters); ++CounterIndex) {
+		debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
+		if (Counter->HitCount) {
+			char TextBuffer[256];
+			_snprintf_s(TextBuffer, sizeof(TextBuffer), "  %d: %I64ucy %uh %I64ucy/h\n", CounterIndex, Counter->CycleCount, Counter->HitCount, Counter->CycleCount / Counter->HitCount);
+
+			OutputDebugStringA(TextBuffer);
+			Counter->HitCount = 0;
+			Counter->CycleCount = 0;
+
+		}
+		
+	}
+
+#endif
+}
+
+
+
+
 int CALLBACK WinMain(
 	HINSTANCE Instance,
 	HINSTANCE PrevInstance,
@@ -970,6 +996,7 @@ int CALLBACK WinMain(
 						}
 						if (Game.UpdateAndRender) {
 							Game.UpdateAndRender(&Thread, &GameMemory, NewInput, &Buffer);
+							HandleDebugCycleCounters(&GameMemory);
 						}
 
 						LARGE_INTEGER AudioWallClock = Win32GetWallClock();
