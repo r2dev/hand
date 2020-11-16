@@ -98,8 +98,9 @@ enum {
 	DebugCycleCounter_GameUpdateAndRender,
 	DebugCycleCounter_RenderGroupToOutput,
 	DebugCycleCounter_DrawRectangleSlowly,
-	DebugCycleCounter_TestPixel,
 	DebugCycleCounter_FillPixel,
+	DebugCycleCounter_TestPixel,
+	
 	DebugCycleCounter_Count
 };
 

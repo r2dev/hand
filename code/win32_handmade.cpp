@@ -715,19 +715,22 @@ internal void
 HandleDebugCycleCounters(game_memory* Memory) {
 #if HANDMADE_INTERNAL
 
-	OutputDebugStringA("Debug cycle count");
+	OutputDebugStringA("Debug cycle count: \n");
 	for (int CounterIndex = 0; CounterIndex < ArrayCount(Memory->Counters); ++CounterIndex) {
 		debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
 		if (Counter->HitCount) {
 			char TextBuffer[256];
-			_snprintf_s(TextBuffer, sizeof(TextBuffer), "  %d: %I64ucy %uh %I64ucy/h\n", CounterIndex, Counter->CycleCount, Counter->HitCount, Counter->CycleCount / Counter->HitCount);
+			_snprintf_s(TextBuffer, sizeof(TextBuffer), 
+				"  %d: %I64ucy %uh %I64ucy/h\n",
+				CounterIndex,
+				Counter->CycleCount,
+				Counter->HitCount,
+				Counter->CycleCount / Counter->HitCount);
 
 			OutputDebugStringA(TextBuffer);
 			Counter->HitCount = 0;
 			Counter->CycleCount = 0;
-
 		}
-		
 	}
 
 #endif
