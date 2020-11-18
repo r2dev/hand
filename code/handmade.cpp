@@ -725,9 +725,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 					if (ShouldBeDoor) {
 						//if (ScreenIndex == 0) {
-						if (TileX % 2  || TileY % 2) {
+						
 							AddWall(GameState, AbsTileX, AbsTileY, AbsTileZ);
-						}
+						
 						//}
 					} else if (CreatedZDoor) {
 						if (((AbsTileZ % 2) && (TileX == 10) && (TileY == 5)) ||
