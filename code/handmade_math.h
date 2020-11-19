@@ -1,6 +1,6 @@
 #if !defined(HANDMADE_MATH_H)
 #define HANDMADE_MATH_H
-
+#include <limits.h>
 struct v2 {
 	union {
 		struct {
@@ -48,6 +48,14 @@ struct rectangle2 {
 	v2 Min;
 	v2 Max;
 };
+
+struct rectangle2i {
+	int32 MinX;
+	int32 MinY;
+	int32 MaxX;
+	int32 MaxY;
+};
+
 
 inline v3 V3(v2 XY, real32 Z) {
 	v3 Result;
@@ -709,5 +717,30 @@ ToRectangleXY(rectangle3 A) {
 	Result.Max = A.Max.xy;
 	return(Result);
 }
+
+inline rectangle2i
+InvertedInfinityRectangle() {
+	rectangle2i Result;
+	Result.MinX = Result.MinY = INT_MAX;
+	Result.MaxX = Result.MaxY = -INT_MAX;
+	return(Result);
+}
+
+inline rectangle2i
+Intersect(rectangle2i A, rectangle2i B) {
+	rectangle2i Result;
+	Result.MinX = A.MinX < B.MinX ? B.MinX: A.MinX;
+	Result.MinY = A.MinY < B.MinY ? B.MinY: A.MinY;
+	Result.MaxX = A.MaxX > B.MaxX ? B.MaxX: A.MaxX;
+	Result.MaxY = A.MaxY > B.MaxY ? B.MaxY: A.MaxY;
+	return(Result);
+}
+
+inline bool32
+HasArea(rectangle2i A) {
+	bool32 Result = (A.MinX < A.MaxX) && (A.MinY < A.MaxY);
+	return(Result);
+}
+
 
 #endif

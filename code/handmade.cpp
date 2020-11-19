@@ -449,7 +449,9 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 		}
 	}
 #endif
-	RenderGroupToOutput(RenderGroup, Buffer);
+	
+	RenderGroupToOutput(RenderGroup, Buffer, rectangle2i{0, 0, Buffer->Width, Buffer->Height}, true);
+	RenderGroupToOutput(RenderGroup, Buffer, rectangle2i{ 0, 0, Buffer->Width, Buffer->Height }, false);
 	EndTemporaryMemory(GroundMemory);
 }
 
@@ -805,8 +807,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 		GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
 		
-		DrawRectangle(&GameState->TestDiffuse, v2{ 0, 0 }, 
-			V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), v4{ 0.5, 0.5, 0.5f, 1.0f });
+		//DrawRectangle(&GameState->TestDiffuse, v2{ 0, 0 }, 
+			//V2i(GameState->TestDiffuse.Width, GameState->TestDiffuse.Height), v4{ 0.5, 0.5, 0.5f, 1.0f });
 
 		// normal map
 		GameState->TestNormal = MakeEmptyBitmap(&TranState->TranArena, GameState->TestDiffuse.Width, GameState->TestDiffuse.Height, 0);
@@ -1206,8 +1208,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	}
 
 #endif
-
-	RenderGroupToOutput(RenderGroup, DrawBuffer);
+rectangle2i d = {4, 4, 120, 120};
+	TiledRenderGroupToOutput(RenderGroup, DrawBuffer);
 	EndSim(SimRegion, GameState);
 	EndTemporaryMemory(SimMemory);
 	EndTemporaryMemory(RenderMemory);
