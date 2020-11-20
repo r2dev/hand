@@ -826,7 +826,7 @@ int CALLBACK WinMain(
 	int showCode
 	) {
 	platform_work_queue Queue = {};
-	win32_thread_info ThreadInfo[1];
+	win32_thread_info ThreadInfo[4];
 	uint32 ThreadCount = ArrayCount(ThreadInfo);
 	Queue.SemaphoreHandle = CreateSemaphoreEx(0, 0, ThreadCount, 0, 0, SEMAPHORE_ALL_ACCESS);
 	
