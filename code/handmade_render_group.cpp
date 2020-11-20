@@ -921,27 +921,46 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 	END_TIMED_BLOCK(RenderGroupToOutput);
 }
 
+struct tile_render_work {
+	render_group* RenderGroup;
+	loaded_bitmap* OutputTarget;
+	rectangle2i ClipRect;
+};
+
+internal PLATFORM_WORK_QUEUE_CALLBACK(TileRenderToOutput) {
+	tile_render_work* Work = (tile_render_work*)Data;
+
+	RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, false);
+	RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, true);
+}
+
 
 internal void 
-TiledRenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
-	uint32 TileCountX = 4;
-	uint32 TileCountY = 4;
+TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+	uint32 const TileCountX = 4;
+	uint32 const TileCountY = 4;
 	uint32 TileWidth = OutputTarget->Width / TileCountX;
 	uint32 TileHeight = OutputTarget->Height / TileCountY;
+	tile_render_work Works[TileCountX * TileCountY];
 	#if 1
 	for (uint32 Y = 0; Y < TileCountY; Y++) {
 		for (uint32 X = 0; X < TileCountX; X++) {
+			
 			rectangle2i ClipRect;
 			ClipRect.MinX = X * TileWidth + 4;
 			ClipRect.MinY = Y * TileHeight + 4;
 			ClipRect.MaxX = (X + 1) * TileWidth - 4;
 			ClipRect.MaxY = (Y + 1) * TileHeight - 4;
-			
-			
-			RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, false);
-			RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, true);
+
+			tile_render_work *Work = Works + (Y * 4 + X);
+			Work->ClipRect = ClipRect;
+			Work->OutputTarget = OutputTarget;
+			Work->RenderGroup = RenderGroup;
+
+			PlatformAddEntry(Queue, TileRenderToOutput, Work);
 		}
 	}
+	PlatformCompleteAllWork(Queue);
 	#else
 		rectangle2i ClipRect= {4,4, OutputTarget->Width - 4, OutputTarget->Height - 4};
 		RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, false);

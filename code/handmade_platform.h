@@ -182,6 +182,13 @@ struct game_input {
 	real32 dtForFrame;
 };
 
+struct platform_work_queue;
+#define PLATFORM_WORK_QUEUE_CALLBACK(name) void name(platform_work_queue* Queue, void* Data)
+typedef PLATFORM_WORK_QUEUE_CALLBACK(platform_work_queue_callback);
+
+typedef void platform_add_entry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data);
+typedef void platform_complete_all_work(platform_work_queue* Queue);
+
 typedef struct game_memory {
 	bool32 IsInitialized;
 
@@ -194,6 +201,10 @@ typedef struct game_memory {
 	debug_platform_read_entire_file* DEBUGPlatformReadEntireFile;
 	debug_platform_write_entire_file* DEBUGPlatformWriteEntireFile;
 	debug_platform_free_file_memory* DEBUGPlatformFreeFileMemory;
+
+	platform_work_queue* HighPriorityQueue;
+	platform_add_entry* PlatformAddEntry;
+	platform_complete_all_work* PlatformCompleteAllWork;
 
 #if HANDMADE_INTERNAL
 	debug_cycle_counter Counters[DebugCycleCounter_Count];
@@ -212,6 +223,7 @@ inline game_controller_input* GetController(game_input* Input, int unsigned Cont
 	game_controller_input* Result = &Input->Controllers[ControllerIndex];
 	return(Result);
 }
+
 
 inline uint32
 SafeTruncateUInt64(uint64 Value) {

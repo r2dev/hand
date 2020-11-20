@@ -173,6 +173,8 @@ struct transient_state {
 	uint32 EnvMapHeight;
 	environment_map EnvMaps[3];
 
+	platform_work_queue* RenderQueue;
+
 	
 };
 
@@ -185,6 +187,9 @@ GetLowEntity(game_state* GameState, uint32 Index) {
 	}
 	return(Result);
 }
+
+global_variable platform_add_entry* PlatformAddEntry;
+global_variable platform_complete_all_work* PlatformCompleteAllWork;
 
 
 #endif

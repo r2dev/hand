@@ -567,6 +567,8 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 game_memory* DebugGlobalMemory;
 #endif
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
+
+
 #if HANDMADE_INTERNAL
 	DebugGlobalMemory = Memory;
 #endif
@@ -579,6 +581,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	
 
 	if (!Memory->IsInitialized) {
+
+		PlatformAddEntry = Memory->PlatformAddEntry;
+		PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
+
 		GameState->TypicalFloorHeight = 3.0f;
 		real32 PixelsToMeters = 1.0f / 42.0f;
 		
@@ -805,6 +811,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			GroundBuffer->P = NullPosition();
 		}
 
+		TranState->RenderQueue = Memory->HighPriorityQueue;
 		GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
 		
 		//DrawRectangle(&GameState->TestDiffuse, v2{ 0, 0 }, 
@@ -1209,7 +1216,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 #endif
 rectangle2i d = {4, 4, 120, 120};
-	TiledRenderGroupToOutput(RenderGroup, DrawBuffer);
+	TiledRenderGroupToOutput(TranState->RenderQueue, RenderGroup, DrawBuffer);
 	EndSim(SimRegion, GameState);
 	EndTemporaryMemory(SimMemory);
 	EndTemporaryMemory(RenderMemory);
