@@ -735,9 +735,51 @@ HandleDebugCycleCounters(game_memory* Memory) {
 
 #endif
 }
+struct work_queue_entry {
+	char* StringData;
+};
 
+work_queue_entry WorkEntities[256];
+global_variable volatile uint32 TotalCount;
+global_variable volatile uint32 StartedCount;
+global_variable volatile uint32 CompletedCount;
 
+#define CompletePastWritesBeforeFutureWrites _WriteBarrier();
+#define CompletePastReadsBeforeFutureReads _ReadBarrier();
 
+struct win32_thread_info {
+	HANDLE SemaphoreHandle;
+	uint32 LogicalThreadIndex;
+};
+
+void
+PushString(HANDLE SemaphoreHandle, char* S) {
+	work_queue_entry *Entry  = WorkEntities + TotalCount;
+	Entry->StringData = S;
+	CompletePastWritesBeforeFutureWrites;
+	TotalCount++;
+	ReleaseSemaphore(SemaphoreHandle, 1, 0);
+}
+
+DWORD WINAPI ThreadProc(LPVOID lparam) {
+	win32_thread_info* Info = (win32_thread_info *)(lparam);
+	for (;;) {
+		if (StartedCount < TotalCount) {
+			// do work
+			uint32 EntryIndex = InterlockedIncrement((LONG volatile *)&StartedCount) - 1;
+			CompletePastReadsBeforeFutureReads;
+			work_queue_entry *WorkEntry = WorkEntities + EntryIndex;
+			char Buffer[256];
+			wsprintf(Buffer, "Thread %u: %s\n", Info->LogicalThreadIndex, WorkEntry->StringData);
+			OutputDebugStringA(Buffer);
+			// fen
+			
+			InterlockedIncrement((LONG volatile*)&CompletedCount);
+		} else {
+			WaitForSingleObjectEx(Info->SemaphoreHandle, INFINITE, 0);
+		}
+	}
+}
 
 int CALLBACK WinMain(
 	HINSTANCE Instance,
@@ -745,6 +787,38 @@ int CALLBACK WinMain(
 	LPSTR CommandLine,
 	int showCode
 	) {
+
+	win32_thread_info ThreadInfo[4];
+	uint32 ThreadCount = ArrayCount(ThreadInfo);
+	HANDLE SemaphoreHandle = CreateSemaphore(0, 0, ThreadCount, 0);
+	
+	for (uint32 ThreadIndex = 0; ThreadIndex < ThreadCount; ++ThreadIndex) {
+		win32_thread_info * Info = ThreadInfo + ThreadIndex;
+		Info->LogicalThreadIndex = ThreadIndex;
+		Info->SemaphoreHandle = SemaphoreHandle;
+		HANDLE handle = CreateThread(0, 0, ThreadProc, Info, 0, 0);
+		CloseHandle(handle);
+	}
+	
+	PushString(SemaphoreHandle, "A1");
+	PushString(SemaphoreHandle, "A2");
+	PushString(SemaphoreHandle, "A3");
+	PushString(SemaphoreHandle, "A4");
+	PushString(SemaphoreHandle, "A5");
+	PushString(SemaphoreHandle, "A6");
+	PushString(SemaphoreHandle, "A7");
+	PushString(SemaphoreHandle, "A8");
+	PushString(SemaphoreHandle, "A9");
+	Sleep(2000);
+	PushString(SemaphoreHandle, "b1");
+	PushString(SemaphoreHandle, "b2");
+	PushString(SemaphoreHandle, "b3");
+	PushString(SemaphoreHandle, "b4");
+	PushString(SemaphoreHandle, "b5");
+	PushString(SemaphoreHandle, "b6");
+	PushString(SemaphoreHandle, "b7");
+	while(TotalCount != CompletedCount);
+	
 	win32_state Win32State = {};
 	LARGE_INTEGER PerfCountFrequencyResult;
 	QueryPerformanceFrequency(&PerfCountFrequencyResult);
