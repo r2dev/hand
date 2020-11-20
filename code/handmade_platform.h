@@ -180,7 +180,6 @@ struct game_input {
 	
 	bool32 ExecutableReloaded;
 	real32 dtForFrame;
-
 };
 
 typedef struct game_memory {
