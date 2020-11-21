@@ -762,23 +762,21 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 				__m128 Blendedb = _mm_add_ps(_mm_mul_ps(InvTexelA, Destb), Texelb);
 				__m128 Blendeda = _mm_add_ps(_mm_mul_ps(InvTexelA, Desta), Texela);
 
-
 				Blendedr = _mm_mul_ps(Blendedr, _mm_rsqrt_ps(Blendedr));
 				Blendedg = _mm_mul_ps(Blendedg, _mm_rsqrt_ps(Blendedg));
 				Blendedb = _mm_mul_ps(Blendedb, _mm_rsqrt_ps(Blendedb));
-				
 
-				__m128i IntR = _mm_cvttps_epi32(Blendedr);
-				__m128i IntG = _mm_cvttps_epi32(Blendedg);
-				__m128i IntB = _mm_cvttps_epi32(Blendedb);
-				__m128i IntA = _mm_cvttps_epi32(Blendeda);
+				__m128i IntR = _mm_cvtps_epi32(Blendedr);
+				__m128i IntG = _mm_cvtps_epi32(Blendedg);
+				__m128i IntB = _mm_cvtps_epi32(Blendedb);
+				__m128i IntA = _mm_cvtps_epi32(Blendeda);
 
 				__m128i Sr = _mm_slli_epi32(IntR, 16);
 				__m128i Sg = _mm_slli_epi32(IntG, 8);
 				__m128i Sb = IntB;
 				__m128i Sa = _mm_slli_epi32(IntR, 24);
 
-				__m128i Out = _mm_or_si128(_mm_or_si128(Sr, Sg), _mm_or_si128(Sa, Sb));
+				__m128i Out = _mm_or_si128(_mm_or_si128(Sr, Sg), _mm_or_si128(Sb, Sa));
 	#if 1
 				Out = _mm_or_si128(_mm_and_si128(WriteMask, Out), _mm_andnot_si128(WriteMask, OriginalDest));
 	#else
