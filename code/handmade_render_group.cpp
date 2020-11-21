@@ -524,22 +524,31 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 	}
 	
 	if (HasArea(FillRect)) {
-		__m128i StartupClipMask = _mm_set1_epi8(-1);
-		int32 FillWidth = FillRect.MaxX - FillRect.MinX;
-		int32 FillAlign = FillWidth & 3;
-		if (FillAlign > 0) {
-			
-			int32 Adjustment = (4 - FillAlign);
-			switch(Adjustment) {
-				case 1: {StartupClipMask = _mm_slli_si128(StartupClipMask, 1 * 4);}break;
-				case 2: {StartupClipMask = _mm_slli_si128(StartupClipMask, 2 * 4);}break;
-				case 3: {StartupClipMask = _mm_slli_si128(StartupClipMask, 3 * 4);}break;
-			}
-			FillWidth += Adjustment;
-			FillRect.MinX = FillRect.MaxX - FillWidth;
+		__m128i StartClipMask = _mm_set1_epi8(-1);
+		__m128i StartClipMasks[] = {
+			StartClipMask,
+			_mm_slli_si128(StartClipMask, 1 * 4),
+			_mm_slli_si128(StartClipMask, 2 * 4),
+			_mm_slli_si128(StartClipMask, 3 * 4)
+		};
+		__m128i EndClipMask = _mm_set1_epi8(-1);
+		__m128i EndClipMasks[] = {
+			EndClipMask,
+			_mm_srli_si128(EndClipMask, 3 * 4),
+			_mm_srli_si128(EndClipMask, 2 * 4),
+			_mm_srli_si128(EndClipMask, 1 * 4)
+		};
+
+		if (FillRect.MinX & 3) {
+			StartClipMask = StartClipMasks[FillRect.MinX & 3];
+			FillRect.MinX -= FillRect.MinX & 3;
 		}
 
-		
+		if (FillRect.MaxX & 3) {
+			EndClipMask = EndClipMasks[FillRect.MaxX & 3];
+			FillRect.MaxX += (4 - FillRect.MaxX & 3);
+		}
+
 		void *TextureMemory = Texture->Memory;
 		
 		real32 Inv255C = 1.0f / 255.0f;
@@ -595,15 +604,13 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 			__m128 tempPx = _mm_add_ps(Min_x4, StepFour_x4);
 			tempPx = _mm_sub_ps(tempPx, OriginX_x4);
 			
-			__m128i ClipMask = StartupClipMask;
+			__m128i ClipMask = StartClipMask;
 			
 			uint32* Pixel = (uint32*)Row;
 			
 			for (int32 X = FillRect.MinX; X < FillRect.MaxX; X += 4) {
 				// load
-				
-				
-				__m128i OriginalDest = _mm_loadu_si128((__m128i*)Pixel);
+				__m128i OriginalDest = _mm_load_si128((__m128i*)Pixel);
 				__m128 U = _mm_add_ps(_mm_mul_ps(tempPx, NAxisXx), PynX);
 				__m128 V = _mm_add_ps(_mm_mul_ps(tempPx, NAxisYx), PynY);
 				
@@ -777,11 +784,16 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 	#else
 				Out = _mm_and_si128(WriteMask, Out);
 	#endif
-				_mm_storeu_si128((__m128i*)Pixel, Out);
+				_mm_store_si128((__m128i*)Pixel, Out);
 
 				tempPx = _mm_add_ps(tempPx, Four_x4);
 				Pixel += 4;
-				ClipMask = _mm_set1_epi8(-1);
+				if ((X + 8) < FillRect.MaxX) {
+					ClipMask = _mm_set1_epi8(-1);
+				}
+				else {
+					ClipMask = EndClipMask;
+				}
 			}
 			Row += RowAdvance;
 		}
@@ -939,19 +951,31 @@ internal void
 TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 	uint32 const TileCountX = 4;
 	uint32 const TileCountY = 4;
+	tile_render_work Works[TileCountX * TileCountY];
+
+	Assert(((uintptr)OutputTarget->Memory & 15) == 0);
 	uint32 TileWidth = OutputTarget->Width / TileCountX;
 	uint32 TileHeight = OutputTarget->Height / TileCountY;
-	tile_render_work Works[TileCountX * TileCountY];
+	TileWidth = ((TileWidth + 3) / 4) * 4;
 	#if 1
 	for (uint32 Y = 0; Y < TileCountY; Y++) {
 		for (uint32 X = 0; X < TileCountX; X++) {
 			
 			rectangle2i ClipRect;
-			ClipRect.MinX = X * TileWidth + 4;
-			ClipRect.MinY = Y * TileHeight + 4;
-			ClipRect.MaxX = (X + 1) * TileWidth - 4;
-			ClipRect.MaxY = (Y + 1) * TileHeight - 4;
+			ClipRect.MinX = X * TileWidth;
+			ClipRect.MinY = Y * TileHeight;
+			
+			ClipRect.MaxY = (Y + 1) * TileHeight;
+			ClipRect.MaxX = (X + 1) * TileWidth;
 
+
+			if (X + 1 == TileCountX) {
+				ClipRect.MaxX = OutputTarget->Width;
+			}
+			if (Y + 1 == TileCountY) {
+				ClipRect.MaxY = OutputTarget->Height;
+			}
+			
 			tile_render_work *Work = Works + (Y * 4 + X);
 			Work->ClipRect = ClipRect;
 			Work->OutputTarget = OutputTarget;
@@ -962,7 +986,6 @@ TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, 
 	}
 	PlatformCompleteAllWork(Queue);
 	#else
-		rectangle2i ClipRect= {4,4, OutputTarget->Width - 4, OutputTarget->Height - 4};
 		RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, false);
 		RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, true);
 		

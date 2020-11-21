@@ -43,6 +43,8 @@ typedef int32_t int32;
 typedef int64_t int64;
 typedef int32 bool32;
 
+typedef uintptr_t uintptr;
+typedef intptr_t intptr;
 typedef float real32;
 typedef double real64;
 
@@ -73,6 +75,8 @@ typedef size_t memory_index;
 #define Terabytes(Value) (Gigabytes(Value)*1024)
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+#define Align16(Value) (Value + 15 & ~15);
 
 struct thread_context {
 	int Placeholder;

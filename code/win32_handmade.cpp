@@ -400,9 +400,12 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
 	Buffer->Info.bmiHeader.biBitCount = 32;
 	Buffer->Info.bmiHeader.biCompression = BI_RGB;
 
-	int BitmapMemorySize = (Buffer->Width * Buffer->Height) * Buffer->BytesPerPixel;
+
+	Buffer->Pitch = Align16(Width * Buffer->BytesPerPixel);
+	int BitmapMemorySize = Buffer->Pitch * Buffer->Height;
+	
 	Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-	Buffer->Pitch = Width * Buffer->BytesPerPixel;
+	
 }
 
 internal void
@@ -762,7 +765,6 @@ Win32AddEntry(platform_work_queue* Queue, platform_work_queue_callback* Callback
 	Entry->Callback = Callback;
 	++Queue->CompletedGoal;
 	_WriteBarrier();
-	_mm_sfence();
 	Queue->NextEntryToWrite = NextNewEntryToWrite;
 	ReleaseSemaphore(Queue->SemaphoreHandle, 1, 0);
 
@@ -779,7 +781,6 @@ Win32DoNextQueueEntry(platform_work_queue* Queue) {
 			platform_work_queue_entry Entry = Queue->Entries[Index];
 			Entry.Callback(Queue, Entry.Data);
 			InterlockedIncrement((LONG volatile*)&(Queue->CompletedCount));
-//			 = 1;
 		}
 	}
 	else {
@@ -873,8 +874,8 @@ int CALLBACK WinMain(
 	DEBUGGlobalShowCursor = true;
 #endif
 	WNDCLASS WindowClass = {};
-	Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
-	//Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
+	//Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
+	Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;
 	WindowClass.lpfnWndProc = Win32MainWindowCallback;
 	WindowClass.hInstance = Instance;

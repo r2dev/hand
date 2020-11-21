@@ -567,7 +567,8 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 game_memory* DebugGlobalMemory;
 #endif
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
-
+	PlatformAddEntry = Memory->PlatformAddEntry;
+	PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
 
 #if HANDMADE_INTERNAL
 	DebugGlobalMemory = Memory;
@@ -580,11 +581,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	uint32 GroundBufferHeight = 256;
 	
 
-	if (!Memory->IsInitialized) {
-
-		PlatformAddEntry = Memory->PlatformAddEntry;
-		PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
-
+	if (!Memory->IsInitialized) {		
 		GameState->TypicalFloorHeight = 3.0f;
 		real32 PixelsToMeters = 1.0f / 42.0f;
 		
