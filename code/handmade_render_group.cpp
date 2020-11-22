@@ -1,6 +1,34 @@
 
 #include "handmade.h"
 
+
+struct entity_basis_p_result {
+	v2 P;
+	real32 Scale;
+	bool32 Valid;
+};
+
+inline entity_basis_p_result
+GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
+	entity_basis_p_result Result = {};
+
+	v3 P = V3(OriginP.xy, 0.0f) + Transform->OffsetP;
+
+	real32 DistancePz = Transform->DistanceAboveTarget - P.z;
+	v3 RawXY = V3(P.xy, 1.0f);
+	real32 NearClipPlane = 0.2f;
+
+	if (DistancePz > NearClipPlane) {
+		v3 ProjectedXY = 1.0f / DistancePz * Transform->FocalLength * RawXY;
+		Result.Scale = Transform->MetersToPixels * ProjectedXY.z;
+		v2 EntityGround = Transform->ScreenCenter + Transform->MetersToPixels * ProjectedXY.xy;
+		Result.P = EntityGround;
+		Result.Valid = true;
+	}
+
+	return(Result);
+}
+
 #define PushRenderElement(Group, type)(type *)PushRenderElement_(Group, sizeof(type), RenderGroupEntryType_##type)
 
 
@@ -21,28 +49,33 @@ PushRenderElement_(render_group* Group, uint32 Size, render_group_entry_type Typ
 }
 
 inline void
-PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height,
-	v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
-	render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap);
-	if (Entry) {
-		Entry->EntityBasis.Basis = Group->DefaultBasis;
-		Entry->Bitmap = Bitmap;
-		v2 Size = v2{ Height * Bitmap->WidthOverHeight, Height };
-		v2 Align = Hadamard(Size, Bitmap->AlignPercentage);
-		Entry->EntityBasis.Offset = Offset - V3(Align, 0.0f);
-		Entry->Color = Group->GlobalAlpha * Color;
-		Entry->Size = Size;
+PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
+	v2 Size = v2{ Height * Bitmap->WidthOverHeight, Height };
+	v2 Align = Hadamard(Size, Bitmap->AlignPercentage);
+	v3 P = Offset - V3(Align, 0);
+	entity_basis_p_result Basis = GetRenderEntityBasisP(&Group->Transform, P);
+	if (Basis.Valid) {
+		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap);
+		if (Entry) {
+			Entry->P = Basis.P;
+			Entry->Bitmap = Bitmap;
+			Entry->Color = Group->GlobalAlpha * Color;
+			Entry->Size = Basis.Scale * Size;
+		}
 	}
 }
 
 inline void
 PushRect(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
-	render_entry_rectangle* Entry = PushRenderElement(Group, render_entry_rectangle);
-	if (Entry) {
-		Entry->EntityBasis.Basis = Group->DefaultBasis;
-		Entry->EntityBasis.Offset = Offset - V3(0.5f * Dim, 0);
-		Entry->Color = Color;
-		Entry->Dim = Dim;
+	v3 P = Offset - V3(0.5f * Dim, 0);
+	entity_basis_p_result Basis = GetRenderEntityBasisP(&Group->Transform, P);
+	if (Basis.Valid) {
+		render_entry_rectangle* Entry = PushRenderElement(Group, render_entry_rectangle);
+		if (Entry) {
+			Entry->P = Basis.P;
+			Entry->Color = Color;
+			Entry->Dim = Basis.Scale * Dim;
+		}
 	}
 }
 
@@ -87,29 +120,27 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 render_group*
 AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize, uint32 ResolutionPixelX, uint32 ResolutionPixelY) {
 	render_group* Result = PushStruct(Arena, render_group);
+	real32 WidthOfMonitor = 0.635f;
+	real32 MetersToPixels = (real32)ResolutionPixelX * WidthOfMonitor;
+	real32 PixelsToMeters = SafeRatio1(1.0f, MetersToPixels);
+	Result->Transform.MetersToPixels = MetersToPixels;
+	Result->Transform.ScreenCenter = v2{ 0.5f * ResolutionPixelX, 0.5f * ResolutionPixelY };
+	Result->Transform.FocalLength = 0.6f;
+	Result->Transform.DistanceAboveTarget = 9.0f;
+	Result->Transform.OffsetP = v3{ 0, 0, 0 };
+	Result->Transform.Scale = 1.0f;
 
 	Result->PushBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
 	Result->MaxPushBufferSize = MaxPushBufferSize;
 
-	Result->DefaultBasis = PushStruct(Arena, render_basis);
-	Result->DefaultBasis->P = v3{ 0, 0, 0 };
-
 	Result->PushBufferSize = 0;
 	Result->GlobalAlpha = 1.0f;
 
-	Result->GameCamera.FocalLength = 0.6f;
-	Result->GameCamera.DistanceAboveTarget = 9.0f;
-
-	Result->RenderCamera = Result->GameCamera;
-	//Result->RenderCamera.DistanceAboveTarget = 50.0f;
-
-	real32 WidthOfMonitor = 0.635f;
-	Result->MetersToPixels = (real32)ResolutionPixelX * WidthOfMonitor;
-	real32 PixelsToMeters = 1.0f / Result->MetersToPixels;
 	Result->MonitorHalfDimInMeters = v2{
 		0.5f * PixelsToMeters * ResolutionPixelX,
 		0.5f * PixelsToMeters * ResolutionPixelY
 	};
+	
 	return(Result);
 }
 
@@ -820,9 +851,7 @@ DrawRectangle(loaded_bitmap* Buffer,
 	if (!Even == (FillRect.MinY & 1)) {
 		FillRect.MinY += 1;
 	}
-	
-	
-	
+
 	// BIT PATTERN AA RR GG BB
 	uint32 Color32 = (uint32)
 		(RoundReal32ToUInt32(A * 255) << 24 |
@@ -842,31 +871,6 @@ DrawRectangle(loaded_bitmap* Buffer,
 }
 
 
-struct entity_basis_p_result {
-	v2 P;
-	real32 Scale;
-};
-
-internal entity_basis_p_result
-GetRenderEntityBasisP(render_group* RenderGroup, render_entity_basis* EntityBasis, v2 ScreenDim) {
-	v2 ScreenCenter = 0.5f * ScreenDim;
-	entity_basis_p_result Result = {};
-	v3 EntityBaseP = EntityBasis->Basis->P;
-
-	real32 DistancePz = RenderGroup->RenderCamera.DistanceAboveTarget - EntityBaseP.z;
-	v3 RawXY = V3(EntityBaseP.xy + EntityBasis->Offset.xy, 1.0f);
-	real32 NearClipPlane = 0.2f;
-
-	if (DistancePz > NearClipPlane) {
-		v3 ProjectedXY = 1.0f / DistancePz * RenderGroup->RenderCamera.FocalLength * RawXY;
-		v2 EntityGround = ScreenCenter + RenderGroup->MetersToPixels * ProjectedXY.xy;
-		Result.P = EntityGround;
-		Result.Scale = RenderGroup->MetersToPixels * ProjectedXY.z;
-	}
-
-	return(Result);
-}
-
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rectangle2i ClipRect, bool32 Even) {
 	BEGIN_TIMED_BLOCK(RenderGroupToOutput);
@@ -875,7 +879,10 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 		render_group_entry_header* Header = (render_group_entry_header*)(RenderGroup->PushBufferBase + BaseAddress);
 		BaseAddress += sizeof(*Header);
 		void* Data = Header + 1;
-		real32 PixelsToMeters = 1.0f / RenderGroup->MetersToPixels;
+
+		//todo null
+		real32 NullPixelsToMeters = 1.0f;
+
 		switch (Header->Type) {
 		case RenderGroupEntryType_render_entry_clear: {
 			render_entry_clear* Entry = (render_entry_clear*)Data;
@@ -886,19 +893,14 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 
 		case RenderGroupEntryType_render_entry_rectangle: {
 			render_entry_rectangle* Entry = (render_entry_rectangle*)Data;
-			entity_basis_p_result Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenDim);
-			DrawRectangle(OutputTarget, Basis.P, Basis.P + Basis.Scale * Entry->Dim, Entry->Color, ClipRect, Even);
+			
+			DrawRectangle(OutputTarget, Entry->P, Entry->P + Entry->Dim, Entry->Color, ClipRect, Even);
 
 			BaseAddress += sizeof(*Entry);
 		} break;
 		case RenderGroupEntryType_render_entry_bitmap: {
 			render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
-			entity_basis_p_result Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenDim);
-			
-			DrawRectangle2(OutputTarget, Basis.P,
-				Basis.Scale * V2(Entry->Size.x, 0),
-				Basis.Scale * V2(0, Entry->Size.y), Entry->Color,
-				Entry->Bitmap, PixelsToMeters, ClipRect, Even);
+			DrawRectangle2(OutputTarget, Entry->P, V2(Entry->Size.x, 0), V2(0, Entry->Size.y), Entry->Color, Entry->Bitmap, NullPixelsToMeters, ClipRect, Even);
 				
 			BaseAddress += sizeof(*Entry);
 			
@@ -949,15 +951,17 @@ internal void
 TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 	uint32 const TileCountX = 4;
 	uint32 const TileCountY = 4;
-	tile_render_work Works[TileCountX * TileCountY];
+
 
 	Assert(((uintptr)OutputTarget->Memory & 15) == 0);
 	uint32 TileWidth = OutputTarget->Width / TileCountX;
 	uint32 TileHeight = OutputTarget->Height / TileCountY;
 	TileWidth = ((TileWidth + 3) / 4) * 4;
 	#if 1
+	tile_render_work Works[TileCountX * TileCountY];
 	for (uint32 Y = 0; Y < TileCountY; Y++) {
 		for (uint32 X = 0; X < TileCountX; X++) {
+
 			
 			rectangle2i ClipRect;
 			ClipRect.MinX = X * TileWidth;
@@ -984,8 +988,9 @@ TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, 
 	}
 	PlatformCompleteAllWork(Queue);
 	#else
-		RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, false);
-		RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, true);
+	rectangle2i Cilp = { 0, 0, OutputTarget->Width, OutputTarget->Height };
+	RenderGroupToOutput(RenderGroup, OutputTarget, Cilp, false);
+		
 		
 	#endif
 	
