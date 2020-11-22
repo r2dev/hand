@@ -470,7 +470,7 @@ MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool32 ClearToZe
 	Result.Height = Height;
 	Result.Pitch = Width * BITMAP_BYTE_PER_PIXEL;
 	int32 TotalBitmapSize = Width * Height * BITMAP_BYTE_PER_PIXEL;
-	Result.Memory = PushSize(Arena, TotalBitmapSize);
+	Result.Memory = PushSize(Arena, TotalBitmapSize, 16);
 	if (ClearToZero) {
 		ClearBitmap(&Result);
 	}

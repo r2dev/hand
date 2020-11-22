@@ -26,14 +26,24 @@ InitializeArena(memory_arena* Arena, memory_index Size, void* Storage) {
 }
 
 
-#define PushStruct(Arena, type) (type*) _PushSize(Arena, sizeof(type))
-#define PushArray(Arena, Count, type) (type*) _PushSize(Arena, (Count)*sizeof(type))
-#define PushSize(Arena, Size) _PushSize(Arena, Size)
+#define PushStruct(Arena, type, ...) (type*) _PushSize(Arena, sizeof(type), ## __VA_ARGS__)
+#define PushArray(Arena, Count, type, ...) (type*) _PushSize(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
+#define PushSize(Arena, Size, ...) _PushSize(Arena, Size, ## __VA_ARGS__)
 inline void*
-_PushSize(memory_arena* Arena, memory_index Size) {
+_PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
+
+	memory_index Pointer = (memory_index)Arena->Base + Arena->Used;
+	memory_index AlignmentMask = Alignment - 1;
+	memory_index Offset = 0;
+	if (Pointer & AlignmentMask) {
+		Offset = Alignment - (Pointer & AlignmentMask);
+	}
+	Size += Offset;
 	Assert((Arena->Used + Size) <= Arena->Size);
-	void* Result = Arena->Base + Arena->Used;
 	Arena->Used += Size;
+
+	void* Result = (void*)(Pointer + Offset);
+	
 	return(Result);
 }
 
@@ -175,7 +185,6 @@ struct transient_state {
 
 	platform_work_queue* HighPriorityQueue;
 	platform_work_queue* LowPriorityQueue;
-	uint64_t Pad;
 };
 
 inline low_entity*
