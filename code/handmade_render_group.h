@@ -45,6 +45,8 @@ struct render_transform {
 	v2 ScreenCenter;
 	
 	real32 MetersToPixels;
+
+	bool32 Orthographic;
 };
 
 
@@ -58,6 +60,8 @@ struct render_group {
 	v2 MonitorHalfDimInMeters;
 	
 	render_transform Transform;
+
+	
 
 };
 

@@ -14,16 +14,23 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 
 	v3 P = V3(OriginP.xy, 0.0f) + Transform->OffsetP;
 
-	real32 DistancePz = Transform->DistanceAboveTarget - P.z;
-	v3 RawXY = V3(P.xy, 1.0f);
-	real32 NearClipPlane = 0.2f;
+	if (Transform->Orthographic == false) {
+		real32 DistancePz = Transform->DistanceAboveTarget - P.z;
+		v3 RawXY = V3(P.xy, 1.0f);
+		real32 NearClipPlane = 0.2f;
 
-	if (DistancePz > NearClipPlane) {
-		v3 ProjectedXY = 1.0f / DistancePz * Transform->FocalLength * RawXY;
-		Result.Scale = Transform->MetersToPixels * ProjectedXY.z;
-		v2 EntityGround = Transform->ScreenCenter + Transform->MetersToPixels * ProjectedXY.xy;
-		Result.P = EntityGround;
+		if (DistancePz > NearClipPlane) {
+			v3 ProjectedXY = 1.0f / DistancePz * Transform->FocalLength * RawXY;
+			Result.Scale = Transform->MetersToPixels * ProjectedXY.z;
+			v2 EntityGround = Transform->ScreenCenter + Transform->MetersToPixels * ProjectedXY.xy;
+			Result.P = EntityGround;
+			Result.Valid = true;
+		}
+	}
+	else {
+		Result.Scale = Transform->MetersToPixels;
 		Result.Valid = true;
+		Result.P = Transform->ScreenCenter + Transform->MetersToPixels * P.xy;
 	}
 
 	return(Result);
@@ -117,16 +124,42 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 	return(Entry);
 }
 
-render_group*
-AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize, uint32 ResolutionPixelX, uint32 ResolutionPixelY) {
-	render_group* Result = PushStruct(Arena, render_group);
+inline void
+Perspective(render_group* RenderGroup, uint32 PixelWidth, uint32 PixelHeight) {
 	real32 WidthOfMonitor = 0.635f;
-	real32 MetersToPixels = (real32)ResolutionPixelX * WidthOfMonitor;
+	real32 MetersToPixels = (real32)PixelWidth * WidthOfMonitor;
 	real32 PixelsToMeters = SafeRatio1(1.0f, MetersToPixels);
-	Result->Transform.MetersToPixels = MetersToPixels;
-	Result->Transform.ScreenCenter = v2{ 0.5f * ResolutionPixelX, 0.5f * ResolutionPixelY };
-	Result->Transform.FocalLength = 0.6f;
-	Result->Transform.DistanceAboveTarget = 9.0f;
+	RenderGroup->Transform.FocalLength = 0.6f;
+	RenderGroup->Transform.DistanceAboveTarget = 9.0f;
+	RenderGroup->Transform.MetersToPixels = MetersToPixels;
+	RenderGroup->MonitorHalfDimInMeters = v2{
+		0.5f * PixelsToMeters * PixelWidth,
+		0.5f * PixelsToMeters * PixelHeight
+	};
+	RenderGroup->Transform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
+	RenderGroup->Transform.Orthographic = false;
+}
+
+
+inline void
+Orthographic(render_group* RenderGroup, uint32 PixelWidth, uint32 PixelHeight, real32 MetersToPixels) {
+	real32 PixelsToMeters = SafeRatio1(1.0f, MetersToPixels);
+	RenderGroup->Transform.FocalLength = 1.0f;
+	RenderGroup->Transform.DistanceAboveTarget = 1.0f;
+	RenderGroup->Transform.MetersToPixels = MetersToPixels;
+	RenderGroup->MonitorHalfDimInMeters = v2{
+		0.5f * PixelsToMeters * PixelWidth,
+		0.5f * PixelsToMeters * PixelHeight
+	};
+	RenderGroup->Transform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
+	RenderGroup->Transform.Orthographic = true;
+}
+
+
+render_group*
+AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize) {
+	render_group* Result = PushStruct(Arena, render_group);
+
 	Result->Transform.OffsetP = v3{ 0, 0, 0 };
 	Result->Transform.Scale = 1.0f;
 
@@ -136,11 +169,6 @@ AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize, uint32 Resolu
 	Result->PushBufferSize = 0;
 	Result->GlobalAlpha = 1.0f;
 
-	Result->MonitorHalfDimInMeters = v2{
-		0.5f * PixelsToMeters * ResolutionPixelX,
-		0.5f * PixelsToMeters * ResolutionPixelY
-	};
-	
 	return(Result);
 }
 
