@@ -400,7 +400,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 	real32 Width = GameState->World->ChunkDimInMeters.x;
 	real32 Height = GameState->World->ChunkDimInMeters.y;
 	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, Megabytes(4));
-	Orthographic(RenderGroup, Buffer->Width, Buffer->Height, Buffer->Width / Width);
+	Orthographic(RenderGroup, Buffer->Width, Buffer->Height, (Buffer->Width - 2) / Width);
 	Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
 #if 1
 
@@ -416,7 +416,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 
 			v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
-			for (uint32 GrassIndex = 0; GrassIndex < 30; GrassIndex++) {
+			for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
 				loaded_bitmap* Stamp = 0;
 				if (RandomChoice(&Series, 2)) {
 					Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
@@ -439,7 +439,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 
 			v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
-			for (uint32 GrassIndex = 0; GrassIndex < 30; GrassIndex++) {
+			for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
 				loaded_bitmap* Stamp = 0;
 				Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
 				
@@ -449,9 +449,9 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 		}
 	}
 #endif
-	
-	RenderGroupToOutput(RenderGroup, Buffer, rectangle2i{0, 0, Buffer->Width, Buffer->Height}, true);
-	RenderGroupToOutput(RenderGroup, Buffer, rectangle2i{ 0, 0, Buffer->Width, Buffer->Height }, false);
+	TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, Buffer);
+	//RenderGroupToOutput(RenderGroup, Buffer, rectangle2i{0, 0, Buffer->Width, Buffer->Height}, true);
+	//RenderGroupToOutput(RenderGroup, Buffer, rectangle2i{ 0, 0, Buffer->Width, Buffer->Height }, false);
 	EndTemporaryMemory(GroundMemory);
 }
 
@@ -808,7 +808,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			GroundBuffer->P = NullPosition();
 		}
 
-		TranState->RenderQueue = Memory->HighPriorityQueue;
+		TranState->HighPriorityQueue = Memory->HighPriorityQueue;
 		GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
 		
 		//DrawRectangle(&GameState->TestDiffuse, v2{ 0, 0 }, 
@@ -910,8 +910,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 	render_group* RenderGroup = AllocateRenderGroup(&TranState->TranArena, 
 		Megabytes(4));
+	real32 FocalLength = 0.6f;
+	real32 DistanceAboveTarget = 9.0f;
 
-	Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height);
+	Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, FocalLength, DistanceAboveTarget);
 
 
 	Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 1.0f });
@@ -1218,7 +1220,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 #endif
 rectangle2i d = {4, 4, 120, 120};
-	TiledRenderGroupToOutput(TranState->RenderQueue, RenderGroup, DrawBuffer);
+	TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
 	EndSim(SimRegion, GameState);
 	EndTemporaryMemory(SimMemory);
 	EndTemporaryMemory(RenderMemory);

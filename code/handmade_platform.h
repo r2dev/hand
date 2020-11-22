@@ -207,6 +207,7 @@ typedef struct game_memory {
 	debug_platform_free_file_memory* DEBUGPlatformFreeFileMemory;
 
 	platform_work_queue* HighPriorityQueue;
+	platform_work_queue* LowPriorityQueue;
 	platform_add_entry* PlatformAddEntry;
 	platform_complete_all_work* PlatformCompleteAllWork;
 

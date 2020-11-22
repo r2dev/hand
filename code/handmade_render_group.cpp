@@ -125,12 +125,12 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 }
 
 inline void
-Perspective(render_group* RenderGroup, uint32 PixelWidth, uint32 PixelHeight) {
+Perspective(render_group* RenderGroup, uint32 PixelWidth, uint32 PixelHeight, real32 FocalLength, real32 DistanceAboveTarget) {
 	real32 WidthOfMonitor = 0.635f;
 	real32 MetersToPixels = (real32)PixelWidth * WidthOfMonitor;
 	real32 PixelsToMeters = SafeRatio1(1.0f, MetersToPixels);
-	RenderGroup->Transform.FocalLength = 0.6f;
-	RenderGroup->Transform.DistanceAboveTarget = 9.0f;
+	RenderGroup->Transform.FocalLength = FocalLength;
+	RenderGroup->Transform.DistanceAboveTarget = DistanceAboveTarget;
 	RenderGroup->Transform.MetersToPixels = MetersToPixels;
 	RenderGroup->MonitorHalfDimInMeters = v2{
 		0.5f * PixelsToMeters * PixelWidth,
@@ -622,6 +622,7 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 		__m128i MaskFFFF = _mm_set1_epi32(0xFFFF);
 		__m128 One = _mm_set_ps1(1.0f);
 		__m128 Zero = _mm_set_ps1(0.0f);
+		__m128 Half = _mm_set_ps1(0.5f);
 		__m128 ColorR = _mm_set_ps1(Color.r);
 		__m128 ColorG = _mm_set_ps1(Color.g);
 		__m128 ColorB = _mm_set_ps1(Color.b);
@@ -682,8 +683,8 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 				U = _mm_min_ps(_mm_max_ps(U, Zero), One);
 				V = _mm_min_ps(_mm_max_ps(V, Zero), One);
 				
-				__m128 tX = _mm_mul_ps(U, WidthM2);
-				__m128 tY = _mm_mul_ps(V, HeightM2);
+				__m128 tX = _mm_add_ps(_mm_mul_ps(U, WidthM2), Half);
+				__m128 tY = _mm_add_ps(_mm_mul_ps(V, HeightM2), Half);
 
 				__m128i intX = _mm_cvttps_epi32(tX);
 				__m128i intY = _mm_cvttps_epi32(tY);

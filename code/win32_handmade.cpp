@@ -804,19 +804,28 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(DoWorkerWork) {
 	OutputDebugStringA(Buffer);
 }
 
-struct win32_thread_info {
-	platform_work_queue* Queue;
-	uint32 LogicalThreadIndex;
-};
-
 
 DWORD WINAPI ThreadProc(LPVOID lparam) {
-	win32_thread_info* Info = (win32_thread_info *)(lparam);
+	platform_work_queue* Queue = (platform_work_queue*)(lparam);
 	
 	for (;;) {
-		if (Win32DoNextQueueEntry(Info->Queue)) {
-			WaitForSingleObjectEx(Info->Queue->SemaphoreHandle, INFINITE, 0);
+		if (Win32DoNextQueueEntry(Queue)) {
+			WaitForSingleObjectEx(Queue->SemaphoreHandle, INFINITE, 0);
 		}
+	}
+}
+
+internal void
+Win32MakeQueue(platform_work_queue* Queue, uint32 ThreadCount) {
+	Queue->CompletedCount = 0;
+	Queue->CompletedGoal = 0;
+	Queue->NextEntryToRead = 0;
+	Queue->NextEntryToWrite = 0;
+	uint32 InitialCount = 0;
+	Queue->SemaphoreHandle = CreateSemaphoreEx(0, InitialCount, ThreadCount, 0, 0, SEMAPHORE_ALL_ACCESS);
+	for (uint32 ThreadIndex = 0; ThreadIndex < ThreadCount; ++ThreadIndex) {
+		HANDLE handle = CreateThread(0, 0, ThreadProc, Queue, 0, 0);
+		CloseHandle(handle);
 	}
 }
 
@@ -826,21 +835,10 @@ int CALLBACK WinMain(
 	LPSTR CommandLine,
 	int showCode
 	) {
-	platform_work_queue Queue = {};
-	win32_thread_info ThreadInfo[4];
-	uint32 ThreadCount = ArrayCount(ThreadInfo);
-	Queue.SemaphoreHandle = CreateSemaphoreEx(0, 0, ThreadCount, 0, 0, SEMAPHORE_ALL_ACCESS);
-	
-	for (uint32 ThreadIndex = 0; ThreadIndex < ThreadCount; ++ThreadIndex) {
-		win32_thread_info * Info = ThreadInfo + ThreadIndex;
-		Info->LogicalThreadIndex = ThreadIndex;
-		Info->Queue = &Queue;
-		HANDLE handle = CreateThread(0, 0, ThreadProc, Info, 0, 0);
-		CloseHandle(handle);
-	}
-	
-	Win32AddEntry(&Queue, DoWorkerWork, "A1");
-	Win32CompleteAllWork(&Queue);
+	platform_work_queue HighPriorityQueue;
+	Win32MakeQueue(&HighPriorityQueue, 3);
+	platform_work_queue LowPriorityQueue;
+	Win32MakeQueue(&LowPriorityQueue, 1);
 	
 	win32_state Win32State = {};
 	LARGE_INTEGER PerfCountFrequencyResult;
@@ -930,7 +928,8 @@ int CALLBACK WinMain(
 			GameMemory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
 			GameMemory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
 			GameMemory.DEBUGPlatformFreeFileMemory = DEBUGPlatformFreeFileMemory;
-			GameMemory.HighPriorityQueue = &Queue;
+			GameMemory.HighPriorityQueue = &HighPriorityQueue;
+			GameMemory.LowPriorityQueue = &LowPriorityQueue;
 			GameMemory.PlatformAddEntry = Win32AddEntry;
 			GameMemory.PlatformCompleteAllWork = Win32CompleteAllWork;
 
