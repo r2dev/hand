@@ -160,6 +160,9 @@ render_group*
 AllocateRenderGroup(memory_arena* Arena, uint32 MaxPushBufferSize) {
 	render_group* Result = PushStruct(Arena, render_group);
 
+	if (MaxPushBufferSize == 0) {
+		MaxPushBufferSize = (uint32)GetArenaSizeRemaining(Arena);
+	}
 	Result->Transform.OffsetP = v3{ 0, 0, 0 };
 	Result->Transform.Scale = 1.0f;
 
@@ -969,7 +972,7 @@ struct tile_render_work {
 	rectangle2i ClipRect;
 };
 
-internal PLATFORM_WORK_QUEUE_CALLBACK(TileRenderToOutput) {
+internal PLATFORM_WORK_QUEUE_CALLBACK(DoTileRenderWork) {
 	tile_render_work* Work = (tile_render_work*)Data;
 
 	RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, false);
@@ -1013,16 +1016,26 @@ TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, 
 			Work->OutputTarget = OutputTarget;
 			Work->RenderGroup = RenderGroup;
 
-			PlatformAddEntry(Queue, TileRenderToOutput, Work);
+			PlatformAddEntry(Queue, DoTileRenderWork, Work);
 		}
 	}
 	PlatformCompleteAllWork(Queue);
 	#else
 	rectangle2i Cilp = { 0, 0, OutputTarget->Width, OutputTarget->Height };
 	RenderGroupToOutput(RenderGroup, OutputTarget, Cilp, false);
-		
-		
 	#endif
-	
-	
+}
+internal void
+RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+	rectangle2i ClipRect;
+	ClipRect.MinX = 0;
+	ClipRect.MinY = 0;
+	ClipRect.MaxY = OutputTarget->Height;
+	ClipRect.MaxX = OutputTarget->Width;
+
+	tile_render_work Work;
+	Work.ClipRect = ClipRect;
+	Work.RenderGroup = RenderGroup;
+	Work.OutputTarget = OutputTarget;
+	DoTileRenderWork(0, &Work);
 }

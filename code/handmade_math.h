@@ -78,7 +78,6 @@ V3(real32 X, real32 Y, real32 Z) {
 struct v4 {
 	union {
 		struct {
-
 			union {
 				v3 xyz;
 				struct {

@@ -25,6 +25,24 @@ InitializeArena(memory_arena* Arena, memory_index Size, void* Storage) {
 	Arena->Used = 0;
 }
 
+inline memory_index
+GetAlignmentOffset(memory_arena* Arena, memory_index Alignment = 4) {
+	memory_index Offset = 0;
+	memory_index ResultPointer = (memory_index)Arena->Base + Arena->Used;
+	memory_index AlignmentMask = Alignment - 1;
+	if (ResultPointer & AlignmentMask) {
+		Offset = Alignment - (ResultPointer & AlignmentMask);
+	}
+	return(Offset);
+;}
+
+
+inline memory_index
+GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment = 4) {
+	memory_index Result = Arena->Size - (Arena->Used + GetAlignmentOffset(Arena, Alignment));
+	return(Result);
+}
+
 
 #define PushStruct(Arena, type, ...) (type*) _PushSize(Arena, sizeof(type), ## __VA_ARGS__)
 #define PushArray(Arena, Count, type, ...) (type*) _PushSize(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
@@ -34,10 +52,7 @@ _PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
 
 	memory_index Pointer = (memory_index)Arena->Base + Arena->Used;
 	memory_index AlignmentMask = Alignment - 1;
-	memory_index Offset = 0;
-	if (Pointer & AlignmentMask) {
-		Offset = Alignment - (Pointer & AlignmentMask);
-	}
+	memory_index Offset = GetAlignmentOffset(Arena, Alignment);
 	Size += Offset;
 	Assert((Arena->Used + Size) <= Arena->Size);
 	Arena->Used += Size;
@@ -47,6 +62,13 @@ _PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
 	return(Result);
 }
 
+inline void 
+SubArena(memory_arena* Result, memory_arena *Arena, memory_index Size, memory_index Alignment = 4) {
+	Result->Size = Size;
+	Result->Base = (uint8*)_PushSize(Arena, Size, Alignment);
+	Result->TempCount = 0;
+	Result->Used = 0;
+}
 
 inline temporary_memory
 BeginTemporaryMemory(memory_arena* Arena) {
@@ -171,10 +193,18 @@ struct game_state {
 	loaded_bitmap TestNormal;
 };
 
+struct task_with_memory {
+	bool32 BeingUsed;
+	memory_arena Arena;
+	temporary_memory MemoryFlush;
+};
+
+
 struct transient_state {
 	bool32 IsInitialized;
 	memory_arena TranArena;
 
+	task_with_memory Tasks[4];
 	uint32 GroundBufferCount;
 	ground_buffer* GroundBuffers;
 
