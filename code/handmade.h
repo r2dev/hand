@@ -200,17 +200,27 @@ enum game_asset_id {
 	GAI_Count
 };
 
+enum asset_state {
+	AssetState_Unloaded,
+	AssetState_Queued,
+	AssetState_loaded,
+	AssetState_locked,
+};
 
+struct asset_slot {
+	loaded_bitmap* Bitmap;
+	asset_state State;
+};
 struct game_assets {
 	struct transient_state *TranState;
-	loaded_bitmap* Bitmaps[GAI_Count];
+	asset_slot Bitmaps[GAI_Count];
 	debug_platform_read_entire_file* ReadEntireFile;
 	memory_arena Arena;
 };
 
 inline loaded_bitmap*
 GetBitmap(game_assets *Assets, game_asset_id ID) {
-	loaded_bitmap* Result = Assets->Bitmaps[ID];
+	loaded_bitmap* Result = Assets->Bitmaps[ID].Bitmap;
 	return(Result);
 }
 

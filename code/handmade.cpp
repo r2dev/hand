@@ -207,6 +207,7 @@ struct load_asset_work {
 
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadAssetWork) {
 	load_asset_work* Work = (load_asset_work*)Data;
+	
 	thread_context* Thread = 0;
 	if (Work->HasAlignment) {
 		*Work->Bitmap = DEBUGLoadBMP(Thread, Work->Assets->ReadEntireFile, Work->Filename, Work->AlignX, Work->AlignY);
@@ -214,53 +215,57 @@ PLATFORM_WORK_QUEUE_CALLBACK(DoLoadAssetWork) {
 	else {
 		*Work->Bitmap = DEBUGLoadBMP(Thread, Work->Assets->ReadEntireFile, Work->Filename);
 	}
-	Work->Assets->Bitmaps[Work->ID] = Work->Bitmap;
+	_WriteBarrier();
+	Work->Assets->Bitmaps[Work->ID].Bitmap = Work->Bitmap;
+	Work->Assets->Bitmaps[Work->ID].State = AssetState_loaded;
 	EndTaskWithMemory(Work->Task);
 }
 
 
 void LoadAsset(game_assets* Assets, game_asset_id ID) {
-	task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
-	if (Task) {
-		thread_context* Thread = 0;
+	if (_InterlockedCompareExchange((long volatile*)&Assets->Bitmaps[ID].State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
+		task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
+		if (Task) {
+			thread_context* Thread = 0;
 
-		load_asset_work* Work = PushStruct(&Assets->Arena, load_asset_work);
+			load_asset_work* Work = PushStruct(&Assets->Arena, load_asset_work);
 
-		Work->Assets = Assets;
-		Work->ID = ID;
-		Work->Task = Task;
-		Work->Filename = "";
-		Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
-		Work->HasAlignment = false;
-		switch (ID) {
-		case GAI_Background: {
-			Work->Filename = "test/test_background.bmp";
-		} break;
-		case GAI_Shadow: {
-			Work->Filename = "test/test_hero_shadow.bmp";
-			Work->HasAlignment = true;
-			Work->AlignX = 72;
-			Work->AlignY = 182;
-		} break;
-		case GAI_Stairwell: {
-			Work->Filename = "test2/rock03.bmp";
-			Work->HasAlignment = true;
-			Work->AlignX = 29;
-			Work->AlignY = 10;
-		} break;
+			Work->Assets = Assets;
+			Work->ID = ID;
+			Work->Task = Task;
+			Work->Filename = "";
+			Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
+			Work->HasAlignment = false;
+			switch (ID) {
+			case GAI_Background: {
+				Work->Filename = "test/test_background.bmp";
+			} break;
+			case GAI_Shadow: {
+				Work->Filename = "test/test_hero_shadow.bmp";
+				Work->HasAlignment = true;
+				Work->AlignX = 72;
+				Work->AlignY = 182;
+			} break;
+			case GAI_Stairwell: {
+				Work->Filename = "test2/rock03.bmp";
+				Work->HasAlignment = true;
+				Work->AlignX = 29;
+				Work->AlignY = 10;
+			} break;
 
-		case GAI_Sword: {
-			Work->Filename = "test2/rock02.bmp";
-		} break;
-		case GAI_Tree: {
-			Work->Filename = "test2/tree00.bmp";
-			Work->HasAlignment = true;
-			Work->AlignX = 40;
-			Work->AlignY = 80;
-		} break;
+			case GAI_Sword: {
+				Work->Filename = "test2/rock02.bmp";
+			} break;
+			case GAI_Tree: {
+				Work->Filename = "test2/tree00.bmp";
+				Work->HasAlignment = true;
+				Work->AlignX = 40;
+				Work->AlignY = 80;
+			} break;
+			}
+
+			PlatformAddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
 		}
-
-		PlatformAddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
 	}
 }
 
