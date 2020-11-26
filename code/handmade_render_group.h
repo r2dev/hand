@@ -60,6 +60,7 @@ struct render_group {
 	v2 MonitorHalfDimInMeters;
 	
 	render_transform Transform;
+	struct game_assets* Assets;
 };
 
 struct render_entry_clear {
