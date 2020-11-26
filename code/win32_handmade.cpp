@@ -836,9 +836,9 @@ int CALLBACK WinMain(
 	int showCode
 	) {
 	platform_work_queue HighPriorityQueue;
-	Win32MakeQueue(&HighPriorityQueue, 3);
+	Win32MakeQueue(&HighPriorityQueue, 6);
 	platform_work_queue LowPriorityQueue;
-	Win32MakeQueue(&LowPriorityQueue, 1);
+	Win32MakeQueue(&LowPriorityQueue, 2);
 	
 	win32_state Win32State = {};
 	LARGE_INTEGER PerfCountFrequencyResult;

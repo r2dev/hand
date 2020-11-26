@@ -199,12 +199,21 @@ struct load_asset_work {
 	game_assets* Assets;
 	task_with_memory* Task;
 
+	bool32 HasAlignment;
+
+	int32 AlignX;
+	int32 AlignY;
 };
 
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadAssetWork) {
 	load_asset_work* Work = (load_asset_work*)Data;
 	thread_context* Thread = 0;
-	*Work->Bitmap = DEBUGLoadBMP(Thread, Work->Assets->ReadEntireFile, Work->Filename);
+	if (Work->HasAlignment) {
+		*Work->Bitmap = DEBUGLoadBMP(Thread, Work->Assets->ReadEntireFile, Work->Filename, Work->AlignX, Work->AlignY);
+	}
+	else {
+		*Work->Bitmap = DEBUGLoadBMP(Thread, Work->Assets->ReadEntireFile, Work->Filename);
+	}
 	Work->Assets->Bitmaps[Work->ID] = Work->Bitmap;
 	EndTaskWithMemory(Work->Task);
 }
@@ -222,31 +231,36 @@ void LoadAsset(game_assets* Assets, game_asset_id ID) {
 		Work->Task = Task;
 		Work->Filename = "";
 		Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
-		PlatformAddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
-
+		Work->HasAlignment = false;
 		switch (ID) {
 		case GAI_Background: {
 			Work->Filename = "test/test_background.bmp";
-			//*Assets->Bitmaps[ID] = DEBUGLoadBMP(Thread, Assets->ReadEntireFile, );
 		} break;
 		case GAI_Shadow: {
 			Work->Filename = "test/test_hero_shadow.bmp";
-			//*Assets->Bitmaps[ID] = DEBUGLoadBMP(Thread, Assets->ReadEntireFile, "test/test_hero_shadow.bmp", 72, 182);
+			Work->HasAlignment = true;
+			Work->AlignX = 72;
+			Work->AlignY = 182;
 		} break;
 		case GAI_Stairwell: {
 			Work->Filename = "test2/rock03.bmp";
-			//*Assets->Bitmaps[ID] = DEBUGLoadBMP(Thread, Assets->ReadEntireFile, "test2/rock03.bmp", 40, 80);
+			Work->HasAlignment = true;
+			Work->AlignX = 29;
+			Work->AlignY = 10;
 		} break;
 
 		case GAI_Sword: {
 			Work->Filename = "test2/rock02.bmp";
-			//*Assets->Bitmaps[ID] = DEBUGLoadBMP(Thread, Assets->ReadEntireFile, "test2/rock02.bmp");
 		} break;
 		case GAI_Tree: {
 			Work->Filename = "test2/tree00.bmp";
-			//*Assets->Bitmaps[ID] = DEBUGLoadBMP(Thread, Assets->ReadEntireFile, "test2/tree00.bmp", 29, 10);
+			Work->HasAlignment = true;
+			Work->AlignX = 40;
+			Work->AlignY = 80;
 		} break;
 		}
+
+		PlatformAddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
 	}
 }
 
