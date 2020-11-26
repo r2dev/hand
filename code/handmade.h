@@ -148,6 +148,7 @@ internal void AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint
 internal void ClearCollisionRulesFor(game_state* GameState, uint32 StorageIndex);
 
 struct game_state {
+	bool32 IsInitialized;
 	memory_arena WorldArena;
 	world* World;
 
@@ -257,6 +258,6 @@ internal void LoadAsset(game_assets* Assets, game_asset_id ID);
 
 global_variable platform_add_entry* PlatformAddEntry;
 global_variable platform_complete_all_work* PlatformCompleteAllWork;
-
+global_variable debug_platform_read_entire_file* DEBUGPlatformReadEntireFile;
 
 #endif
