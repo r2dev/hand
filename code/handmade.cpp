@@ -203,6 +203,8 @@ struct load_asset_work {
 
 	int32 AlignX;
 	int32 AlignY;
+
+	asset_state FinalState;
 };
 
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadAssetWork) {
@@ -217,7 +219,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(DoLoadAssetWork) {
 	}
 	_WriteBarrier();
 	Work->Assets->Bitmaps[Work->ID].Bitmap = Work->Bitmap;
-	Work->Assets->Bitmaps[Work->ID].State = AssetState_loaded;
+	Work->Assets->Bitmaps[Work->ID].State = Work->FinalState;
 	EndTaskWithMemory(Work->Task);
 }
 
@@ -236,6 +238,7 @@ void LoadAsset(game_assets* Assets, game_asset_id ID) {
 			Work->Filename = "";
 			Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
 			Work->HasAlignment = false;
+			Work->FinalState = AssetState_loaded;
 			switch (ID) {
 			case GAI_Background: {
 				Work->Filename = "test/test_background.bmp";
@@ -388,7 +391,6 @@ AddFamiliar(game_state* GameState, int32 AbsTileX, int32 AbsTileY, int32 AbsTile
 	return(Entity);
 }
 
-
 internal void
 DrawHitPoints(sim_entity* Entity, render_group* PieceGroup) {
 	if (Entity->HitPointMax >= 1) {
@@ -405,7 +407,6 @@ DrawHitPoints(sim_entity* Entity, render_group* PieceGroup) {
 			PushRect(PieceGroup, V3(HitP, 0), HealthDim, Color);
 			HitP += dHitP;
 		}
-
 	}
 }
 
@@ -507,7 +508,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 	task_with_memory* AvailableTask = BeginTaskWithMemory(TranState);
 	if (AvailableTask) {
 		fill_ground_chunk_work* Work = PushStruct(&AvailableTask->Arena, fill_ground_chunk_work);
-		GroundBuffer->P = *ChunkP;
+		
 		loaded_bitmap* Buffer = &GroundBuffer->Bitmap;
 		Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
 		Buffer->WidthOverHeight = 1.0f;
@@ -562,10 +563,13 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 				}
 			}
 		}
-		Work->Buffer = Buffer;
-		Work->Task = AvailableTask;
-		Work->RenderGroup = RenderGroup;
-		PlatformAddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
+		if (AllResoucePresent(RenderGroup)) {
+			GroundBuffer->P = *ChunkP;
+			Work->Buffer = Buffer;
+			Work->Task = AvailableTask;
+			Work->RenderGroup = RenderGroup;
+			PlatformAddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
+		}
 	}
 #endif
 }

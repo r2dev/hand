@@ -81,6 +81,7 @@ PushBitmap(render_group* Group, game_asset_id ID, real32 Height, v3 Offset, v4 C
 	}
 	else {
 		LoadAsset(Group->Assets, ID);
+		Group->MissingResourceCount++;
 	}
 }
 
@@ -168,6 +169,11 @@ Orthographic(render_group* RenderGroup, uint32 PixelWidth, uint32 PixelHeight, r
 	RenderGroup->Transform.Orthographic = true;
 }
 
+inline bool32
+AllResoucePresent(render_group* Group) {
+	bool32 Result = (Group->MissingResourceCount == 0);
+	return(Result);
+}
 
 render_group*
 AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBufferSize) {
@@ -184,6 +190,7 @@ AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBuff
 	Result->Assets = Assets;
 	Result->PushBufferSize = 0;
 	Result->GlobalAlpha = 1.0f;
+	Result->MissingResourceCount = 0;
 
 	return(Result);
 }

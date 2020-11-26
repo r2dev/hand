@@ -61,6 +61,8 @@ struct render_group {
 	
 	render_transform Transform;
 	struct game_assets* Assets;
+
+	uint32 MissingResourceCount;
 };
 
 struct render_entry_clear {
