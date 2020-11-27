@@ -109,13 +109,9 @@ ZeroSize(memory_index Size, void* Ptr) {
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
+#include "handmade_asset.h"
 
 
-struct hero_bitmaps {
-	loaded_bitmap Head;
-	loaded_bitmap Cape;
-	loaded_bitmap Torso;
-};
 
 
 struct low_entity {
@@ -192,38 +188,6 @@ struct task_with_memory {
 	temporary_memory MemoryFlush;
 };
 
-enum game_asset_id {
-	GAI_Background,
-	GAI_Shadow,
-	GAI_Tree,
-	GAI_Sword,
-	GAI_Stairwell,
-	GAI_Count
-};
-
-enum asset_state {
-	AssetState_Unloaded,
-	AssetState_Queued,
-	AssetState_loaded,
-	AssetState_locked,
-};
-
-struct asset_slot {
-	loaded_bitmap* Bitmap;
-	asset_state State;
-};
-struct game_assets {
-	struct transient_state *TranState;
-	asset_slot Bitmaps[GAI_Count];
-	debug_platform_read_entire_file* ReadEntireFile;
-	memory_arena Arena;
-};
-
-inline loaded_bitmap*
-GetBitmap(game_assets *Assets, game_asset_id ID) {
-	loaded_bitmap* Result = Assets->Bitmaps[ID].Bitmap;
-	return(Result);
-}
 
 struct transient_state {
 	bool32 IsInitialized;
@@ -233,7 +197,7 @@ struct transient_state {
 	uint32 GroundBufferCount;
 	ground_buffer* GroundBuffers;
 
-	game_assets Assets;
+	game_assets* Assets;
 
 
 	uint32 EnvMapWidth;
@@ -254,7 +218,9 @@ GetLowEntity(game_state* GameState, uint32 Index) {
 	return(Result);
 }
 
-internal void LoadAsset(game_assets* Assets, game_asset_id ID);
+
+internal task_with_memory* BeginTaskWithMemory(transient_state* TranState);
+inline void EndTaskWithMemory(task_with_memory* Task);
 
 global_variable platform_add_entry* PlatformAddEntry;
 global_variable platform_complete_all_work* PlatformCompleteAllWork;

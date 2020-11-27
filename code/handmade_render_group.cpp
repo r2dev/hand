@@ -73,14 +73,14 @@ PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset,
 }
 
 inline void
-PushBitmap(render_group* Group, game_asset_id ID, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
+PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
 	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID);
 
 	if (Bitmap) {
 		PushBitmap(Group, Bitmap, Height, Offset, Color);
 	}
 	else {
-		LoadAsset(Group->Assets, ID);
+		LoadBitmap(Group->Assets, ID);
 		Group->MissingResourceCount++;
 	}
 }
