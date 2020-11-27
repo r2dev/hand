@@ -42,7 +42,7 @@ struct bitmap_header {
 
 
 internal loaded_bitmap
-DEBUGLoadBMP(char* FileName, int32 AlignX, int32 AlignY) {
+DEBUGLoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
 	loaded_bitmap Result = {};
 	debug_read_file_result ReadResult = DEBUGPlatformReadEntireFile(FileName);
 	if (ReadResult.ContentsSize != 0) {
@@ -50,7 +50,7 @@ DEBUGLoadBMP(char* FileName, int32 AlignX, int32 AlignY) {
 		uint32* Pixels = (uint32*)((uint8*)ReadResult.Contents + Header->BitmapOffset);
 		Result.Height = Header->Height;
 		Result.Width = Header->Width;
-		Result.AlignPercentage = GetTopDownAlign(&Result, V2i(AlignX, AlignY));
+		Result.AlignPercentage = AlignPercentage;
 		Result.Memory = Pixels;
 		Result.WidthOverHeight = SafeRatio0((real32)Result.Width, (real32)Result.Height);
 		uint32 RedMask = Header->RedMask;
@@ -109,37 +109,21 @@ DEBUGLoadBMP(char* FileName, int32 AlignX, int32 AlignY) {
 
 }
 
-internal loaded_bitmap
-DEBUGLoadBMP(char* FileName) {
-	loaded_bitmap Result = DEBUGLoadBMP(FileName, 0, 0);
-	Result.AlignPercentage = v2{ 0.5f, 0.5f };
-	return(Result);
-}
-
 struct load_bitmap_work {
 	char* Filename;
 	loaded_bitmap* Bitmap;
 	bitmap_id ID;
 	game_assets* Assets;
 	task_with_memory* Task;
-
-	bool32 HasAlignment;
-
-	int32 AlignX;
-	int32 AlignY;
-
+	v2 AlignPercentage;
 	asset_state FinalState;
 };
 
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadBitmapWork) {
 	load_bitmap_work* Work = (load_bitmap_work*)Data;
 
-	if (Work->HasAlignment) {
-		*Work->Bitmap = DEBUGLoadBMP(Work->Filename, Work->AlignX, Work->AlignY);
-	}
-	else {
-		*Work->Bitmap = DEBUGLoadBMP(Work->Filename);
-	}
+	*Work->Bitmap = DEBUGLoadBMP(Work->Filename, Work->AlignPercentage);
+	
 	_WriteBarrier();
 	Work->Assets->Bitmaps[Work->ID.Value].Bitmap = Work->Bitmap;
 	Work->Assets->Bitmaps[Work->ID.Value].State = Work->FinalState;
@@ -159,33 +143,20 @@ void LoadBitmap(game_assets* Assets, bitmap_id ID) {
 			Work->Task = Task;
 			Work->Filename = "";
 			Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
-			Work->HasAlignment = false;
 			Work->FinalState = AssetState_loaded;
+			Work->AlignPercentage = v2{ 0.5f, 0.5f };
 			switch (ID.Value) {
-			case Asset_Background: {
-				Work->Filename = "test/test_background.bmp";
-			} break;
 			case Asset_Shadow: {
 				Work->Filename = "test/test_hero_shadow.bmp";
-				Work->HasAlignment = true;
-				Work->AlignX = 72;
-				Work->AlignY = 182;
+				Work->AlignPercentage = V2(0.5f, 0.156682029f);
 			} break;
-			case Asset_Stairwell: {
-				Work->Filename = "test2/rock03.bmp";
-				Work->HasAlignment = true;
-				Work->AlignX = 29;
-				Work->AlignY = 10;
-			} break;
-
 			case Asset_Sword: {
 				Work->Filename = "test2/rock02.bmp";
+				Work->AlignPercentage = V2(0.5f, 0.65625f);
 			} break;
 			case Asset_Tree: {
 				Work->Filename = "test2/tree00.bmp";
-				Work->HasAlignment = true;
-				Work->AlignX = 40;
-				Work->AlignY = 80;
+				Work->AlignPercentage = V2(0.493827164f, 0.295652181f);
 			} break;
 			}
 

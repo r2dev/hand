@@ -15,11 +15,9 @@ struct audio_id {
 
 enum asset_type_id {
 	Asset_none,
-	Asset_Background,
 	Asset_Shadow,
 	Asset_Tree,
 	Asset_Sword,
-	Asset_Stairwell,
 	Asset_Count
 };
 
