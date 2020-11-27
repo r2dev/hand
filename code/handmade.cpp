@@ -330,13 +330,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 				v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
 				for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
-					loaded_bitmap* Stamp = 0;
-					if (RandomChoice(&Series, 2)) {
-						Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
-					}
-					else {
-						Stamp = GameState->Ground + RandomChoice(&Series, ArrayCount(GameState->Ground));
-					}
+					bitmap_id Stamp = RandomAssetFrom(TranState->Assets, RandomChoice(&Series, 2) ? Asset_Grass : Asset_Ground, &Series);
 					v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 					PushBitmap(RenderGroup, Stamp, 4.0f, V3(P, 0.0f));
 				}
@@ -353,20 +347,23 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 				v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
 				for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
-					loaded_bitmap* Stamp = 0;
-					Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+					
+					bitmap_id Stamp = RandomAssetFrom(TranState->Assets, Asset_Tuft, &Series);
 
 					v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 					PushBitmap(RenderGroup, Stamp, 0.4f, V3(P, 0.0f));
 				}
 			}
 		}
+		Work->Buffer = Buffer;
+		Work->Task = AvailableTask;
+		Work->RenderGroup = RenderGroup;
 		if (AllResoucePresent(RenderGroup)) {
 			GroundBuffer->P = *ChunkP;
-			Work->Buffer = Buffer;
-			Work->Task = AvailableTask;
-			Work->RenderGroup = RenderGroup;
 			PlatformAddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
+		}
+		else {
+			EndTaskWithMemory(Work->Task);
 		}
 	}
 #endif
@@ -527,15 +524,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		GameState->WallCollision = MakeSimpleGroundedCollision(GameState, TileSideInMeters, TileSideInMeters, TileDepthInMeters);
 		GameState->StandardRoomCollision = MakeSimpleGroundedCollision(GameState, TilesPerWidth * TileSideInMeters, TilesPerHeight * TileSideInMeters, 0.9f * TileDepthInMeters);
 		GameState->FamiliarCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
-	
-		GameState->Grass[0] = DEBUGLoadBMP("test2/grass00.bmp");
-		GameState->Grass[1] = DEBUGLoadBMP("test2/grass01.bmp");
-		GameState->Ground[0] = DEBUGLoadBMP("test2/ground00.bmp");
-		GameState->Ground[1] = DEBUGLoadBMP("test2/ground01.bmp");
-		GameState->Ground[2] = DEBUGLoadBMP("test2/ground02.bmp");
-		GameState->Ground[3] = DEBUGLoadBMP("test2/ground03.bmp");
-		GameState->Tuft[0] = DEBUGLoadBMP("test2/tuft00.bmp");
-		GameState->Tuft[1] = DEBUGLoadBMP("test2/tuft01.bmp");
 
 		hero_bitmaps* Bitmap = GameState->HeroBitmaps;
 		Bitmap->Head = DEBUGLoadBMP("test/test_hero_right_head.bmp");

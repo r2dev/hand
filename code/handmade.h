@@ -158,10 +158,6 @@ struct game_state {
 	uint32 LowEntityCount;
 	low_entity LowEntities[100000];
 
-	loaded_bitmap Grass[2];
-	loaded_bitmap Ground[4];
-	loaded_bitmap Tuft[2];
-
 	hero_bitmaps HeroBitmaps[4];
 
 	pairwise_collision_rule* CollisionRuleHash[256];

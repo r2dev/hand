@@ -18,6 +18,13 @@ enum asset_type_id {
 	Asset_Shadow,
 	Asset_Tree,
 	Asset_Sword,
+
+	Asset_Grass,
+	Asset_Ground,
+	Asset_Tuft,
+
+
+
 	Asset_Count
 };
 
@@ -43,6 +50,10 @@ struct asset_type {
 	uint32 OnePassLastAssetIndex;
 };
 
+struct asset_bitmap_info {
+	char* FileName;
+	v2 AlignPercentage;
+};
 
 enum asset_state {
 	AssetState_Unloaded,
@@ -57,19 +68,24 @@ struct asset_slot {
 };
 struct game_assets {
 	struct transient_state* TranState;
-	uint32_t BitmapsCount;
+	uint32 BitmapsCount;
+	asset_bitmap_info* BitmapInfos;
 	asset_slot *Bitmaps;
 
-	uint32_t TagCount;
+	uint32 TagCount;
 	asset_tag* Tags;
 
-	uint32_t AssetCount;
+	uint32 AssetCount;
 	asset* Assets;
 
 	asset_type AssetTypes[Asset_Count];
 
-	debug_platform_read_entire_file* ReadEntireFile;
 	memory_arena Arena;
+
+	uint32 DEBUGUsedBitmapCount;
+	uint32 DEBUGUsedAssetCount;
+	asset_type* DEBUGAssetType;
+
 };
 
 inline loaded_bitmap*
