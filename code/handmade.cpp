@@ -525,33 +525,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		GameState->StandardRoomCollision = MakeSimpleGroundedCollision(GameState, TilesPerWidth * TileSideInMeters, TilesPerHeight * TileSideInMeters, 0.9f * TileDepthInMeters);
 		GameState->FamiliarCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
 
-		hero_bitmaps* Bitmap = GameState->HeroBitmaps;
-		Bitmap->Head = DEBUGLoadBMP("test/test_hero_right_head.bmp");
-		Bitmap->Cape = DEBUGLoadBMP("test/test_hero_right_cape.bmp");
-		Bitmap->Torso = DEBUGLoadBMP("test/test_hero_right_torso.bmp");
-		SetTopDownAlign(Bitmap, v2{ 72, 182 });
-
-		++Bitmap;
-
-		Bitmap->Head = DEBUGLoadBMP("test/test_hero_back_head.bmp");
-		Bitmap->Cape = DEBUGLoadBMP("test/test_hero_back_cape.bmp");
-		Bitmap->Torso = DEBUGLoadBMP("test/test_hero_back_torso.bmp");
-		SetTopDownAlign(Bitmap, v2{ 72, 182 });
-		
-		++Bitmap;
-
-		Bitmap->Head = DEBUGLoadBMP("test/test_hero_left_head.bmp");
-		Bitmap->Cape = DEBUGLoadBMP("test/test_hero_left_cape.bmp");
-		Bitmap->Torso = DEBUGLoadBMP("test/test_hero_left_torso.bmp");
-		SetTopDownAlign(Bitmap, v2{ 72, 182 });
-		++Bitmap;
-
-		Bitmap->Head = DEBUGLoadBMP("test/test_hero_front_head.bmp");
-		Bitmap->Cape = DEBUGLoadBMP("test/test_hero_front_cape.bmp");
-		Bitmap->Torso = DEBUGLoadBMP("test/test_hero_front_torso.bmp");
-		SetTopDownAlign(Bitmap, v2{ 72, 182 });
-
-
 		random_series Series = RandomSeed(1234);
 		
 		
@@ -933,7 +906,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
 			}
 
-			hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
+			// hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
 			switch (Entity->Type) {
 			case EntityType_Hero: {
 
@@ -1010,14 +983,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 
 			RenderGroup->Transform.OffsetP = GetEntityGroundPoint(Entity);
 			
+			asset_vector MatchVector = {};
+			MatchVector.E[Tag_FaceDirection] = (real32)Entity->FacingDirection;
+			asset_vector WeightVector = {};
+			WeightVector.E[Tag_FaceDirection] = 1.0f;
 
 			switch (Entity->Type) {
 			case EntityType_Hero: {
 				real32 HeroSizeC = 2.5f;
 				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, &HeroBitmap->Torso, HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-				PushBitmap(RenderGroup, &HeroBitmap->Cape, HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-				PushBitmap(RenderGroup, &HeroBitmap->Head, HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
 				DrawHitPoints(Entity, RenderGroup);
 
 			} break;
@@ -1032,12 +1009,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			} break;
 			case EntityType_Familiar: {
 				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Shadow), 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, &HeroBitmap->Head, 1.0f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), 1.0f, v3{ 0, 0, 0 });
 			}
 			case EntityType_Monster: {
 
 				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, &HeroBitmap->Torso, 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), 1.2f, v3{ 0, 0, 0 });
 				DrawHitPoints(Entity, RenderGroup);
 			} break;
 

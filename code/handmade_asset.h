@@ -1,9 +1,4 @@
 #pragma once
-struct hero_bitmaps {
-	loaded_bitmap Head;
-	loaded_bitmap Cape;
-	loaded_bitmap Torso;
-};
 
 struct bitmap_id {
 	uint32 Value;
@@ -23,7 +18,9 @@ enum asset_type_id {
 	Asset_Ground,
 	Asset_Tuft,
 
-
+	Asset_Head,
+	Asset_Cape,
+	Asset_Torso,
 
 	Asset_Count
 };
@@ -31,7 +28,10 @@ enum asset_type_id {
 enum asset_tag_id {
 	Tag_Smoothness,
 	Tag_Flagness,
-	Tag_Count
+	Tag_FaceDirection,
+
+
+	Tag_Count	
 };
 
 struct asset_tag {
@@ -66,6 +66,11 @@ struct asset_slot {
 	loaded_bitmap* Bitmap;
 	asset_state State;
 };
+
+struct asset_vector {
+	real32 E[Tag_Count];
+};
+
 struct game_assets {
 	struct transient_state* TranState;
 	uint32 BitmapsCount;
@@ -84,7 +89,9 @@ struct game_assets {
 
 	uint32 DEBUGUsedBitmapCount;
 	uint32 DEBUGUsedAssetCount;
+	uint32 DEBUGUsedTagCount;
 	asset_type* DEBUGAssetType;
+	asset* DEBUGAsset;
 
 };
 

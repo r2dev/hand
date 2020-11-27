@@ -8,14 +8,6 @@ GetTopDownAlign(loaded_bitmap* Bitmap, v2 Align) {
 	return Align;
 }
 
-internal void
-SetTopDownAlign(hero_bitmaps* Bitmaps, v2 Align) {
-	Align = GetTopDownAlign(&Bitmaps->Head, Align);
-	Bitmaps->Head.AlignPercentage = Align;
-	Bitmaps->Torso.AlignPercentage = Align;
-	Bitmaps->Cape.AlignPercentage = Align;
-}
-
 #pragma pack(push, 1)
 struct bitmap_header {
 	uint16 FileType;
@@ -168,9 +160,10 @@ internal void
 AddBitmapAsset(game_assets* Assets, char* FileName, v2 AlignmentPercentage = v2{0.5f, 0.5f}) {
 	Assert(Assets->DEBUGAssetType);
 	asset* Asset = Assets->Assets + Assets->DEBUGAssetType->OnePassLastAssetIndex++;
-	Asset->FirstTagIndex = 0;
-	Asset->OnePassLastTagIndex = 0;
+	Asset->FirstTagIndex = Assets->DEBUGUsedTagCount;
+	Asset->OnePassLastTagIndex = Asset->FirstTagIndex;
 	Asset->SlotID = DEBUGAddBitmapInfo(Assets, FileName, AlignmentPercentage).Value;
+	Assets->DEBUGAsset = Asset;
 }
 
 internal void
@@ -180,6 +173,38 @@ EndAssetType(game_assets* Assets) {
 	Assets->DEBUGAssetType = 0;
 }
 
+internal bitmap_id
+BestMatchAsset(game_assets* Assets, asset_type_id TypeID, asset_vector* MatchVector, asset_vector* WeightVector) {
+	bitmap_id Result = {};
+	asset_type* Type = Assets->AssetTypes + TypeID;
+	real32 BestDiff = Real32Maximum;
+	for (uint32 AssetIndex = Type->FirstAssetIndex; AssetIndex < Type->OnePassLastAssetIndex; ++AssetIndex) {
+		asset* Asset = Assets->Assets + AssetIndex;
+		real32 TotalWeight = 0.0f;
+		for (uint32 TagIndex = Asset->FirstTagIndex; TagIndex < Asset->OnePassLastTagIndex; ++TagIndex) {
+			asset_tag* Tag = Assets->Tags + TagIndex;
+
+			TotalWeight += AbsoluteValue(Tag->Value - MatchVector->E[Tag->ID]) * WeightVector->E[Tag->ID];
+		}
+
+		if (BestDiff > TotalWeight) {
+			BestDiff = TotalWeight;
+			Result.Value = Asset->SlotID;
+		}
+	}
+	return(Result);
+
+}
+
+internal void
+AddTag(game_assets* Assets, asset_tag_id TagID, real32 Value) {
+	Assert(Assets->DEBUGAsset);
+	asset_tag* Tag = Assets->Tags + Assets->DEBUGAsset->OnePassLastTagIndex++;
+	Assets->DEBUGUsedTagCount++;
+
+	Tag->ID = TagID;
+	Tag->Value = Value;	
+}
 
 internal game_assets*
 AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* TranState) {
@@ -192,14 +217,18 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	Assets->BitmapInfos = PushArray(Arena, Assets->BitmapsCount, asset_bitmap_info);
 	Assets->Bitmaps = PushArray(Arena, Assets->BitmapsCount, asset_slot);
 
-	Assets->TagCount = 0;
-	Assets->Tags = 0;
+	Assets->TagCount = 1024 * Asset_Count;
+	Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
 
 	Assets->AssetCount = Assets->BitmapsCount;
 	Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
 
 	Assets->DEBUGUsedBitmapCount = 1;
 	Assets->DEBUGUsedAssetCount = 1;
+	// @note(ren) maybe we dont need skip the first tag
+	Assets->DEBUGUsedTagCount = 0;
+
+	Assets->DEBUGAsset = 0;
 	Assets->DEBUGAssetType = 0;
 
 	BeginAssetType(Assets, Asset_Shadow);
@@ -232,6 +261,41 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	AddBitmapAsset(Assets, "test2/tuft00.bmp");
 	AddBitmapAsset(Assets, "test2/tuft01.bmp");
 	EndAssetType(Assets);
+
+	BeginAssetType(Assets, Asset_Head);
+	AddBitmapAsset(Assets, "test/test_hero_right_head.bmp");
+	AddTag(Assets, Tag_FaceDirection, 0);
+	AddBitmapAsset(Assets, "test/test_hero_back_head.bmp");
+	AddTag(Assets, Tag_FaceDirection, 1.0f);
+	AddBitmapAsset(Assets, "test/test_hero_left_head.bmp");
+	AddTag(Assets, Tag_FaceDirection, 2.0f);
+	AddBitmapAsset(Assets, "test/test_hero_front_head.bmp");
+	AddTag(Assets, Tag_FaceDirection, 3.0f);
+	EndAssetType(Assets);
+
+	BeginAssetType(Assets, Asset_Cape);
+	AddBitmapAsset(Assets, "test/test_hero_right_cape.bmp");
+	AddTag(Assets, Tag_FaceDirection, 0);
+	AddBitmapAsset(Assets, "test/test_hero_back_cape.bmp");
+	AddTag(Assets, Tag_FaceDirection, 1.0f);
+	AddBitmapAsset(Assets, "test/test_hero_left_cape.bmp");
+	AddTag(Assets, Tag_FaceDirection, 2.0f);
+	AddBitmapAsset(Assets, "test/test_hero_front_cape.bmp");
+	AddTag(Assets, Tag_FaceDirection, 3.0f);
+	EndAssetType(Assets);
+
+	BeginAssetType(Assets, Asset_Torso);
+	AddBitmapAsset(Assets, "test/test_hero_right_torso.bmp");
+	AddTag(Assets, Tag_FaceDirection, 0);
+	AddBitmapAsset(Assets, "test/test_hero_back_torso.bmp");
+	AddTag(Assets, Tag_FaceDirection, 1.0f);
+	AddBitmapAsset(Assets, "test/test_hero_left_torso.bmp");
+	AddTag(Assets, Tag_FaceDirection, 2.0f);
+	AddBitmapAsset(Assets, "test/test_hero_front_torso.bmp");
+	AddTag(Assets, Tag_FaceDirection, 3.0f);
+	EndAssetType(Assets);
+
+	
 
 	return(Assets);
 
