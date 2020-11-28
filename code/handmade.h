@@ -105,13 +105,11 @@ ZeroSize(memory_index Size, void* Ptr) {
 
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
+#include "handmade_asset.h"
 #include "handmade_world.h"
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
-#include "handmade_asset.h"
-
-
 
 
 struct low_entity {

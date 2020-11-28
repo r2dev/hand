@@ -1,11 +1,55 @@
 #include "handmade_asset.h"
 #include "handmade.h"
-inline v2
-GetTopDownAlign(loaded_bitmap* Bitmap, v2 Align) {
-	Align.y = (real32)(Bitmap->Height) - 1.0f - Align.y;
-	Align.x = SafeRatio0(Align.x, (real32)Bitmap->Width);
-	Align.y = SafeRatio0(Align.y, (real32)Bitmap->Height);
-	return Align;
+
+struct WAVE_header {
+};
+
+
+internal loaded_sound
+DEBUGLoadWAV(char* FileName) {
+	loaded_sound Result = {};
+	debug_read_file_result ReadResult = DEBUGPlatformReadEntireFile(FileName);
+	if (ReadResult.ContentsSize != 0) {
+		WAVE_header* Header = (WAVE_header*)ReadResult.Contents;
+	}
+	return(Result);
+}
+
+struct load_sound_work {
+	loaded_sound* Sound;
+	sound_id ID;
+	game_assets* Assets;
+	task_with_memory* Task;
+	asset_state FinalState;
+};
+
+PLATFORM_WORK_QUEUE_CALLBACK(DoLoadSoundWork) {
+	load_sound_work* Work = (load_sound_work*)Data;
+	asset_sound_info* Info = Work->Assets->SoundInfos + Work->ID.Value;
+	*Work->Sound = DEBUGLoadWAV(Info->FileName);
+	_WriteBarrier();
+	Work->Assets->Bitmaps[Work->ID.Value].Sound = Work->Sound;
+	Work->Assets->Bitmaps[Work->ID.Value].State = Work->FinalState;
+	EndTaskWithMemory(Work->Task);
+}
+
+
+void LoadSound(game_assets* Assets, sound_id ID) {
+	if (ID.Value &&
+		_InterlockedCompareExchange((long volatile*)&Assets->Sounds[ID.Value].State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
+		task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
+		if (Task) {
+			load_sound_work* Work = PushStruct(&Task->Arena, load_sound_work);
+			Work->Assets = Assets;
+			Work->ID = ID;
+			Work->Task = Task;
+
+			Work->Sound= PushStruct(&Assets->Arena, loaded_sound);
+			Work->FinalState = AssetState_loaded;
+
+			PlatformAddEntry(Assets->TranState->LowPriorityQueue, DoLoadSoundWork, Work);
+		}
+	}
 }
 
 #pragma pack(push, 1)

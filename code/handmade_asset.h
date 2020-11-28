@@ -1,10 +1,29 @@
 #pragma once
 
+struct loaded_bitmap {
+	v2 AlignPercentage;
+	real32 WidthOverHeight;
+
+	int32 Width;
+	int32 Height;
+	int32 Pitch;
+	void* Memory;
+};
+struct environment_map {
+	loaded_bitmap LOD[4];
+	real32 Pz;
+};
+
+struct loaded_sound {
+	uint32 SampleCount;
+	void* Memory;
+};
+
 struct bitmap_id {
 	uint32 Value;
 };
 
-struct audio_id {
+struct sound_id {
 	uint32 Value;
 };
 
@@ -55,6 +74,10 @@ struct asset_bitmap_info {
 	v2 AlignPercentage;
 };
 
+struct asset_sound_info {
+	char* FileName;
+};
+
 enum asset_state {
 	AssetState_Unloaded,
 	AssetState_Queued,
@@ -63,8 +86,12 @@ enum asset_state {
 };
 
 struct asset_slot {
-	loaded_bitmap* Bitmap;
 	asset_state State;
+	union { 
+		loaded_bitmap* Bitmap; 
+		loaded_sound* Sound;
+	};
+	
 };
 
 struct asset_vector {
@@ -73,9 +100,15 @@ struct asset_vector {
 
 struct game_assets {
 	struct transient_state* TranState;
+
+	uint32 SoundCount;
+	asset_sound_info* SoundInfos;
+	asset_slot* Sounds;
+
 	uint32 BitmapsCount;
 	asset_bitmap_info* BitmapInfos;
 	asset_slot *Bitmaps;
+
 	real32 TagRange[Tag_Count];
 	uint32 TagCount;
 	asset_tag* Tags;

@@ -1,19 +1,5 @@
 #pragma once
 
-struct loaded_bitmap {
-	v2 AlignPercentage;
-	real32 WidthOverHeight;
-
-	int32 Width;
-	int32 Height;
-	int32 Pitch;
-	void* Memory;
-};
-
-struct environment_map {
-	loaded_bitmap LOD[4];
-	real32 Pz;
-};
 
 enum render_group_entry_type {
 	RenderGroupEntryType_render_entry_clear,
