@@ -74,7 +74,7 @@ struct sim_entity {
 
 	entity_reference Sword;
 	
-	uint32 FacingDirection;
+	real32 FacingDirection;
 
 	//@todo for stairwells
 	v2 WalkableDim;

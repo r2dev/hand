@@ -183,8 +183,11 @@ BestMatchAsset(game_assets* Assets, asset_type_id TypeID, asset_vector* MatchVec
 		real32 TotalWeight = 0.0f;
 		for (uint32 TagIndex = Asset->FirstTagIndex; TagIndex < Asset->OnePassLastTagIndex; ++TagIndex) {
 			asset_tag* Tag = Assets->Tags + TagIndex;
-
-			TotalWeight += AbsoluteValue(Tag->Value - MatchVector->E[Tag->ID]) * WeightVector->E[Tag->ID];
+			real32 A = MatchVector->E[Tag->ID];
+			real32 B = Tag->Value;
+			real32 D0 = AbsoluteValue(A - B);
+			real32 D1 = AbsoluteValue(A - Assets->TagRange[Tag->ID] * SignOf(A) - B);
+			TotalWeight += Minimum(D0, D1) * WeightVector->E[Tag->ID];
 		}
 
 		if (BestDiff > TotalWeight) {
@@ -231,6 +234,10 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	Assets->DEBUGAsset = 0;
 	Assets->DEBUGAssetType = 0;
 
+	for (uint32 Tag = 0; Tag < Tag_Count; ++Tag) {
+		Assets->TagRange[Tag] = 100000.0f;
+	}
+	Assets->TagRange[Tag_FaceDirection] = Tau32;
 	BeginAssetType(Assets, Asset_Shadow);
 	AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", V2(0.5f, 0.156682029f));
 	EndAssetType(Assets);
@@ -262,40 +269,45 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	AddBitmapAsset(Assets, "test2/tuft01.bmp");
 	EndAssetType(Assets);
 
+	real32 AngleRight = 0.0f * Tau32;
+	real32 AngleBack = 0.25f * Tau32;
+	real32 AngleLeft = 0.5f * Tau32;
+	real32 AngleFront = 0.75f * Tau32;
+
+	v2 HeroAlign = { 0.5f, 0.156682029f };
+
 	BeginAssetType(Assets, Asset_Head);
-	AddBitmapAsset(Assets, "test/test_hero_right_head.bmp");
-	AddTag(Assets, Tag_FaceDirection, 0);
-	AddBitmapAsset(Assets, "test/test_hero_back_head.bmp");
-	AddTag(Assets, Tag_FaceDirection, 1.0f);
-	AddBitmapAsset(Assets, "test/test_hero_left_head.bmp");
-	AddTag(Assets, Tag_FaceDirection, 2.0f);
-	AddBitmapAsset(Assets, "test/test_hero_front_head.bmp");
-	AddTag(Assets, Tag_FaceDirection, 3.0f);
+	AddBitmapAsset(Assets, "test/test_hero_right_head.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleRight);
+	AddBitmapAsset(Assets, "test/test_hero_back_head.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleBack);
+	AddBitmapAsset(Assets, "test/test_hero_left_head.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleLeft);
+	AddBitmapAsset(Assets, "test/test_hero_front_head.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleFront);
 	EndAssetType(Assets);
 
 	BeginAssetType(Assets, Asset_Cape);
-	AddBitmapAsset(Assets, "test/test_hero_right_cape.bmp");
-	AddTag(Assets, Tag_FaceDirection, 0);
-	AddBitmapAsset(Assets, "test/test_hero_back_cape.bmp");
-	AddTag(Assets, Tag_FaceDirection, 1.0f);
-	AddBitmapAsset(Assets, "test/test_hero_left_cape.bmp");
-	AddTag(Assets, Tag_FaceDirection, 2.0f);
-	AddBitmapAsset(Assets, "test/test_hero_front_cape.bmp");
-	AddTag(Assets, Tag_FaceDirection, 3.0f);
+	AddBitmapAsset(Assets, "test/test_hero_right_cape.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleRight);
+	AddBitmapAsset(Assets, "test/test_hero_back_cape.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleBack);
+	AddBitmapAsset(Assets, "test/test_hero_left_cape.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleLeft);
+	AddBitmapAsset(Assets, "test/test_hero_front_cape.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleFront);
 	EndAssetType(Assets);
 
 	BeginAssetType(Assets, Asset_Torso);
-	AddBitmapAsset(Assets, "test/test_hero_right_torso.bmp");
-	AddTag(Assets, Tag_FaceDirection, 0);
-	AddBitmapAsset(Assets, "test/test_hero_back_torso.bmp");
-	AddTag(Assets, Tag_FaceDirection, 1.0f);
-	AddBitmapAsset(Assets, "test/test_hero_left_torso.bmp");
-	AddTag(Assets, Tag_FaceDirection, 2.0f);
-	AddBitmapAsset(Assets, "test/test_hero_front_torso.bmp");
-	AddTag(Assets, Tag_FaceDirection, 3.0f);
+	AddBitmapAsset(Assets, "test/test_hero_right_torso.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleRight);
+	AddBitmapAsset(Assets, "test/test_hero_back_torso.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleBack);
+	AddBitmapAsset(Assets, "test/test_hero_left_torso.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleLeft);
+	AddBitmapAsset(Assets, "test/test_hero_front_torso.bmp", HeroAlign);
+	AddTag(Assets, Tag_FaceDirection, AngleFront);
 	EndAssetType(Assets);
-
-	
 
 	return(Assets);
 

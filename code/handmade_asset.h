@@ -76,7 +76,7 @@ struct game_assets {
 	uint32 BitmapsCount;
 	asset_bitmap_info* BitmapInfos;
 	asset_slot *Bitmaps;
-
+	real32 TagRange[Tag_Count];
 	uint32 TagCount;
 	asset_tag* Tags;
 

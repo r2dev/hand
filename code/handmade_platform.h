@@ -55,6 +55,7 @@ typedef size_t memory_index;
 #define global_variable static
 
 #define Pi32 3.14159265359f
+#define Tau32 6.28318530718f
 
 #define Real32Maximum FLT_MAX
 

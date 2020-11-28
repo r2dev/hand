@@ -513,6 +513,13 @@ SignOf(int32 Value) {
 	return(Result);
 }
 
+inline real32
+SignOf(real32 Value) {
+	real32 Result = (Value >= 0) ? 1.0f : -1.0f;
+	return(Result);
+}
+
+
 //rect 3
 inline v3
 GetMinCorner(rectangle3 Rect) {

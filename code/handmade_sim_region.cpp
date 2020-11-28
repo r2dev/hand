@@ -516,23 +516,10 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 	}
 
 	if (Entity->dP.x == 0.0f && Entity->dP.y == 0.0f) {
-
+		// remain whichever face direction it was
 	}
-	else if (AbsoluteValue(Entity->dP.x) > AbsoluteValue(Entity->dP.y)) {
-		if (Entity->dP.x > 0) {
-			Entity->FacingDirection = 0;
-		}
-		else {
-			Entity->FacingDirection = 2;
-		}
-	}
-	else if (AbsoluteValue(Entity->dP.x) < AbsoluteValue(Entity->dP.y)) {
-		if (Entity->dP.y > 0) {
-			Entity->FacingDirection = 1;
-		}
-		else {
-			Entity->FacingDirection = 3;
-		}
+	else {
+		Entity->FacingDirection = Atan2(Entity->dP.y, Entity->dP.x);
 	}
 }
 
