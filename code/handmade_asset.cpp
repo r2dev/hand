@@ -2,8 +2,35 @@
 #include "handmade.h"
 
 struct WAVE_header {
+	uint32 RIFFID;
+	uint32 Size;
+	uint32 WaveID;
 };
 
+#define RIFF_CODE(A, B, C, D) ((uint32)(A) << 0) || ((uint32)(B) << 8) || ((uint32)(C) << 16) || ((uint32)(D) << 24)
+enum {
+	WAVE_ChunkID_fmt = RIFF_CODE('f', 'm', 't', ' '),
+	WAVE_ChunkID_RIFF = RIFF_CODE('R', 'I', 'F', 'F'),
+	WAVE_ChunkID_WAVE = RIFF_CODE('W','A', 'V', 'E')
+};
+
+struct WAVE_chunk {
+	uint32 ID;
+	uint32 Size;
+};
+struct WAVE_fmt {
+	uint16 wFormatTag;
+	uint16 nChannels;
+	uint32 nSamplesPerSec;
+	uint32 nAvgBytesPerSec;
+	uint16 nBlockAlign;
+	uint16 wBitsPerSample;
+	uint16 cbSize;
+	uint16 wValidBitsPerSample;
+	uint32 dwChannelMask;
+	uint8 SubFormat[16];
+
+};
 
 internal loaded_sound
 DEBUGLoadWAV(char* FileName) {
