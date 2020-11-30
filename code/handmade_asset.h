@@ -42,6 +42,9 @@ enum asset_type_id {
 	Asset_Cape,
 	Asset_Torso,
 
+	Asset_Music,
+	Asset_Bloop,
+
 	Asset_Count
 };
 
@@ -122,6 +125,7 @@ struct game_assets {
 	memory_arena Arena;
 
 	uint32 DEBUGUsedBitmapCount;
+	uint32 DEBUGUsedSoundCount;
 	uint32 DEBUGUsedAssetCount;
 	uint32 DEBUGUsedTagCount;
 	asset_type* DEBUGAssetType;

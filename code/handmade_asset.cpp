@@ -314,6 +314,14 @@ DEBUGAddBitmapInfo(game_assets* Assets, char* FileName, v2 AlignmentPercentage) 
 	return(ID);
 }
 
+internal sound_id
+DEBUGAddSoundInfo(game_assets* Assets, char* FileName) {
+	sound_id ID = { Assets->DEBUGUsedSoundCount++ };
+	asset_sound_info* Info = Assets->SoundInfos + ID.Value;
+	Info->FileName = FileName;
+	return(ID);
+}
+
 internal void
 BeginAssetType(game_assets* Assets, asset_type_id ID) {
 	Assert(Assets->DEBUGAssetType == 0);
@@ -332,6 +340,19 @@ AddBitmapAsset(game_assets* Assets, char* FileName, v2 AlignmentPercentage = v2{
 	Asset->SlotID = DEBUGAddBitmapInfo(Assets, FileName, AlignmentPercentage).Value;
 	Assets->DEBUGAsset = Asset;
 }
+
+internal void
+AddSoundAsset(game_assets* Assets, char* FileName) {
+	Assert(Assets->DEBUGAssetType);
+	asset* Asset = Assets->Assets + Assets->DEBUGAssetType->OnePassLastAssetIndex++;
+	Asset->FirstTagIndex = Assets->DEBUGUsedTagCount;
+	Asset->OnePassLastTagIndex = Asset->FirstTagIndex;
+	Asset->SlotID = DEBUGAddSoundInfo(Assets, FileName).Value;
+	Assets->DEBUGAsset = Asset;
+}
+
+
+
 
 internal void
 EndAssetType(game_assets* Assets) {
@@ -387,13 +408,19 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	Assets->BitmapInfos = PushArray(Arena, Assets->BitmapsCount, asset_bitmap_info);
 	Assets->Bitmaps = PushArray(Arena, Assets->BitmapsCount, asset_slot);
 
+	Assets->SoundCount = 20;
+	Assets->SoundInfos = PushArray(Arena, Assets->SoundCount, asset_sound_info);
+	Assets->Sounds = PushArray(Arena, Assets->SoundCount, asset_slot);
+
+
 	Assets->TagCount = 1024 * Asset_Count;
 	Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
 
-	Assets->AssetCount = Assets->BitmapsCount;
+	Assets->AssetCount = Assets->BitmapsCount + Assets->SoundCount;
 	Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
 
 	Assets->DEBUGUsedBitmapCount = 1;
+	Assets->DEBUGUsedSoundCount = 1;
 	Assets->DEBUGUsedAssetCount = 1;
 	// @note(ren) maybe we dont need skip the first tag
 	Assets->DEBUGUsedTagCount = 0;
@@ -475,6 +502,19 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	AddTag(Assets, Tag_FaceDirection, AngleLeft);
 	AddBitmapAsset(Assets, "test/test_hero_front_torso.bmp", HeroAlign);
 	AddTag(Assets, Tag_FaceDirection, AngleFront);
+	EndAssetType(Assets);
+
+
+	BeginAssetType(Assets, Asset_Music);
+	AddSoundAsset(Assets, "test3/music_test.wav");
+	EndAssetType(Assets);
+
+	BeginAssetType(Assets, Asset_Bloop);
+	AddSoundAsset(Assets, "test3/bloop_00.wav");
+	AddSoundAsset(Assets, "test3/bloop_01.wav");
+	AddSoundAsset(Assets, "test3/bloop_02.wav");
+	AddSoundAsset(Assets, "test3/bloop_03.wav");
+	AddSoundAsset(Assets, "test3/bloop_04.wav");
 	EndAssetType(Assets);
 
 	return(Assets);

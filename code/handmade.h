@@ -172,8 +172,6 @@ struct game_state {
 
 	loaded_bitmap TestDiffuse;
 	loaded_bitmap TestNormal;
-	loaded_sound TestSound;
-	uint32 TestSoundSampleIndex;
 };
 
 struct task_with_memory {

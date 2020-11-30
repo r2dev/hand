@@ -473,7 +473,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	
 
 	if (!GameState->IsInitialized) {
-		GameState->TestSound = DEBUGLoadWAV("test3/music_test.wav");
 		GameState->TypicalFloorHeight = 3.0f;
 		real32 PixelsToMeters = 1.0f / 42.0f;
 		
@@ -1084,10 +1083,10 @@ rectangle2i d = {4, 4, 120, 120};
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
-
-
+	transient_state* TranState = (transient_state*)Memory->TransientStorage;
 	int16* SampleOut = SoundBuffer->Samples;
-
+	
+	/**
 	for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
 		uint32 TestSoundSampleIndex = (GameState->TestSoundSampleIndex + SampleIndex) % GameState->TestSound.SampleCount;
 		int16 SampleValue = GameState->TestSound.Samples[0][TestSoundSampleIndex];
@@ -1096,4 +1095,6 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
 		*SampleOut++ = SampleValue;
 	}
 	GameState->TestSoundSampleIndex += SoundBuffer->SampleCount;
+	**/
+	
 }
