@@ -9,29 +9,6 @@
 #include "handmade_asset.cpp"
 
 
-internal void
-GameOutputSound(game_state* GameState, game_sound_output_buffer* SoundBuffer, int ToneHz) {
-
-	int16 ToneVolumn = 3000;
-	int WavePeriod = SoundBuffer->SamplesPerSecond / ToneHz;
-
-	int16* SampleOut = SoundBuffer->Samples;
-
-	for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
-#if 0
-		real32 SineValue = sinf(GameState->tSine);
-		int16 SampleValue = (int16)(SineValue * ToneVolumn);
-#else
-		int16 SampleValue = 0;
-#endif
-		* SampleOut++ = SampleValue;
-		*SampleOut++ = SampleValue;
-#if 0
-		GameState->tSine += 2.0f * Pi32 * 1.0f / (real32)WavePeriod;
-#endif
-	}
-}
-
 inline world_position
 ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ, v3 AdditionalOffset = v3{ 0, 0, 0 }) {
 	world_position BasePos = {};
@@ -495,7 +472,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	uint32 GroundBufferHeight = 256;
 	
 
-	if (!GameState->IsInitialized) {		
+	if (!GameState->IsInitialized) {
+		GameState->TestSound = DEBUGLoadWAV("test3/music_test.wav");
 		GameState->TypicalFloorHeight = 3.0f;
 		real32 PixelsToMeters = 1.0f / 42.0f;
 		
@@ -746,7 +724,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 
 			ConHero->dSword = {};
-#if 0
+#if 1
 			if (Controller->ActionUp.EndedDown) {
 				ConHero->dSword = v2{ 0.0f, 1.0f };
 			}
@@ -998,7 +976,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				DrawHitPoints(Entity, RenderGroup);
 
 			} break;
-
 			case EntityType_Wall: {
 
 				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Tree), 2.5f, v3{ 0, 0, 0 });
@@ -1107,5 +1084,16 @@ rectangle2i d = {4, 4, 120, 120};
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
-	GameOutputSound(GameState, SoundBuffer, 400);
+
+
+	int16* SampleOut = SoundBuffer->Samples;
+
+	for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
+		uint32 TestSoundSampleIndex = (GameState->TestSoundSampleIndex + SampleIndex) % GameState->TestSound.SampleCount;
+		int16 SampleValue = GameState->TestSound.Samples[0][TestSoundSampleIndex];
+
+		*SampleOut++ = SampleValue;
+		*SampleOut++ = SampleValue;
+	}
+	GameState->TestSoundSampleIndex += SoundBuffer->SampleCount;
 }

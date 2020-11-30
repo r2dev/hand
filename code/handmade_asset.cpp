@@ -1,5 +1,28 @@
 #include "handmade_asset.h"
 #include "handmade.h"
+#pragma pack(push, 1)
+struct bitmap_header {
+	uint16 FileType;
+	uint32 FileSize;
+	uint16 Reserved1;
+	uint16 Reserved2;
+	uint32 BitmapOffset;
+	uint32 Size;
+	int32 Width;
+	int32 Height;
+	uint16 Planes;
+	uint16 BitsPerPixel;
+	uint32 Compression;
+	uint32 SizeOfBitmap;
+	int32 HorzResolution;
+	int32 VertResolution;
+	uint32 ColorsUsed;
+	uint32 ColorsImportant;
+	uint32 RedMask;
+	uint32 GreenMask;
+	uint32 BlueMask;
+};
+
 
 struct WAVE_header {
 	uint32 RIFFID;
@@ -7,17 +30,19 @@ struct WAVE_header {
 	uint32 WaveID;
 };
 
-#define RIFF_CODE(A, B, C, D) ((uint32)(A) << 0) || ((uint32)(B) << 8) || ((uint32)(C) << 16) || ((uint32)(D) << 24)
+#define RIFF_CODE(a, b, c, d) (((uint32)(a) << 0) | ((uint32)(b) << 8) | ((uint32)(c) << 16) | ((uint32)(d) << 24))
 enum {
 	WAVE_ChunkID_fmt = RIFF_CODE('f', 'm', 't', ' '),
+	WAVE_ChunkID_data = RIFF_CODE('d', 'a', 't', 'a'),
 	WAVE_ChunkID_RIFF = RIFF_CODE('R', 'I', 'F', 'F'),
-	WAVE_ChunkID_WAVE = RIFF_CODE('W','A', 'V', 'E')
-};
+	WAVE_ChunkID_WAVE = RIFF_CODE('W', 'A', 'V', 'E'),
+};	
 
 struct WAVE_chunk {
 	uint32 ID;
 	uint32 Size;
 };
+
 struct WAVE_fmt {
 	uint16 wFormatTag;
 	uint16 nChannels;
@@ -32,12 +57,106 @@ struct WAVE_fmt {
 
 };
 
+#pragma pack(pop)
+
+struct riff_iterator {
+	uint8* At;
+	uint8* Stop;
+};
+
+inline riff_iterator
+ParseChunkAt(void* At, void* Stop) {
+	riff_iterator Iter;
+	Iter.At = (uint8*)At;
+	Iter.Stop = (uint8*)Stop;
+	return(Iter);
+
+}
+inline bool32
+IsValid(riff_iterator Iter) {
+	bool32 Result = (Iter.At < Iter.Stop);
+	return(Result);
+}
+
+inline riff_iterator
+NextChunk(riff_iterator Iter) {
+	WAVE_chunk* Chunk = (WAVE_chunk*)Iter.At;
+	// padding
+	uint32 Size = (Chunk->Size + 1) & ~1;
+	Iter.At += sizeof(WAVE_chunk) + Size;
+	return(Iter);
+}
+
+inline uint32
+GetType(riff_iterator Iter) {
+	WAVE_chunk* Chunk = (WAVE_chunk*)Iter.At;
+	uint32 Result = Chunk->ID;
+	return(Result);
+}
+
+inline void*
+GetChunkData(riff_iterator Iter) {
+	void* Result = (Iter.At + sizeof(WAVE_chunk));
+	return(Result);
+}
+
+inline uint32
+GetChunkDataSize(riff_iterator Iter) {
+	WAVE_chunk* Chunk = (WAVE_chunk*)Iter.At;
+	uint32 Result = Chunk->Size;
+	return(Result);
+}
+
 internal loaded_sound
 DEBUGLoadWAV(char* FileName) {
 	loaded_sound Result = {};
 	debug_read_file_result ReadResult = DEBUGPlatformReadEntireFile(FileName);
 	if (ReadResult.ContentsSize != 0) {
 		WAVE_header* Header = (WAVE_header*)ReadResult.Contents;
+		uint32 ChannelCount = 0;
+		uint32 SampleDataSize = 0;
+		int16* SampleData = 0;
+		for (riff_iterator Iter = ParseChunkAt(Header + 1, (uint8*)(Header + 1) + Header->Size - 4);
+			IsValid(Iter);
+			Iter = NextChunk(Iter)
+		) {
+			switch (GetType(Iter)) {
+			
+			case WAVE_ChunkID_data: {
+				SampleData = (int16*)GetChunkData(Iter);
+				SampleDataSize = GetChunkDataSize(Iter);
+			} break;
+			case WAVE_ChunkID_fmt: {
+				WAVE_fmt* fmt = (WAVE_fmt*)GetChunkData(Iter);
+				
+				Assert(fmt->wFormatTag == 1);
+				Assert(fmt->nSamplesPerSec == 48000);
+
+				ChannelCount = fmt->nChannels;
+			} break;
+			}
+		}
+		Assert(SampleData && ChannelCount);
+		Result.ChannelCount = ChannelCount;
+		Result.SampleCount = SampleDataSize / (ChannelCount * sizeof(int16));
+		if (ChannelCount == 1) {
+			Result.Samples[0] = SampleData;
+			Result.Samples[1] = 0;
+		}
+		else if (ChannelCount == 2) {
+			Result.Samples[0] = SampleData;
+			Result.Samples[1] = SampleData + Result.SampleCount;
+			for (uint32 SampleIndex = 0; SampleIndex < Result.SampleCount; ++SampleIndex) {
+				int16 Source = SampleData[2 * SampleIndex];
+				SampleData[2 * SampleIndex] = SampleData[SampleIndex];
+				SampleData[SampleIndex] = Source;
+			}
+		}
+		else {
+			Assert(!"Invalid Channel Count");
+		}
+
+		Result.ChannelCount = 1;
 	}
 	return(Result);
 }
@@ -79,29 +198,6 @@ void LoadSound(game_assets* Assets, sound_id ID) {
 	}
 }
 
-#pragma pack(push, 1)
-struct bitmap_header {
-	uint16 FileType;
-	uint32 FileSize;
-	uint16 Reserved1;
-	uint16 Reserved2;
-	uint32 BitmapOffset;
-	uint32 Size;
-	int32 Width;
-	int32 Height;
-	uint16 Planes;
-	uint16 BitsPerPixel;
-	uint32 Compression;
-	uint32 SizeOfBitmap;
-	int32 HorzResolution;
-	int32 VertResolution;
-	uint32 ColorsUsed;
-	uint32 ColorsImportant;
-	uint32 RedMask;
-	uint32 GreenMask;
-	uint32 BlueMask;
-};
-#pragma pack(pop)
 
 
 internal loaded_bitmap
@@ -309,6 +405,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 		Assets->TagRange[Tag] = 100000.0f;
 	}
 	Assets->TagRange[Tag_FaceDirection] = Tau32;
+	
 	BeginAssetType(Assets, Asset_Shadow);
 	AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", V2(0.5f, 0.156682029f));
 	EndAssetType(Assets);
