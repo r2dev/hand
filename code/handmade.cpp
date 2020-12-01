@@ -930,6 +930,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 								Sword->DistanceLimit = 5.0f;
 								MakeEntitySpatial(Sword, Entity->P, 5.0f * V3(ConHero->dSword, 0));
 								AddCollisionRule(GameState, Sword->StorageIndex, Entity->StorageIndex, false);
+								PlaySound(GameState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 							}
 						}
 					}
