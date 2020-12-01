@@ -138,12 +138,7 @@ struct ground_buffer {
 	loaded_bitmap Bitmap;
 };
 
-struct playing_sound {
-	real32 Volume[2];
-	int32 SamplesPlayed;
-	sound_id ID;
-	playing_sound* Next;
-};
+
 
 struct game_state;
 internal void AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide);
@@ -180,10 +175,7 @@ struct game_state {
 
 	loaded_bitmap TestDiffuse;
 	loaded_bitmap TestNormal;
-
-
-	playing_sound* FirstPlayingSound;
-	playing_sound* FirstFreePlayingSound;
+	audio_state AudioState;
 };
 
 struct task_with_memory {
