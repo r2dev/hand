@@ -12,4 +12,5 @@ struct audio_state {
 	memory_arena* PermArena;
 	playing_sound* FirstPlayingSound;
 	playing_sound* FirstFreePlayingSound;
+	v2 MasterVolume;
 };

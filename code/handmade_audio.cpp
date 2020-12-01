@@ -52,6 +52,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 		u32 TotalSampleToMix = SoundBuffer->SampleCount;
 		real32* Dest0 = RealChannel0;
 		real32* Dest1 = RealChannel1;
+		v2 MasterVolume = AudioState->MasterVolume;
 
 		while (TotalSampleToMix && !SoundFinished) {
 			//todo
@@ -87,8 +88,8 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 				for (uint32 SampleIndex = 0; SampleIndex < SampleToMix; ++SampleIndex) {
 					uint32 SampleIndexInLoadedSound = SampleIndex + PlayingSound->SamplesPlayed;
 					real32 SampleValue = LoadedSound->Samples[0][SampleIndexInLoadedSound];
-					*Dest0++ += SampleValue * Volume.E[0];
-					*Dest1++ += SampleValue * Volume.E[1];
+					*Dest0++ += MasterVolume.E[0] * SampleValue * Volume.E[0];
+					*Dest1++ += MasterVolume.E[1] * SampleValue * Volume.E[1];
 					Volume += dVolume;
 				}
 				
@@ -102,7 +103,6 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 				
 				PlayingSound->CurrentVolume = Volume;
 				
-
 				Assert(TotalSampleToMix >= SampleToMix);
 				TotalSampleToMix -= SampleToMix;
 
@@ -131,8 +131,6 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 				PlayingSoundPtr = &PlayingSound->Next;
 			}
 		}
-
-
 	}
 
 	real32* Source0 = RealChannel0;
@@ -151,6 +149,7 @@ InitializeAudioState(audio_state* AudioState, memory_arena* Arena) {
 	AudioState->FirstFreePlayingSound = 0;
 	AudioState->FirstPlayingSound = 0;
 	AudioState->PermArena = Arena;
+	AudioState->MasterVolume = v2{ 1.0f, 1.0f };
 }
 
 internal playing_sound*
