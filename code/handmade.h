@@ -176,6 +176,8 @@ struct game_state {
 	loaded_bitmap TestDiffuse;
 	loaded_bitmap TestNormal;
 	audio_state AudioState;
+
+	playing_sound* Music;
 };
 
 struct task_with_memory {

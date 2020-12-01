@@ -1,6 +1,8 @@
 #pragma once
 struct playing_sound {
-	real32 Volume[2];
+	v2 CurrentVolume;
+	v2 TargetVolume;
+	v2 dVolume;
 	int32 SamplesPlayed;
 	sound_id ID;
 	playing_sound* Next;

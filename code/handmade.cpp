@@ -456,27 +456,6 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 	return(Result);
 }
 
-internal playing_sound*
-PlaySound(audio_state* AudioState, sound_id ID) {
-
-	if (!AudioState->FirstFreePlayingSound) {
-		AudioState->FirstFreePlayingSound = PushStruct(AudioState->PermArena, playing_sound);
-		AudioState->FirstFreePlayingSound->Next = 0;
-	}
-	playing_sound* PlayingSound = AudioState->FirstFreePlayingSound;
-	AudioState->FirstFreePlayingSound = PlayingSound->Next;
-	PlayingSound->ID = ID;
-	PlayingSound->SamplesPlayed = 0;
-	PlayingSound->Volume[0] = 1.0f;
-	PlayingSound->Volume[1] = 1.0f;
-	PlayingSound->Next = AudioState->FirstPlayingSound;
-	AudioState->FirstPlayingSound = PlayingSound;
-	return(PlayingSound);
-}
-
-
-
-
 #if HANDMADE_INTERNAL
 game_memory* DebugGlobalMemory;
 #endif
@@ -708,7 +687,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 		}
 
-		PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+		GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 
 		TranState->IsInitialized = true;
 	}
@@ -755,14 +734,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 #if 1
 			if (Controller->ActionUp.EndedDown) {
 				ConHero->dSword = v2{ 0.0f, 1.0f };
+				ChangeVolume(GameState->Music, v2{ 1, 1 }, 2.0f);
 			}
 			else if (Controller->ActionDown.EndedDown) {
 				ConHero->dSword = v2{ 0.0f, -1.0f };
+				ChangeVolume(GameState->Music, v2{ 0, 0 }, 2.0f);
 			}
 			else if (Controller->ActionLeft.EndedDown) {
+				ChangeVolume(GameState->Music, v2{ 1, 0 }, 2.0f);
 				ConHero->dSword = v2{ -1.0f, 0.0f };
 			}
 			else if (Controller->ActionRight.EndedDown) {
+				ChangeVolume(GameState->Music, v2{ 0, 1 }, 2.0f);
 				ConHero->dSword = v2{ 1.0f, 0.0f };
 			}
 #else
@@ -934,7 +917,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 								Sword->DistanceLimit = 5.0f;
 								MakeEntitySpatial(Sword, Entity->P, 5.0f * V3(ConHero->dSword, 0));
 								AddCollisionRule(GameState, Sword->StorageIndex, Entity->StorageIndex, false);
-								PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+								PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Bloop));
 							}
 						}
 					}
