@@ -307,7 +307,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 				v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
 
 				for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
-					bitmap_id Stamp = RandomAssetFrom(TranState->Assets, RandomChoice(&Series, 2) ? Asset_Grass : Asset_Ground, &Series);
+					bitmap_id Stamp = GetRandomBitmapFrom(TranState->Assets, RandomChoice(&Series, 2) ? Asset_Grass : Asset_Ground, &Series);
 					v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 					PushBitmap(RenderGroup, Stamp, 4.0f, V3(P, 0.0f));
 				}
@@ -325,7 +325,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 
 				for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
 					
-					bitmap_id Stamp = RandomAssetFrom(TranState->Assets, Asset_Tuft, &Series);
+					bitmap_id Stamp = GetRandomBitmapFrom(TranState->Assets, Asset_Tuft, &Series);
 
 					v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 					PushBitmap(RenderGroup, Stamp, 0.4f, V3(P, 0.0f));
@@ -454,6 +454,27 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 	return(Result);
 }
 
+internal playing_sound*
+PlaySound(game_state* GameState, sound_id ID) {
+
+	if (!GameState->FirstFreePlayingSound) {
+		GameState->FirstFreePlayingSound = PushStruct(&GameState->WorldArena, playing_sound);
+		GameState->FirstFreePlayingSound->Next = 0;
+	}
+	playing_sound* PlayingSound = GameState->FirstFreePlayingSound;
+	GameState->FirstFreePlayingSound = PlayingSound->Next;
+	PlayingSound->ID = ID;
+	PlayingSound->SamplesPlayed = 0;
+	PlayingSound->Volume[0] = 1.0f;
+	PlayingSound->Volume[1] = 1.0f;
+	PlayingSound->Next = GameState->FirstPlayingSound;
+	GameState->FirstPlayingSound = PlayingSound;
+	return(PlayingSound);
+}
+
+
+
+
 #if HANDMADE_INTERNAL
 game_memory* DebugGlobalMemory;
 #endif
@@ -483,6 +504,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		GameState->World = PushStruct(&GameState->WorldArena, world);
 		world* World = GameState->World;
 		InitializeWorld(World, WorldChunkDimMeters);
+		
 		int32 TileSideInPixels = 60;
 
 		AddLowEntity(GameState, EntityType_Null, NullPosition());
@@ -681,6 +703,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				Height >>= 1;
 			}
 		}
+
+		PlaySound(GameState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+
 		TranState->IsInitialized = true;
 	}
 
@@ -968,29 +993,29 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			switch (Entity->Type) {
 			case EntityType_Hero: {
 				real32 HeroSizeC = 2.5f;
-				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
 				DrawHitPoints(Entity, RenderGroup);
 
 			} break;
 			case EntityType_Wall: {
 
-				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Tree), 2.5f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Tree), 2.5f, v3{ 0, 0, 0 });
 			} break;
 			case EntityType_Sword: {
-				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Shadow), 0.4f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Sword), 0.5f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.4f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Sword), 0.5f, v3{ 0, 0, 0 });
 			} break;
 			case EntityType_Familiar: {
-				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Shadow), 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), 1.0f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), 1.0f, v3{ 0, 0, 0 });
 			}
 			case EntityType_Monster: {
 
-				PushBitmap(RenderGroup, GetFirstBitmapID(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-				PushBitmap(RenderGroup, BestMatchAsset(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), 1.2f, v3{ 0, 0, 0 });
+				PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+				PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), 1.2f, v3{ 0, 0, 0 });
 				DrawHitPoints(Entity, RenderGroup);
 			} break;
 
@@ -1084,17 +1109,74 @@ rectangle2i d = {4, 4, 120, 120};
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
 	transient_state* TranState = (transient_state*)Memory->TransientStorage;
-	int16* SampleOut = SoundBuffer->Samples;
 	
-	/**
-	for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
-		uint32 TestSoundSampleIndex = (GameState->TestSoundSampleIndex + SampleIndex) % GameState->TestSound.SampleCount;
-		int16 SampleValue = GameState->TestSound.Samples[0][TestSoundSampleIndex];
+	temporary_memory MixMemory = BeginTemporaryMemory(&TranState->TranArena);
+	real32* RealChannel0 = PushArray(&TranState->TranArena, SoundBuffer->SampleCount, real32);
+	real32* RealChannel1 = PushArray(&TranState->TranArena, SoundBuffer->SampleCount, real32);
+	// clear the channel to 0
 
-		*SampleOut++ = SampleValue;
-		*SampleOut++ = SampleValue;
+	{
+		real32* Dest0 = RealChannel0;
+		real32* Dest1 = RealChannel1;
+		for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
+			*Dest0++ = 0;
+			*Dest1++ = 0;
+		}
 	}
-	GameState->TestSoundSampleIndex += SoundBuffer->SampleCount;
-	**/
+
+	for (playing_sound** PlayingSoundPtr = &GameState->FirstPlayingSound;
+		*PlayingSoundPtr;) {
+
+		playing_sound* PlayingSound = *PlayingSoundPtr;
+		bool32 SoundFinished = false;
+		//todo
+		loaded_sound* LoadedSound = GetSound(TranState->Assets, PlayingSound->ID);
+		if (LoadedSound) {
+			real32 Volumn0 = PlayingSound->Volume[0];
+			real32 Volumn1 = PlayingSound->Volume[1];
+			real32* Dest0 = RealChannel0;
+			real32* Dest1 = RealChannel1;
+			Assert(PlayingSound->SamplesPlayed >= 0);
+
+			uint32 SampleToMix = SoundBuffer->SampleCount;
+			uint32 SampleRemainingInSound = LoadedSound->SampleCount - PlayingSound->SamplesPlayed;
+			if (SampleToMix > SampleRemainingInSound) {
+				SampleToMix = SampleRemainingInSound;
+				//SoundFinished = true;
+			}
+			for (uint32 SampleIndex = 0; SampleIndex < SampleToMix; ++SampleIndex) {
+				uint32 SampleIndexInLoadedSound = SampleIndex + PlayingSound->SamplesPlayed;
+				real32 SampleValue = LoadedSound->Samples[0][SampleIndexInLoadedSound];
+				*Dest0++ += SampleValue * Volumn0;
+				*Dest1++ += SampleValue * Volumn1;
+			}
+			
+			SoundFinished = ((uint32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount);
+			PlayingSound->SamplesPlayed += SampleToMix;
+
+		}
+		else {
+			LoadSound(TranState->Assets, PlayingSound->ID);
+		}
+		// note(ren) not understand enough
+		if (SoundFinished) {
+			*PlayingSoundPtr = PlayingSound->Next;
+			PlayingSound->Next = GameState->FirstFreePlayingSound;
+			GameState->FirstFreePlayingSound = PlayingSound;
+		}
+		else {
+			PlayingSoundPtr = &PlayingSound->Next;
+		}
+	}
+
+	real32* Source0 = RealChannel0;
+	real32* Source1 = RealChannel1;
+	int16* SampleOut = SoundBuffer->Samples;
+	for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
+		*SampleOut++ = (int16)(*Source0++ + 0.5f);
+		*SampleOut++ = (int16)(*Source1++ + 0.5f);
+	}
+
+	EndTemporaryMemory(MixMemory);
 	
 }

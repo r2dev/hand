@@ -139,4 +139,11 @@ GetBitmap(game_assets* Assets, bitmap_id ID) {
 	return(Result);
 }
 
+inline loaded_sound*
+GetSound(game_assets* Assets, sound_id ID) {
+	loaded_sound* Result = Assets->Sounds[ID.Value].Sound;
+	return(Result);
+}
+
+
 internal void LoadBitmap(game_assets* Assets, bitmap_id ID);
