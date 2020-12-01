@@ -72,6 +72,7 @@ ParseChunkAt(void* At, void* Stop) {
 	return(Iter);
 
 }
+
 inline bool32
 IsValid(riff_iterator Iter) {
 	bool32 Result = (Iter.At < Iter.Stop);
@@ -108,7 +109,7 @@ GetChunkDataSize(riff_iterator Iter) {
 }
 
 internal loaded_sound
-DEBUGLoadWAV(char* FileName) {
+DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 	loaded_sound Result = {};
 	debug_read_file_result ReadResult = DEBUGPlatformReadEntireFile(FileName);
 	if (ReadResult.ContentsSize != 0) {
@@ -156,7 +157,15 @@ DEBUGLoadWAV(char* FileName) {
 			Assert(!"Invalid Channel Count");
 		}
 
+		// todo remove
 		Result.ChannelCount = 1;
+
+		if (LoadSampleCount) {
+			Result.SampleCount = LoadSampleCount;
+			for (u32 ChannelIndex = 0; ChannelIndex < Result.ChannelCount; ++ChannelIndex) {
+				Result.Samples[ChannelIndex] += FirstSampleIndex;
+			}
+		}
 	}
 	return(Result);
 }
@@ -172,7 +181,7 @@ struct load_sound_work {
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadSoundWork) {
 	load_sound_work* Work = (load_sound_work*)Data;
 	asset_sound_info* Info = Work->Assets->SoundInfos + Work->ID.Value;
-	*Work->Sound = DEBUGLoadWAV(Info->FileName);
+	*Work->Sound = DEBUGLoadWAV(Info->FileName, Info->FirstSampleIndex, Info->SampleCount);
 	_WriteBarrier();
 	Work->Assets->Sounds[Work->ID.Value].Sound = Work->Sound;
 	Work->Assets->Sounds[Work->ID.Value].State = Work->FinalState;
@@ -201,7 +210,8 @@ void LoadSound(game_assets* Assets, sound_id ID) {
 	}
 }
 
-
+inline void
+PrefetchSound(game_assets* Assets, sound_id ID) { LoadSound(Assets, ID); }
 
 internal loaded_bitmap
 DEBUGLoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
@@ -322,10 +332,13 @@ DEBUGAddBitmapInfo(game_assets* Assets, char* FileName, v2 AlignmentPercentage) 
 }
 
 internal sound_id
-DEBUGAddSoundInfo(game_assets* Assets, char* FileName) {
+DEBUGAddSoundInfo(game_assets* Assets, char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 	sound_id ID = { Assets->DEBUGUsedSoundCount++ };
 	asset_sound_info* Info = Assets->SoundInfos + ID.Value;
 	Info->FileName = FileName;
+	Info->FirstSampleIndex = FirstSampleIndex;
+	Info->SampleCount = LoadSampleCount;
+	Info->NextIDToPlay.Value = 0;
 	return(ID);
 }
 
@@ -348,14 +361,15 @@ AddBitmapAsset(game_assets* Assets, char* FileName, v2 AlignmentPercentage = v2{
 	Assets->DEBUGAsset = Asset;
 }
 
-internal void
-AddSoundAsset(game_assets* Assets, char* FileName) {
+internal asset*
+AddSoundAsset(game_assets* Assets, char* FileName, u32 FirstSampleIndex = 0, u32 LoadSampleCount = 0) {
 	Assert(Assets->DEBUGAssetType);
 	asset* Asset = Assets->Assets + Assets->DEBUGAssetType->OnePassLastAssetIndex++;
 	Asset->FirstTagIndex = Assets->DEBUGUsedTagCount;
 	Asset->OnePassLastTagIndex = Asset->FirstTagIndex;
-	Asset->SlotID = DEBUGAddSoundInfo(Assets, FileName).Value;
+	Asset->SlotID = DEBUGAddSoundInfo(Assets, FileName, FirstSampleIndex, LoadSampleCount).Value;
 	Assets->DEBUGAsset = Asset;
+	return(Asset);
 }
 
 
@@ -424,7 +438,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	Assets->BitmapInfos = PushArray(Arena, Assets->BitmapsCount, asset_bitmap_info);
 	Assets->Bitmaps = PushArray(Arena, Assets->BitmapsCount, asset_slot);
 
-	Assets->SoundCount = 20;
+	Assets->SoundCount = 255 * Asset_Count;
 	Assets->SoundInfos = PushArray(Arena, Assets->SoundCount, asset_sound_info);
 	Assets->Sounds = PushArray(Arena, Assets->SoundCount, asset_slot);
 
@@ -522,7 +536,24 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 
 
 	BeginAssetType(Assets, Asset_Music);
-	AddSoundAsset(Assets, "test3/music_test.wav");
+	u32 TotalSampleCount = 7468095;
+	u32 MusicChunkSize = 2 * 48000;
+	asset* LastMusic = 0;
+
+	//asset* thisMusic = AddSoundAsset(Assets, "test3/music_test.wav", 0, 2 * MusicChunkSize);
+
+	for (u32 FirstSampleIndex = 0; FirstSampleIndex < TotalSampleCount; FirstSampleIndex += MusicChunkSize) {
+		u32 SampleCount = TotalSampleCount - FirstSampleIndex;
+		if (SampleCount > MusicChunkSize) {
+			SampleCount = MusicChunkSize;
+		}
+		asset *thisMusic = AddSoundAsset(Assets, "test3/music_test.wav", FirstSampleIndex, SampleCount);
+		if (LastMusic) {
+			Assets->SoundInfos[LastMusic->SlotID].NextIDToPlay.Value = thisMusic->SlotID;
+		}
+		LastMusic = thisMusic;
+	}
+	
 	EndAssetType(Assets);
 
 	BeginAssetType(Assets, Asset_Bloop);

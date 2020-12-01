@@ -7,6 +7,8 @@
 #include "handmade_entity.cpp"
 #include "handmade_random.h"
 #include "handmade_asset.cpp"
+#include "handmade_audio.h"
+#include "handmade_audio.cpp"
 
 
 inline world_position
@@ -1125,49 +1127,71 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
 		}
 	}
 
-	for (playing_sound** PlayingSoundPtr = &GameState->FirstPlayingSound;
-		*PlayingSoundPtr;) {
+	for (playing_sound** PlayingSoundPtr = &GameState->FirstPlayingSound; *PlayingSoundPtr;) {
 
 		playing_sound* PlayingSound = *PlayingSoundPtr;
 		bool32 SoundFinished = false;
-		//todo
-		loaded_sound* LoadedSound = GetSound(TranState->Assets, PlayingSound->ID);
-		if (LoadedSound) {
-			real32 Volumn0 = PlayingSound->Volume[0];
-			real32 Volumn1 = PlayingSound->Volume[1];
-			real32* Dest0 = RealChannel0;
-			real32* Dest1 = RealChannel1;
-			Assert(PlayingSound->SamplesPlayed >= 0);
 
-			uint32 SampleToMix = SoundBuffer->SampleCount;
-			uint32 SampleRemainingInSound = LoadedSound->SampleCount - PlayingSound->SamplesPlayed;
-			if (SampleToMix > SampleRemainingInSound) {
-				SampleToMix = SampleRemainingInSound;
-				//SoundFinished = true;
-			}
-			for (uint32 SampleIndex = 0; SampleIndex < SampleToMix; ++SampleIndex) {
-				uint32 SampleIndexInLoadedSound = SampleIndex + PlayingSound->SamplesPlayed;
-				real32 SampleValue = LoadedSound->Samples[0][SampleIndexInLoadedSound];
-				*Dest0++ += SampleValue * Volumn0;
-				*Dest1++ += SampleValue * Volumn1;
-			}
-			
-			SoundFinished = ((uint32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount);
-			PlayingSound->SamplesPlayed += SampleToMix;
+		u32 TotalSampleToMix = SoundBuffer->SampleCount;
+		real32* Dest0 = RealChannel0;
+		real32* Dest1 = RealChannel1;
 
+		while (TotalSampleToMix && !SoundFinished) {
+			//todo
+			loaded_sound* LoadedSound = GetSound(TranState->Assets, PlayingSound->ID);
+			if (LoadedSound) {
+				asset_sound_info* Info = GetSoundInfo(TranState->Assets, PlayingSound->ID);
+				PrefetchSound(TranState->Assets, Info->NextIDToPlay);
+
+				real32 Volumn0 = PlayingSound->Volume[0];
+				real32 Volumn1 = PlayingSound->Volume[1];
+
+				Assert(PlayingSound->SamplesPlayed >= 0);
+
+				uint32 SampleToMix = TotalSampleToMix;
+				uint32 SampleRemainingInSound = LoadedSound->SampleCount - PlayingSound->SamplesPlayed;
+				if (SampleToMix > SampleRemainingInSound) {
+					SampleToMix = SampleRemainingInSound;
+				}
+				for (uint32 SampleIndex = 0; SampleIndex < SampleToMix; ++SampleIndex) {
+					uint32 SampleIndexInLoadedSound = SampleIndex + PlayingSound->SamplesPlayed;
+					real32 SampleValue = LoadedSound->Samples[0][SampleIndexInLoadedSound];
+					*Dest0++ += SampleValue * Volumn0;
+					*Dest1++ += SampleValue * Volumn1;
+				}
+				Assert(TotalSampleToMix >= SampleToMix);
+				TotalSampleToMix -= SampleToMix;
+
+				PlayingSound->SamplesPlayed += SampleToMix;
+
+				if ((uint32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount) {
+					if (IsValid(Info->NextIDToPlay)) {
+						PlayingSound->ID = Info->NextIDToPlay;
+						PlayingSound->SamplesPlayed = 0;
+					}
+					else {
+						SoundFinished = true;
+					}
+				}
+				else {
+					Assert(TotalSampleToMix == 0);
+				}
+			}
+			else {
+				LoadSound(TranState->Assets, PlayingSound->ID);
+			}
+			// note(ren) not understand enough
+			if (SoundFinished) {
+				*PlayingSoundPtr = PlayingSound->Next;
+				PlayingSound->Next = GameState->FirstFreePlayingSound;
+				GameState->FirstFreePlayingSound = PlayingSound;
+			}
+			else {
+				PlayingSoundPtr = &PlayingSound->Next;
+			}
 		}
-		else {
-			LoadSound(TranState->Assets, PlayingSound->ID);
-		}
-		// note(ren) not understand enough
-		if (SoundFinished) {
-			*PlayingSoundPtr = PlayingSound->Next;
-			PlayingSound->Next = GameState->FirstFreePlayingSound;
-			GameState->FirstFreePlayingSound = PlayingSound;
-		}
-		else {
-			PlayingSoundPtr = &PlayingSound->Next;
-		}
+
+		
 	}
 
 	real32* Source0 = RealChannel0;

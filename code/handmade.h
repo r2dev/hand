@@ -110,6 +110,7 @@ ZeroSize(memory_index Size, void* Ptr) {
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
+#include "handmade_audio.h"
 
 
 struct low_entity {

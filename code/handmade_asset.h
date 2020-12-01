@@ -80,6 +80,9 @@ struct asset_bitmap_info {
 
 struct asset_sound_info {
 	char* FileName;
+	u32 FirstSampleIndex;
+	u32 SampleCount;
+	sound_id NextIDToPlay;
 };
 
 enum asset_state {
@@ -135,12 +138,14 @@ struct game_assets {
 
 inline loaded_bitmap*
 GetBitmap(game_assets* Assets, bitmap_id ID) {
+	Assert(ID.Value < Assets->BitmapsCount);
 	loaded_bitmap* Result = Assets->Bitmaps[ID.Value].Bitmap;
 	return(Result);
 }
 
 inline loaded_sound*
 GetSound(game_assets* Assets, sound_id ID) {
+	Assert(ID.Value < Assets->SoundCount);
 	loaded_sound* Result = Assets->Sounds[ID.Value].Sound;
 	return(Result);
 }
