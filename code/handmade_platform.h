@@ -91,6 +91,8 @@ typedef size_t memory_index;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
+#define Align4(Value) (Value + 3 & ~3);
+#define Align8(Value) (Value + 7 & ~7);
 #define Align16(Value) (Value + 15 & ~15);
 
 

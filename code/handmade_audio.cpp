@@ -30,17 +30,21 @@ ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSecond
 internal void
 OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuffer, game_assets* Assets, memory_arena* TempArena) {
 	temporary_memory MixMemory = BeginTemporaryMemory(TempArena);
-	real32* RealChannel0 = PushArray(TempArena, SoundBuffer->SampleCount, real32);
-	real32* RealChannel1 = PushArray(TempArena, SoundBuffer->SampleCount, real32);
+	u32 SoundBufferSampleCountAlign4 = Align4(SoundBuffer->SampleCount);
+	u32 SampleCount4 = (u32)(SoundBufferSampleCountAlign4 / 4.0f);
+	__m128* RealChannel0 = PushArray(TempArena, SampleCount4, __m128, 16);
+	__m128* RealChannel1 = PushArray(TempArena, SampleCount4, __m128, 16);
 	// clear the channel to 0
 	u32 SamplesPerSecond = SoundBuffer->SamplesPerSecond;
 	real32 SecondsPerSamples = 1.0f / SamplesPerSecond;
+
+	__m128 Zero = _mm_set1_ps(0);
 	{
-		real32* Dest0 = RealChannel0;
-		real32* Dest1 = RealChannel1;
-		for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
-			*Dest0++ = 0;
-			*Dest1++ = 0;
+		__m128* Dest0 = RealChannel0;
+		__m128* Dest1 = RealChannel1;
+		for (u32 SampleIndex = 0; SampleIndex < SampleCount4; ++SampleIndex) {
+			_mm_store_ps((float*)Dest0++, Zero);
+			_mm_store_ps((float*)Dest1++, Zero);
 		}
 	}
 
@@ -50,8 +54,8 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 		bool32 SoundFinished = false;
 
 		u32 TotalSampleToMix = SoundBuffer->SampleCount;
-		real32* Dest0 = RealChannel0;
-		real32* Dest1 = RealChannel1;
+		real32* Dest0 = (real32 *)RealChannel0;
+		real32* Dest1 = (real32 *)RealChannel1;
 		v2 MasterVolume = AudioState->MasterVolume;
 
 		while (TotalSampleToMix && !SoundFinished) {
@@ -68,7 +72,8 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 
 				r32 dSample = PlayingSound->dSample;
 				uint32 SampleToMix = TotalSampleToMix;
-				r32 RealSampleRemainingInSound = ((LoadedSound->SampleCount) - RoundReal32ToUInt32(PlayingSound->SamplesPlayed)) / dSample;
+				r32 RealSampleRemainingInSound = 
+					((LoadedSound->SampleCount) - RoundReal32ToUInt32(PlayingSound->SamplesPlayed)) / dSample;
 				u32 SampleRemainingInSound = RoundReal32ToUInt32(RealSampleRemainingInSound);
 
 				if (SampleToMix > SampleRemainingInSound) {
@@ -79,7 +84,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 				for (u32 ChannelIndex = 0; ChannelIndex < ArrayCount(VolumeEnded); ++ChannelIndex) {
 					if (dVolume.E[ChannelIndex] != 0.0f) {
 						real32 DeltaVolume = PlayingSound->TargetVolume.E[ChannelIndex] - Volume.E[ChannelIndex];
-						u32 VolumeSampleCount = (u32)(DeltaVolume / dVolume.E[ChannelIndex] + 0.5f); 
+						u32 VolumeSampleCount = (u32)((DeltaVolume / dVolume.E[ChannelIndex]) + 0.5f); 
 						if (VolumeSampleCount < SampleToMix) {
 							SampleToMix = VolumeSampleCount;
 							VolumeEnded[ChannelIndex] = true;
@@ -96,8 +101,8 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 					u32 FloorValuePosition = FloorReal32ToUInt32(SamplePositionInLoadedSound);
 					r32 Frac = SamplePositionInLoadedSound - (r32)FloorValuePosition;
 
-					r32 SampleValue0 = LoadedSound->Samples[0][FloorValuePosition];
-					r32 SampleValue1 = LoadedSound->Samples[0][FloorValuePosition + 1];
+					r32 SampleValue0 = (r32)LoadedSound->Samples[0][FloorValuePosition];
+					r32 SampleValue1 = (r32)LoadedSound->Samples[0][FloorValuePosition + 1];
 					r32 SampleValue = Lerp(SampleValue0, Frac, SampleValue1);
 #endif
 					*Dest0++ += MasterVolume.E[0] * SampleValue * Volume.E[0];
@@ -134,6 +139,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 			}
 			else {
 				LoadSound(Assets, PlayingSound->ID);
+				break;
 			}
 			// note(ren) not understand enough
 			if (SoundFinished) {
@@ -147,12 +153,22 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 		}
 	}
 
-	real32* Source0 = RealChannel0;
-	real32* Source1 = RealChannel1;
-	int16* SampleOut = SoundBuffer->Samples;
-	for (int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex) {
-		*SampleOut++ = (int16)(*Source0++ + 0.5f);
-		*SampleOut++ = (int16)(*Source1++ + 0.5f);
+	__m128* Source0 = RealChannel0;
+	__m128* Source1 = RealChannel1;
+	__m128i* SampleOut = (__m128i*)SoundBuffer->Samples;
+	for (u32 SampleIndex = 0; SampleIndex < SampleCount4; ++SampleIndex) {
+		__m128 S0 = _mm_load_ps((float*)Source0++);
+		__m128 S1 = _mm_load_ps((float*)Source1++);
+
+		__m128i L = _mm_cvtps_epi32(S0);
+		__m128i R = _mm_cvtps_epi32(S1);
+		
+		__m128i LR0 = _mm_unpacklo_epi32(L, R);
+		__m128i LR1 = _mm_unpackhi_epi32(L, R);
+
+		__m128i S01 = _mm_packs_epi32(LR0, LR1);
+
+		*SampleOut++ = S01;
 	}
 
 	EndTemporaryMemory(MixMemory);

@@ -688,7 +688,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		}
 
 		GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
-		ChangePitch(GameState->Music, 0.76f);
+		ChangePitch(GameState->Music, 0.8f);
 
 		TranState->IsInitialized = true;
 	}

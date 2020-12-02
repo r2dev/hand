@@ -95,6 +95,8 @@ GetType(riff_iterator Iter) {
 	return(Result);
 }
 
+
+
 inline void*
 GetChunkData(riff_iterator Iter) {
 	void* Result = (Iter.At + sizeof(WAVE_chunk));
@@ -117,10 +119,17 @@ DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 		uint32 ChannelCount = 0;
 		uint32 SampleDataSize = 0;
 		int16* SampleData = 0;
+#if 0
 		for (riff_iterator Iter = ParseChunkAt(Header + 1, (uint8*)(Header + 1) + Header->Size - 4);
 			IsValid(Iter);
 			Iter = NextChunk(Iter)
 		) {
+#else
+		for (riff_iterator Iter = ParseChunkAt(Header + 1, (uint8*)(Header + 1) + Header->Size - 4);
+			IsValid(Iter);
+			Iter = NextChunk(Iter)
+			) {
+#endif
 			switch (GetType(Iter)) {
 			
 			case WAVE_ChunkID_data: {
