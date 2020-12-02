@@ -358,7 +358,7 @@ Win32InitDSound(HWND Window, int32 SamplesPerSecond, int32 BufferSize) {
 			}
 			DSBUFFERDESC BufferDescription = {};
 			BufferDescription.dwSize = sizeof(BufferDescription);
-			BufferDescription.dwFlags = DSBCAPS_GETCURRENTPOSITION2;
+			BufferDescription.dwFlags = DSBCAPS_GETCURRENTPOSITION2 | DSBCAPS_GLOBALFOCUS;
 			BufferDescription.dwBufferBytes = BufferSize;
 			BufferDescription.lpwfxFormat = &WaveFormat;
 
@@ -974,6 +974,8 @@ int CALLBACK WinMain(
 					FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
 
 					if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0) {
+						Win32CompleteAllWork(&HighPriorityQueue);
+						Win32CompleteAllWork(&LowPriorityQueue);
 						Win32UnloadGameCode(&Game);
 						Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
 						NewInput->ExecutableReloaded = true;

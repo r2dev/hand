@@ -540,8 +540,6 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	u32 MusicChunkSize = 10 * 48000;
 	asset* LastMusic = 0;
 
-	//asset* thisMusic = AddSoundAsset(Assets, "test3/music_test.wav", 0, 2 * MusicChunkSize);
-
 	for (u32 FirstSampleIndex = 0; FirstSampleIndex < TotalSampleCount; FirstSampleIndex += MusicChunkSize) {
 		u32 SampleCount = TotalSampleCount - FirstSampleIndex;
 		if (SampleCount > MusicChunkSize) {
