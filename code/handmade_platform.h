@@ -64,7 +64,10 @@ typedef real64 r64;
 
 typedef size_t memory_index;
 
+#if !defined(internal)
 #define internal static
+#endif
+
 #define local_persist static
 #define global_variable static
 

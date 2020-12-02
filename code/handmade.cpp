@@ -10,7 +10,6 @@
 #include "handmade_audio.h"
 #include "handmade_audio.cpp"
 
-
 inline world_position
 ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ, v3 AdditionalOffset = v3{ 0, 0, 0 }) {
 	world_position BasePos = {};
