@@ -947,8 +947,6 @@ int CALLBACK WinMain(
 
 				}
 			}
-
-
 			if (Samples && GameMemory.PermanentStorage && GameMemory.TransientStorage) {
 				game_input Input[2] = {};
 				game_input* NewInput = &Input[0];

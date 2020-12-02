@@ -62,6 +62,20 @@ _PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
 	return(Result);
 }
 
+inline char*
+PushString(memory_arena* Arena, char* Content) {
+	uint32 Size = 1;
+	for (char* At = Content; *At; ++At) {
+		++Size;
+	}
+
+	char* Dest = (char*)(_PushSize(Arena, Size));
+	for (u32 CharIndex = 0; CharIndex < Size; ++CharIndex) {
+		Dest[CharIndex] = Content[CharIndex];
+	}
+	return(Dest);
+}
+
 inline void 
 SubArena(memory_arena* Result, memory_arena *Arena, memory_index Size, memory_index Alignment = 4) {
 	Result->Size = Size;
