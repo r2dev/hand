@@ -62,17 +62,6 @@ struct asset_tag {
 	real32 Value;
 };
 
-struct asset {
-	uint32 FirstTagIndex;
-	uint32 OnePassLastTagIndex;
-	uint32 SlotID;
-};
-
-struct asset_type {
-	uint32 FirstAssetIndex;
-	uint32 OnePassLastAssetIndex;
-};
-
 struct asset_bitmap_info {
 	char* FileName;
 	v2 AlignPercentage;
@@ -83,6 +72,20 @@ struct asset_sound_info {
 	u32 FirstSampleIndex;
 	u32 SampleCount;
 	sound_id NextIDToPlay;
+};
+
+struct asset {
+	uint32 FirstTagIndex;
+	uint32 OnePassLastTagIndex;
+	union {
+		asset_bitmap_info Bitmap;
+		asset_sound_info Sound;
+	};
+};
+
+struct asset_type {
+	uint32 FirstAssetIndex;
+	uint32 OnePassLastAssetIndex;
 };
 
 enum asset_state {
@@ -98,7 +101,6 @@ struct asset_slot {
 		loaded_bitmap* Bitmap; 
 		loaded_sound* Sound;
 	};
-	
 };
 
 struct asset_vector {
@@ -108,27 +110,20 @@ struct asset_vector {
 struct game_assets {
 	struct transient_state* TranState;
 
-	uint32 SoundCount;
-	asset_sound_info* SoundInfos;
-	asset_slot* Sounds;
-
-	uint32 BitmapsCount;
-	asset_bitmap_info* BitmapInfos;
-	asset_slot *Bitmaps;
+	
+	uint32 AssetCount;
+	asset* Assets; 
+	asset_slot* Slots;
 
 	real32 TagRange[Tag_Count];
 	uint32 TagCount;
 	asset_tag* Tags;
 
-	uint32 AssetCount;
-	asset* Assets;
-
 	asset_type AssetTypes[Asset_Count];
 
 	memory_arena Arena;
 
-	uint32 DEBUGUsedBitmapCount;
-	uint32 DEBUGUsedSoundCount;
+	
 	uint32 DEBUGUsedAssetCount;
 	uint32 DEBUGUsedTagCount;
 	asset_type* DEBUGAssetType;
@@ -136,17 +131,28 @@ struct game_assets {
 
 };
 
+inline b32
+IsValid(sound_id ID) {
+	b32 Result = ID.Value != 0;
+	return(Result);
+}
+inline b32
+IsValid(bitmap_id ID) {
+	b32 Result = ID.Value != 0;
+	return(Result);
+}
+
 inline loaded_bitmap*
 GetBitmap(game_assets* Assets, bitmap_id ID) {
-	Assert(ID.Value < Assets->BitmapsCount);
-	loaded_bitmap* Result = Assets->Bitmaps[ID.Value].Bitmap;
+	Assert(ID.Value < Assets->AssetCount);
+	loaded_bitmap* Result = Assets->Slots[ID.Value].Bitmap;
 	return(Result);
 }
 
 inline loaded_sound*
 GetSound(game_assets* Assets, sound_id ID) {
-	Assert(ID.Value < Assets->SoundCount);
-	loaded_sound* Result = Assets->Sounds[ID.Value].Sound;
+	Assert(ID.Value < Assets->AssetCount);
+	loaded_sound* Result = Assets->Slots[ID.Value].Sound;
 	return(Result);
 }
 

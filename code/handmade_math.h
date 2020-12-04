@@ -241,9 +241,6 @@ ToV3(v2 A, real32 V) {
 	return(Result);
 }
 
-
-
-
 inline real32
 Square(real32 A) {
 	real32 Result = A * A;

@@ -1,14 +1,8 @@
 #include "handmade.h"
 
 asset_sound_info* GetSoundInfo(game_assets* Assets, sound_id ID) {
-	asset_sound_info* Info = Assets->SoundInfos + ID.Value;
+	asset_sound_info* Info = &Assets->Assets[ID.Value].Sound;
 	return(Info);
-}
-
-inline b32
-IsValid(sound_id ID) {
-	b32 Result = (ID.Value != 0);
-	return(Result);
 }
 
 internal void
@@ -30,10 +24,7 @@ ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSecond
 internal void
 OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuffer, game_assets* Assets, memory_arena* TempArena) {
 	temporary_memory MixMemory = BeginTemporaryMemory(TempArena);
-
-
 	u32 ChunkCount = (u32)(SoundBuffer->SampleCount / 4.0f);
-
 	__m128* RealChannel0 = PushArray(TempArena, ChunkCount, __m128, 16);
 	__m128* RealChannel1 = PushArray(TempArena, ChunkCount, __m128, 16);
 	// clear the channel to 0
