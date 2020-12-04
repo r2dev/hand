@@ -148,7 +148,8 @@ DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 		}
 		Assert(SampleData && ChannelCount);
 		Result.ChannelCount = ChannelCount;
-		Result.SampleCount = SampleDataSize / (ChannelCount * sizeof(int16));
+		u32 SampleCount = SampleDataSize / (ChannelCount * sizeof(int16));
+
 		if (ChannelCount == 1) {
 			Result.Samples[0] = SampleData;
 			Result.Samples[1] = 0;
@@ -156,7 +157,7 @@ DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 		else if (ChannelCount == 2) {
 			Result.Samples[0] = SampleData;
 			Result.Samples[1] = SampleData + Result.SampleCount;
-			for (uint32 SampleIndex = 0; SampleIndex < Result.SampleCount; ++SampleIndex) {
+			for (uint32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex) {
 				int16 Source = SampleData[2 * SampleIndex];
 				SampleData[2 * SampleIndex] = SampleData[SampleIndex];
 				SampleData[SampleIndex] = Source;
@@ -169,12 +170,25 @@ DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 		// todo remove
 		Result.ChannelCount = 1;
 
+		b32 AtEnd = true;
+
 		if (LoadSampleCount) {
-			Result.SampleCount = LoadSampleCount;
+			Assert(LoadSampleCount + FirstSampleIndex <= SampleCount);
+			AtEnd = (LoadSampleCount + FirstSampleIndex) == SampleCount;
+			SampleCount = LoadSampleCount;
 			for (u32 ChannelIndex = 0; ChannelIndex < Result.ChannelCount; ++ChannelIndex) {
 				Result.Samples[ChannelIndex] += FirstSampleIndex;
 			}
 		}
+
+		if (AtEnd) {
+			for (u32 ChannelIndex = 0; ChannelIndex < Result.ChannelCount; ++ChannelIndex) {
+				for (u32 SampleIndex = SampleCount; SampleIndex < SampleCount + 8; ++SampleIndex) {
+					Result.Samples[ChannelIndex][SampleIndex] = 0;
+				}
+			}
+		}
+		Result.SampleCount = SampleCount;
 	}
 	return(Result);
 }
@@ -546,7 +560,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 
 	BeginAssetType(Assets, Asset_Music);
 	u32 TotalSampleCount = 7468095;
-	u32 MusicChunkSize = 10 * 48000;
+	u32 MusicChunkSize = 2 * 48000;
 	asset* LastMusic = 0;
 
 	for (u32 FirstSampleIndex = 0; FirstSampleIndex < TotalSampleCount; FirstSampleIndex += MusicChunkSize) {
