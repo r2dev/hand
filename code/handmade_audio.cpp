@@ -41,6 +41,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 	real32 SecondsPerSamples = 1.0f / SamplesPerSecond;
 
 	__m128 Zero = _mm_set1_ps(0);
+	__m128 One = _mm_set1_ps(1.0f);
 	{
 		__m128* Dest0 = RealChannel0;
 		__m128* Dest1 = RealChannel1;
@@ -131,7 +132,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 
 				for (u32 SampleIndex = 0; SampleIndex < ChunkToMix; ++SampleIndex) {
 					real32 SamplePosition = BeginSamplePosition + LoopIndexC * SampleIndex;
-#if 1				
+#if 0				
 					__m128 SampleValue = _mm_setr_ps(LoadedSound->Samples[0][RoundReal32ToUInt32(SamplePosition + dSample)],
 						LoadedSound->Samples[0][RoundReal32ToUInt32(SamplePosition + 1.0f * dSample)],
 						LoadedSound->Samples[0][RoundReal32ToUInt32(SamplePosition + 2.0f * dSample)],
@@ -139,13 +140,21 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 
 
 #else
+					__m128 SamplePos = _mm_setr_ps(SamplePosition + 0.0f * dSample, SamplePosition + 1.0f * dSample, SamplePosition + 2.0f * dSample, SamplePosition + 3.0f * dSample);
+					__m128i FloorSamplePos = _mm_cvttps_epi32(SamplePos);
+					__m128 Frac = _mm_sub_ps(SamplePos, _mm_cvtepi32_ps(FloorSamplePos));
+					
 
-					u32 FloorValuePosition = FloorReal32ToUInt32(SamplePositionInLoadedSound);
-					r32 Frac = SamplePositionInLoadedSound - (r32)FloorValuePosition;
+					__m128 SampleValue0 = _mm_setr_ps((r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[0]],
+						(r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[1]],
+						(r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[2]],
+						(r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[3]]);
+					__m128 SampleValue1 = _mm_setr_ps((r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[0] + 1],
+						(r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[1] + 1],
+						(r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[2] + 1],
+						(r32)LoadedSound->Samples[0][((int32*)&FloorSamplePos)[3] + 1]);
 
-					r32 SampleValue0 = (r32)LoadedSound->Samples[0][FloorValuePosition];
-					r32 SampleValue1 = (r32)LoadedSound->Samples[0][FloorValuePosition + 1];
-					r32 SampleValue = Lerp(SampleValue0, Frac, SampleValue1);
+					__m128 SampleValue = _mm_add_ps(_mm_mul_ps(_mm_sub_ps(One, Frac), SampleValue0), _mm_mul_ps(Frac, SampleValue1));
 #endif
 
 					__m128 D0 = _mm_load_ps((float*)&Dest0[0]);

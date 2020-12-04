@@ -560,7 +560,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 
 	BeginAssetType(Assets, Asset_Music);
 	u32 TotalSampleCount = 7468095;
-	u32 MusicChunkSize = 2 * 48000;
+	u32 MusicChunkSize = 10 * 48000;
 	asset* LastMusic = 0;
 
 	for (u32 FirstSampleIndex = 0; FirstSampleIndex < TotalSampleCount; FirstSampleIndex += MusicChunkSize) {
