@@ -1,5 +1,4 @@
 #include "handmade_asset.h"
-#include "handmade.h"
 #pragma pack(push, 1)
 struct bitmap_header {
 	uint16 FileType;
