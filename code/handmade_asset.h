@@ -3,7 +3,7 @@
 struct loaded_bitmap {
 	v2 AlignPercentage;
 	real32 WidthOverHeight;
-
+    
 	int32 Width;
 	int32 Height;
 	int32 Pitch;
@@ -80,26 +80,27 @@ struct asset_vector {
 
 struct game_assets {
 	struct transient_state* TranState;
-
+    
 	
 	uint32 AssetCount;
 	asset* Assets; 
 	asset_slot* Slots;
-
+    
 	real32 TagRange[Tag_Count];
 	uint32 TagCount;
 	asset_tag* Tags;
-
+    
 	asset_type AssetTypes[Asset_Count];
-
+    
 	memory_arena Arena;
-
-	
+    
+#if 0
 	uint32 DEBUGUsedAssetCount;
 	uint32 DEBUGUsedTagCount;
 	asset_type* DEBUGAssetType;
 	asset* DEBUGAsset;
-
+#endif
+    
 };
 
 inline b32
