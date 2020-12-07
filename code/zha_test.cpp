@@ -324,10 +324,6 @@ AddBitmapAsset(game_assets* Assets, char* FileName, r32 AlignmentPercentageX = 0
 	
 	Dest->Bitmap.AlignPercentage[0] = AlignmentPercentageX;
 	Dest->Bitmap.AlignPercentage[1] = AlignmentPercentageY;
-    
-    // note todo
-    Dest->Bitmap.Dim[0] = 0;
-    Dest->Bitmap.Dim[1] = 0;
 	
 	Assets->AssetIndex = Result.Value;
 	return(Result);
@@ -364,8 +360,11 @@ EndAssetType(game_assets* Assets) {
 internal void
 AddTag(game_assets* Assets, asset_tag_id TagID, real32 Value) {
 	Assert(Assets->AssetIndex);
-	hha_tag* Tag = Assets->Tags + Assets->TagCount++;
     
+    hha_asset *HHA = Assets->Assets + Assets->AssetIndex;
+    ++HHA->OnePassLastTagIndex;
+    
+	hha_tag* Tag = Assets->Tags + Assets->TagCount++;
 	Tag->ID = TagID;
 	Tag->Value = Value;
 }

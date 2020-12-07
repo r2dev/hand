@@ -20,16 +20,6 @@ struct loaded_sound {
 	int16* Samples[2];
 };
 
-struct asset_tag {
-	uint32 ID;
-	real32 Value;
-};
-
-
-struct asset {
-	hha_asset HHAAsset;
-};
-
 struct asset_type {
 	uint32 FirstAssetIndex;
 	uint32 OnePassLastAssetIndex;
@@ -59,12 +49,12 @@ struct game_assets {
     
 	
 	uint32 AssetCount;
-	asset* Assets; 
+	hha_asset* Assets; 
 	asset_slot* Slots;
     
 	real32 TagRange[Tag_Count];
 	uint32 TagCount;
-	asset_tag* Tags;
+	hha_tag* Tags;
     
 	asset_type AssetTypes[Asset_Count];
     

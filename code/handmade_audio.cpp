@@ -1,7 +1,7 @@
 #include "handmade.h"
 
 hha_sound* GetSoundInfo(game_assets* Assets, sound_id ID) {
-	hha_sound* Result = &Assets->Assets[ID.Value].HHAAsset.Sound;
+	hha_sound* Result = &Assets->Assets[ID.Value].Sound;
 	return(Result);
 }
 
