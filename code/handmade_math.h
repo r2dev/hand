@@ -9,7 +9,7 @@ struct v2 {
 		};
 		real32 E[2];
 	};
-
+    
 	inline v2& operator*=(real32 A);
 	inline v2& operator+=(v2 A);
 };
@@ -113,7 +113,7 @@ struct v4 {
 		};
 		real32 E[4];
 	};
-
+    
 	inline v4& operator*=(real32 A);
 	inline v4& operator+=(v4 A);
 };
@@ -194,7 +194,7 @@ inline v4
 Hadamard(v4 A, v4 B) {
 	v4 Result = { A.x * B.x, A.y * B.y, A.z * B.z, A.w * B.w };
 	return(Result);
-
+    
 }
 
 inline real32
@@ -264,7 +264,7 @@ Clamp(real32 Min, real32 Value, real32 Max) {
 	if (Result > Max) {
 		Result = Max;
 	}
-
+    
 	return(Result);
 }
 
@@ -296,7 +296,7 @@ Clamp01MapToRange(real32 Min, real32 Value, real32 Max) {
 	if (Range != 0.0f) {
 		Result = Clamp01((Value - Min) / Range);
 	}
-
+    
 	return(Result);
 }
 
@@ -380,7 +380,7 @@ inline v2
 Hadamard(v2 A, v2 B) {
 	v2 Result = {A.x * B.x, A.y * B.y};
 	return(Result);
-
+    
 }
 
 inline real32
@@ -464,7 +464,7 @@ inline v3
 Hadamard(v3 A, v3 B) {
 	v3 Result = { A.x * B.x, A.y * B.y, A.z * B.z };
 	return(Result);
-
+    
 }
 
 inline real32
@@ -590,23 +590,23 @@ AddRadiusTo(rectangle3 A, v3 Radius) {
 inline bool32
 IsInRectangle(rectangle3 Rectangle, v3 Test) {
 	bool32 Result = ((Test.x >= Rectangle.Min.x)
-		&& (Test.y >= Rectangle.Min.y)
-		&& (Test.z >= Rectangle.Min.z)
-		&& (Test.x < Rectangle.Max.x)
-		&& (Test.y < Rectangle.Max.y)
-		&& (Test.z < Rectangle.Max.z)
-		);
+                     && (Test.y >= Rectangle.Min.y)
+                     && (Test.z >= Rectangle.Min.z)
+                     && (Test.x < Rectangle.Max.x)
+                     && (Test.y < Rectangle.Max.y)
+                     && (Test.z < Rectangle.Max.z)
+                     );
 	return(Result);
 }
 
 inline bool32
 RectanglesIntersect(rectangle3 A, rectangle3 B) {
 	bool32 Result = !((A.Min.x > B.Max.x)
-		|| (B.Min.x >= A.Max.x)
-		|| (A.Min.y >= B.Max.y)
-		|| (B.Min.y >= A.Max.y)
-		|| (A.Min.z >= B.Max.z)
-		|| (B.Min.z >= A.Max.z));
+                      || (B.Min.x >= A.Max.x)
+                      || (A.Min.y >= B.Max.y)
+                      || (B.Min.y >= A.Max.y)
+                      || (A.Min.z >= B.Max.z)
+                      || (B.Min.z >= A.Max.z));
 	return(Result);
 }
 
@@ -672,9 +672,9 @@ AddRadiusTo(rectangle2 A, v2 Radius) {
 inline bool32
 IsInRectangle(rectangle2 Rectangle, v2 Test) {
 	bool32 Result = ((Test.x >= Rectangle.Min.x)
-		&& (Test.y >= Rectangle.Min.y)
-		&& (Test.x < Rectangle.Max.x)
-		&& (Test.x < Rectangle.Max.y));
+                     && (Test.y >= Rectangle.Min.y)
+                     && (Test.x < Rectangle.Max.x)
+                     && (Test.x < Rectangle.Max.y));
 	return(Result);
 }
 
@@ -742,6 +742,30 @@ Intersect(rectangle2i A, rectangle2i B) {
 inline bool32
 HasArea(rectangle2i A) {
 	bool32 Result = (A.MinX < A.MaxX) && (A.MinY < A.MaxY);
+	return(Result);
+}
+
+
+internal v4
+SRGBToLinear1(v4 C) {
+	v4 Result = {};
+	real32 Inv255C = 1.0f / 255.0f;
+	Result.r = Square(Inv255C * C.r);
+	Result.g = Square(Inv255C * C.g);
+	Result.b = Square(Inv255C * C.b);
+	Result.a = Inv255C * C.a;
+	return(Result);
+}
+
+
+internal v4
+Linear1ToSRGB(v4 C) {
+	v4 Result = {};
+	real32 One255C = 255.0f;
+	Result.r = One255C * SquareRoot(C.r);
+	Result.g = One255C * SquareRoot(C.g);
+	Result.b = One255C * SquareRoot(C.b);
+	Result.a = One255C * C.a;
 	return(Result);
 }
 

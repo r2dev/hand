@@ -2,6 +2,20 @@
 
 FILE* Out = 0;
 
+struct loaded_sound {
+    u32 ChannelCount;
+    u32 SampleCount;
+    s16* Samples[2];
+    
+    void* Free;
+};
+struct loaded_bitmap {
+    s32 Width;
+    s32 Height;
+    s32 Pitch;
+    void *Memory;
+    void *Free;
+};
 
 #pragma pack(push, 1)
 struct bitmap_header {
@@ -113,11 +127,37 @@ GetChunkDataSize(riff_iterator Iter) {
 	return(Result);
 }
 
+struct entire_file {
+    u32 ContentsSize;
+    void* Contents;
+};
+
+internal entire_file
+ReadEntireFile(char* FileName) {
+    FILE *File = fopen(FileName, "rb");
+    entire_file Result = {};
+    if (File) {
+        fseek(File, 0, SEEK_END);
+        Result.ContentsSize = ftell(File);
+        fseek(File, 0, SEEK_SET);
+        Result.Contents = malloc(Result.ContentsSize);
+        fread(Result.Contents, Result.ContentsSize, 1, File);
+        fclose(File);
+    } else {
+        printf("Cant open file at %s", FileName);
+    }
+    
+    return (Result);
+};
+
 internal loaded_sound
-DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
+LoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 	loaded_sound Result = {};
-	debug_read_file_result ReadResult = DEBUGPlatformReadEntireFile(FileName);
+	entire_file ReadResult = ReadEntireFile(FileName);
 	if (ReadResult.ContentsSize != 0) {
+        
+        Result.Free = ReadResult.Contents;
+        
 		WAVE_header* Header = (WAVE_header*)ReadResult.Contents;
 		uint32 ChannelCount = 0;
 		uint32 SampleDataSize = 0;
@@ -153,7 +193,7 @@ DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 		}
 		else if (ChannelCount == 2) {
 			Result.Samples[0] = SampleData;
-			Result.Samples[1] = SampleData + Result.SampleCount;
+			Result.Samples[1] = SampleData + SampleCount;
 			for (uint32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex) {
 				int16 Source = SampleData[2 * SampleIndex];
 				SampleData[2 * SampleIndex] = SampleData[SampleIndex];
@@ -192,17 +232,16 @@ DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 
 
 internal loaded_bitmap
-DEBUGLoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
+LoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
 	loaded_bitmap Result = {};
-	debug_read_file_result ReadResult = DEBUGPlatformReadEntireFile(FileName);
+	entire_file ReadResult = ReadEntireFile(FileName);
 	if (ReadResult.ContentsSize != 0) {
+        Result.Free = ReadResult.Contents;
 		bitmap_header* Header = (bitmap_header*)ReadResult.Contents;
 		uint32* Pixels = (uint32*)((uint8*)ReadResult.Contents + Header->BitmapOffset);
 		Result.Height = Header->Height;
 		Result.Width = Header->Width;
-		Result.AlignPercentage = AlignPercentage;
 		Result.Memory = Pixels;
-		Result.WidthOverHeight = SafeRatio0((real32)Result.Width, (real32)Result.Height);
 		uint32 RedMask = Header->RedMask;
 		uint32 GreenMask = Header->GreenMask;
 		uint32 BlueMask = Header->BlueMask;
@@ -259,11 +298,6 @@ DEBUGLoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
     
 }
 
-
-
-
-
-
 internal void
 BeginAssetType(game_assets* Assets, asset_type_id ID) {
 	Assert(Assets->DEBUGAssetType == 0);
@@ -278,14 +312,24 @@ internal bitmap_id
 AddBitmapAsset(game_assets* Assets, char* FileName, r32 AlignmentPercentageX = 0.5f, r32 AlignmentPercentageY = 0.5f) {
 	bitmap_id Result = { Assets->DEBUGAssetType->OnePassLastAssetIndex++ };
 	Assert(Assets->DEBUGAssetType);
-	asset* Asset = Assets->Assets + Result.Value;
-	Asset->FirstTagIndex = Assets->TagCount++;
-	Asset->OnePassLastTagIndex = Asset->FirstTagIndex;
-	asset_bitmap_info* Info = &Assets->Assets[Result.Value].Bitmap;
-	Info->AlignPercentageX = AlignmentPercentageX;
-	Info->AlignPercentageY = AlignmentPercentageY;
-	Info->FileName = FileName;
-	Assets->DEBUGAsset = Asset;
+    
+	asset_source* Source = Assets->AssetSources + Result.Value;
+    Source->Type = AssetType_Bitmap;
+    Source->FileName = FileName;
+    
+    hha_asset *Dest = Assets->Assets + Result.Value;
+	
+    Dest->FirstTagIndex = Assets->TagCount;
+	Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
+	
+	Dest->Bitmap.AlignPercentage[0] = AlignmentPercentageX;
+	Dest->Bitmap.AlignPercentage[1] = AlignmentPercentageY;
+    
+    // note todo
+    Dest->Bitmap.Dim[0] = 0;
+    Dest->Bitmap.Dim[1] = 0;
+	
+	Assets->AssetIndex = Result.Value;
 	return(Result);
 }
 
@@ -293,15 +337,18 @@ internal sound_id
 AddSoundAsset(game_assets* Assets, char* FileName, u32 FirstSampleIndex = 0, u32 LoadSampleCount = 0) {
 	sound_id Result = { Assets->DEBUGAssetType->OnePassLastAssetIndex++ };
 	Assert(Assets->DEBUGAssetType);
-	asset* Asset = Assets->Assets + Result.Value;
-	Asset->FirstTagIndex = Assets->TagCount++;
-	Asset->OnePassLastTagIndex = Asset->FirstTagIndex;
-	asset_sound_info* Info = &Assets->Assets[Result.Value].Sound;
-	Info->FileName = FileName;
-	Info->FirstSampleIndex = FirstSampleIndex;
-	Info->SampleCount = LoadSampleCount;
-	Info->NextIDToPlay.Value = 0;
-	Assets->DEBUGAsset = Asset;
+	asset_source* Source = Assets->AssetSources + Result.Value;
+    Source->Type = AssetType_Sound;
+    Source->FileName = FileName;
+    Source->FirstSampleIndex = FirstSampleIndex;
+    
+    hha_asset *Dest = Assets->Assets + Result.Value;
+	Dest->FirstTagIndex = Assets->TagCount;
+	Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
+	Dest->Sound.SampleCount = LoadSampleCount;
+	Dest->Sound.NextIDToPlay = 0;
+    
+	Assets->AssetIndex = Result.Value;
 	return(Result);
 }
 
@@ -309,12 +356,14 @@ AddSoundAsset(game_assets* Assets, char* FileName, u32 FirstSampleIndex = 0, u32
 internal void
 EndAssetType(game_assets* Assets) {
 	Assert(Assets->DEBUGAssetType);
-	Assets->DEBUGAssetType = 0;
+    Assets->AssetCount = Assets->DEBUGAssetType->OnePassLastAssetIndex;
+    Assets->DEBUGAssetType = 0;
+    Assets->AssetIndex = 0;
 }
 
 internal void
 AddTag(game_assets* Assets, asset_tag_id TagID, real32 Value) {
-	Assert(Assets->DEBUGAsset);
+	Assert(Assets->AssetIndex);
 	hha_tag* Tag = Assets->Tags + Assets->TagCount++;
     
 	Tag->ID = TagID;
@@ -330,14 +379,14 @@ int main(int ArgCount, char **Args) {
 	Assets->TagCount = 1;
 	
 	Assets->DEBUGAssetType = 0;
-	Assets->DEBUGAsset = 0;
+	Assets->AssetIndex = 0;
 	BeginAssetType(Assets, Asset_Shadow);
 	AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", 0.5f, 0.156682029f);
 	EndAssetType(Assets);
     
 	BeginAssetType(Assets, Asset_Tree);
 	AddBitmapAsset(Assets, "test2/tree00.bmp", 0.493827164f, 0.295652181f);
-	EndAssetType(Assets);
+    EndAssetType(Assets);
     
 	BeginAssetType(Assets, Asset_Sword);
 	AddBitmapAsset(Assets, "test2/rock02.bmp", 0.5f, 0.65625f);
@@ -404,6 +453,7 @@ int main(int ArgCount, char **Args) {
     
     
 	BeginAssetType(Assets, Asset_Music);
+    
 	u32 TotalSampleCount = 7468095;
 	u32 MusicChunkSize = 10 * 48000;
 	sound_id LastMusic = {};
@@ -415,11 +465,10 @@ int main(int ArgCount, char **Args) {
 		}
 		sound_id thisMusic = AddSoundAsset(Assets, "test3/music_test.wav", FirstSampleIndex, SampleCount);
 		if (LastMusic.Value) {
-			Assets->Assets[LastMusic.Value].Sound.NextIDToPlay = thisMusic;
+			Assets->Assets[LastMusic.Value].Sound.NextIDToPlay = thisMusic.Value;
 		}
 		LastMusic = thisMusic;
 	}
-    
 	EndAssetType(Assets);
     
 	BeginAssetType(Assets, Asset_Bloop);
@@ -440,9 +489,9 @@ int main(int ArgCount, char **Args) {
 		Header.Version = HHA_VERSION;
         
 		Header.AssetTypeCount = Asset_Count;
-		Header.AssetCount = 1;
+		Header.AssetCount = Assets->AssetCount;
         
-		Header.TagCount = 0;
+		Header.TagCount = Assets->TagCount;
         
 		u32 TagArraySize = Header.TagCount * sizeof(hha_tag);
 		u32 AssetArraySize = Header.AssetCount * sizeof(hha_asset);
@@ -457,8 +506,32 @@ int main(int ArgCount, char **Args) {
 		fwrite(Assets->Tags, TagArraySize, 1, Out);
 		fwrite(Assets->AssetTypes, AssetTypeArraySize, 1, Out);
 		//fwrite(Header.Assets, AssetArraySize, 1, Out);
-        
-        
+        fseek(Out, AssetArraySize, SEEK_CUR);
+        for (u32 AssetIndex = 1; AssetIndex < Header.AssetCount; ++AssetIndex) {
+            asset_source* Source = Assets->AssetSources + AssetIndex;
+            hha_asset* Asset = Assets->Assets + AssetIndex;
+            
+            Asset->DataOffset = ftell(Out);
+            
+            if (Source->Type == AssetType_Sound) {
+                loaded_sound Wave = LoadWAV(Source->FileName, Source->FirstSampleIndex, Asset->Sound.SampleCount);
+                Asset->Sound.SampleCount = Wave.SampleCount;
+                Asset->Sound.ChannelCount = Wave.ChannelCount;
+                for (u32 ChannelIndex = 0; ChannelIndex < Asset->Sound.ChannelCount; ++ChannelIndex) {
+                    fwrite(Wave.Samples[ChannelIndex], Wave.SampleCount*sizeof(s16), 1, Out);
+                }
+                free(Wave.Free);
+            } else if (Source->Type == AssetType_Bitmap) {
+                loaded_bitmap Bitmap = LoadBMP(Source->FileName);
+                Asset->Bitmap.Dim[0] = Bitmap.Width;
+                Asset->Bitmap.Dim[1] = Bitmap.Height;
+                Assert((Bitmap.Width * 4) == Bitmap.Pitch);
+                fwrite(Bitmap.Memory, Bitmap.Width * Bitmap.Height * 4, 1, Out);
+                free(Bitmap.Free);
+            }
+        }
+        fseek(Out, (u32)Header.Assets, SEEK_SET);
+        fwrite(Assets->Assets, AssetArraySize, 1, Out);
 		fclose(Out);
 	}
 	else {

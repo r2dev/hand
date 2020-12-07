@@ -124,7 +124,10 @@ GetBitmap(game_assets* Assets, bitmap_id ID) {
 inline loaded_sound*
 GetSound(game_assets* Assets, sound_id ID) {
 	Assert(ID.Value < Assets->AssetCount);
-	loaded_sound* Result = Assets->Slots[ID.Value].Sound;
+	loaded_sound* Result = 0;
+    if (Assets->Slots[ID.Value].State == AssetState_loaded) {
+        Result = Assets->Slots[ID.Value].Sound;
+    }
 	return(Result);
 }
 
