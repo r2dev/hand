@@ -1,9 +1,18 @@
 #pragma once
 #pragma pack(push, 1)
+
+struct bitmap_id {
+	uint32 Value;
+};
+
+struct sound_id {
+	uint32 Value;
+};
+
 #define RIFF_CODE(a, b, c, d) (((uint32)(a) << 0) | ((uint32)(b) << 8) | ((uint32)(c) << 16) | ((uint32)(d) << 24))
 
 struct hha_header {
-#define HHA_MAGIC_VALUE RIFF_CODE('h', 'h', 'a', 'f');
+#define HHA_MAGIC_VALUE RIFF_CODE('h', 'h', 'a', 'f')
 	u32 MagicValue;
 #define HHA_VERSION 0
 	u32 Version;
@@ -25,7 +34,7 @@ struct hha_sound {
 	u32 FirstSampleIndex;
     u32 ChannelCount;
 	u32 SampleCount;
-	u32 NextIDToPlay;
+    sound_id NextIDToPlay;
 };
 
 struct hha_asset_type {

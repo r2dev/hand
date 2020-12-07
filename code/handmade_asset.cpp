@@ -8,25 +8,21 @@ struct load_sound_work {
 	asset_state FinalState;
 };
 
-loaded_sound
-DEBUGLoadWAV(char* FileName, u32 FirstSampleIndex, u32 SampleCount) {
-    Assert(!"No");
-    loaded_sound Sound = {};
-    return(Sound);
-}
-
-loaded_bitmap
-DEBUGLoadBMP(char* FileName, v2 AlignPercentage) {
-    Assert(!"No");
-    loaded_bitmap Bitmap = {};
-    return(Bitmap);
-}
-
 
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadSoundWork) {
 	load_sound_work* Work = (load_sound_work*)Data;
-	asset_sound_info* Info = &Work->Assets->Assets[Work->ID.Value].Sound;
-	*Work->Sound = DEBUGLoadWAV(Info->FileName, Info->FirstSampleIndex, Info->SampleCount);
+    
+    hha_asset *HHAAsset = &Work->Assets->Assets[Work->ID.Value].HHAAsset;
+	hha_sound* HHASound = &HHAAsset->Sound;
+    loaded_sound* Sound = Work->Sound;
+	Sound->SampleCount = HHASound->SampleCount;
+    Sound->ChannelCount = HHASound->ChannelCount;
+    u64 SampleDataOffset = HHAAsset->DataOffset;
+    Assert(Sound->ChannelCount <= ArrayCount(Sound->Samples));
+    for (u32 ChannelIndex = 0; ChannelIndex < Sound->ChannelCount; ++ChannelIndex) {
+        Sound->Samples[ChannelIndex] = (int16*)(Work->Assets->HHAContent + SampleDataOffset);
+        SampleDataOffset += sizeof(u16) * Sound->SampleCount;
+    }
 	_WriteBarrier();
 	Work->Assets->Slots[Work->ID.Value].Sound = Work->Sound;
 	Work->Assets->Slots[Work->ID.Value].State = Work->FinalState;
@@ -69,10 +65,18 @@ struct load_bitmap_work {
 
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadBitmapWork) {
 	load_bitmap_work* Work = (load_bitmap_work*)Data;
-	asset_bitmap_info* Info = &Work->Assets->Assets[Work->ID.Value].Bitmap;
-	*Work->Bitmap = DEBUGLoadBMP(Info->FileName, Info->AlignPercentage);
+    hha_asset *HHAAsset = &Work->Assets->Assets[Work->ID.Value].HHAAsset;
+    hha_bitmap* HHABitmap = &HHAAsset->Bitmap;
+    
+    loaded_bitmap *Bitmap = Work->Bitmap;
+    Bitmap->AlignPercentage = v2{HHABitmap->AlignPercentage[0], HHABitmap->AlignPercentage[1]};
+    Bitmap->Width = HHABitmap->Dim[0];
+    Bitmap->Height = HHABitmap->Dim[1];
+    Bitmap->Pitch = Bitmap->Width * BITMAP_BYTE_PER_PIXEL;
+	Bitmap->WidthOverHeight = SafeRatio1((r32)Bitmap->Width, (r32)Bitmap->Height);
+    Bitmap->Memory = Work->Assets->HHAContent + HHAAsset->DataOffset;
 	_WriteBarrier();
-	Work->Assets->Slots[Work->ID.Value].Bitmap = Work->Bitmap;
+	Work->Assets->Slots[Work->ID.Value].Bitmap = Bitmap;
 	Work->Assets->Slots[Work->ID.Value].State = Work->FinalState;
 	EndTaskWithMemory(Work->Task);
 }
@@ -110,7 +114,7 @@ BestMatchAsset(game_assets* Assets, asset_type_id TypeID, asset_vector* MatchVec
 	for (uint32 AssetIndex = Type->FirstAssetIndex; AssetIndex < Type->OnePassLastAssetIndex; ++AssetIndex) {
 		asset* Asset = Assets->Assets + AssetIndex;
 		real32 TotalWeight = 0.0f;
-		for (uint32 TagIndex = Asset->FirstTagIndex; TagIndex < Asset->OnePassLastTagIndex; ++TagIndex) {
+		for (uint32 TagIndex = Asset->HHAAsset.FirstTagIndex; TagIndex < Asset->HHAAsset.OnePassLastTagIndex; ++TagIndex) {
 			asset_tag* Tag = Assets->Tags + TagIndex;
 			real32 A = MatchVector->E[Tag->ID];
 			real32 B = Tag->Value;
@@ -146,12 +150,49 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	SubArena(&Assets->Arena, Arena, Size);
 	Assets->TranState = TranState;
     
-	Assets->TagCount = 1024 * Asset_Count;
-	Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
+    debug_read_file_result Result =  DEBUGPlatformReadEntireFile("test.hha");
+    if (Result.ContentsSize) {
+        Assets->HHAContent = (u8*)Result.Contents;
+        
+        hha_header * Header = (hha_header*)Result.Contents;
+        Assert(Header->MagicValue == HHA_MAGIC_VALUE);
+        Assert(Header->Version == HHA_VERSION);
+        Assets->AssetCount =  Header->AssetCount;
+        Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
+        Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
+        
+        Assets->TagCount = Header->TagCount;
+        Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
+        
+        hha_tag* HHATags = (hha_tag*) ((u8*)Result.Contents + Header->Tags);
+        for (u32 TagIndex = 0; TagIndex < Header->TagCount; ++TagIndex) {
+            hha_tag *Tag = HHATags + TagIndex;
+            asset_tag* Dest = Assets->Tags + TagIndex;
+            Dest->ID = Tag->ID;
+            Dest->Value = Tag->Value;
+        }
+        
+        hha_asset_type* HHATypes = (hha_asset_type*)((u8*)Result.Contents + Header->AssetTypes);
+        for (u32 TypeIndex = 0; TypeIndex < Header->AssetTypeCount; ++TypeIndex) {
+            hha_asset_type *Source = HHATypes + TypeIndex;
+            asset_type *Dest = Assets->AssetTypes + Source->TypeID;
+            Dest->FirstAssetIndex = Source->FirstAssetIndex;
+            Dest->OnePassLastAssetIndex = Source->OnePassLastAssetIndex;
+        }
+        
+        hha_asset* HHAAssets = (hha_asset*)((u8*)Result.Contents + Header->Assets);
+        for (u32 AssetIndex = 0; AssetIndex < Assets->AssetCount; ++AssetIndex) {
+            hha_asset* Source = HHAAssets + AssetIndex;
+            asset* DestAsset = Assets->Assets + AssetIndex;
+            DestAsset->HHAAsset = *Source;
+        }
+        
+        
+    }
     
-	Assets->AssetCount = 2 * 255 * Asset_Count;
-	Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
-	Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
+    
+    
+    
 #if 0
 	Assets->DEBUGUsedAssetCount = 1;
 	// @note(ren) maybe we dont need skip the first tag

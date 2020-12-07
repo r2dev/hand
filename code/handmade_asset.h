@@ -20,38 +20,14 @@ struct loaded_sound {
 	int16* Samples[2];
 };
 
-struct bitmap_id {
-	uint32 Value;
-};
-
-struct sound_id {
-	uint32 Value;
-};
-
 struct asset_tag {
 	uint32 ID;
 	real32 Value;
 };
 
-struct asset_bitmap_info {
-	char* FileName;
-	v2 AlignPercentage;
-};
-
-struct asset_sound_info {
-	char* FileName;
-	u32 FirstSampleIndex;
-	u32 SampleCount;
-	sound_id NextIDToPlay;
-};
 
 struct asset {
-	uint32 FirstTagIndex;
-	uint32 OnePassLastTagIndex;
-	union {
-		asset_bitmap_info Bitmap;
-		asset_sound_info Sound;
-	};
+	hha_asset HHAAsset;
 };
 
 struct asset_type {
@@ -91,6 +67,8 @@ struct game_assets {
 	asset_tag* Tags;
     
 	asset_type AssetTypes[Asset_Count];
+    
+    u8* HHAContent;
     
 	memory_arena Arena;
     

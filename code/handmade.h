@@ -10,7 +10,7 @@ struct memory_arena {
 	memory_index Size;
 	uint8* Base;
 	memory_index Used;
-
+    
 	int32 TempCount;
 };
 
@@ -34,7 +34,7 @@ GetAlignmentOffset(memory_arena* Arena, memory_index Alignment = 4) {
 		Offset = Alignment - (ResultPointer & AlignmentMask);
 	}
 	return(Offset);
-;}
+    ;}
 
 
 inline memory_index
@@ -49,14 +49,14 @@ GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment = 4) {
 #define PushSize(Arena, Size, ...) _PushSize(Arena, Size, ## __VA_ARGS__)
 inline void*
 _PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
-
+    
 	memory_index Pointer = (memory_index)Arena->Base + Arena->Used;
 	memory_index AlignmentMask = Alignment - 1;
 	memory_index Offset = GetAlignmentOffset(Arena, Alignment);
 	Size += Offset;
 	Assert((Arena->Used + Size) <= Arena->Size);
 	Arena->Used += Size;
-
+    
 	void* Result = (void*)(Pointer + Offset);
 	
 	return(Result);
@@ -68,7 +68,7 @@ PushString(memory_arena* Arena, char* Content) {
 	for (char* At = Content; *At; ++At) {
 		++Size;
 	}
-
+    
 	char* Dest = (char*)(_PushSize(Arena, Size));
 	for (u32 CharIndex = 0; CharIndex < Size; ++CharIndex) {
 		Dest[CharIndex] = Content[CharIndex];
@@ -97,9 +97,9 @@ inline void
 EndTemporaryMemory(temporary_memory TempMem) {
 	memory_arena* Arena = TempMem.Arena;
 	Assert(Arena->Used >= TempMem.Used)
-	Arena->Used = TempMem.Used;
+        Arena->Used = TempMem.Used;
 	Assert(Arena->TempCount > 0)
-	--Arena->TempCount;
+        --Arena->TempCount;
 }
 
 inline void
@@ -119,6 +119,7 @@ ZeroSize(memory_index Size, void* Ptr) {
 
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
+#include "handmade_file_formats.h"
 #include "handmade_asset_type_id.h"
 #include "handmade_asset.h"
 #include "handmade_world.h"
@@ -126,7 +127,7 @@ ZeroSize(memory_index Size, void* Ptr) {
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
 #include "handmade_audio.h"
-#include "handmade_file_formats.h"
+
 
 
 struct low_entity {
@@ -145,7 +146,7 @@ struct pairwise_collision_rule {
 	bool32 CanCollide;
 	uint32 StorageIndexA;
 	uint32 StorageIndexB;
-
+    
 	pairwise_collision_rule* NextHash;
 };
 
@@ -164,20 +165,20 @@ struct game_state {
 	bool32 IsInitialized;
 	memory_arena WorldArena;
 	world* World;
-
+    
 	uint32 CameraFollowingEntityIndex;
 	world_position CameraP;
-
+    
 	controlled_hero ControlledHeroes[ArrayCount(((game_input*)0)->Controllers)];
-
+    
 	real32 TypicalFloorHeight = 3.0f;
-
+    
 	uint32 LowEntityCount;
 	low_entity LowEntities[100000];
-
+    
 	pairwise_collision_rule* CollisionRuleHash[256];
 	pairwise_collision_rule* FirstFreeCollisionRule;
-
+    
 	sim_entity_collision_volume_group* NullCollision;
 	sim_entity_collision_volume_group* SwordCollision;
 	sim_entity_collision_volume_group* StairCollision;
@@ -186,13 +187,13 @@ struct game_state {
 	sim_entity_collision_volume_group* WallCollision;
 	sim_entity_collision_volume_group* FamiliarCollision;
 	sim_entity_collision_volume_group* StandardRoomCollision;
-
+    
 	real32 time;
-
+    
 	loaded_bitmap TestDiffuse;
 	loaded_bitmap TestNormal;
 	audio_state AudioState;
-
+    
 	playing_sound* Music;
 };
 
@@ -206,18 +207,18 @@ struct task_with_memory {
 struct transient_state {
 	bool32 IsInitialized;
 	memory_arena TranArena;
-
+    
 	task_with_memory Tasks[4];
 	uint32 GroundBufferCount;
 	ground_buffer* GroundBuffers;
-
+    
 	game_assets* Assets;
-
-
+    
+    
 	uint32 EnvMapWidth;
 	uint32 EnvMapHeight;
 	environment_map EnvMaps[3];
-
+    
 	platform_work_queue* HighPriorityQueue;
 	platform_work_queue* LowPriorityQueue;
 };
@@ -225,7 +226,7 @@ struct transient_state {
 inline low_entity*
 GetLowEntity(game_state* GameState, uint32 Index) {
 	low_entity* Result = 0;
-
+    
 	if ((Index > 0) && (Index < GameState->LowEntityCount)) {
 		Result = GameState->LowEntities + Index;
 	}

@@ -1,8 +1,8 @@
 #include "handmade.h"
 
-asset_sound_info* GetSoundInfo(game_assets* Assets, sound_id ID) {
-	asset_sound_info* Info = &Assets->Assets[ID.Value].Sound;
-	return(Info);
+hha_sound* GetSoundInfo(game_assets* Assets, sound_id ID) {
+	hha_sound* Result = &Assets->Assets[ID.Value].HHAAsset.Sound;
+	return(Result);
 }
 
 internal void
@@ -56,7 +56,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 			//todo
 			loaded_sound* LoadedSound = GetSound(Assets, PlayingSound->ID);
 			if (LoadedSound) {
-				asset_sound_info* Info = GetSoundInfo(Assets, PlayingSound->ID);
+				hha_sound* Info = GetSoundInfo(Assets, PlayingSound->ID);
 				PrefetchSound(Assets, Info->NextIDToPlay);
                 
 				v2 Volume = PlayingSound->CurrentVolume;
