@@ -691,10 +691,10 @@ TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, 
 			Work->OutputTarget = OutputTarget;
 			Work->RenderGroup = RenderGroup;
             
-			PlatformAddEntry(Queue, DoTileRenderWork, Work);
+			Platform.AddEntry(Queue, DoTileRenderWork, Work);
 		}
 	}
-	PlatformCompleteAllWork(Queue);
+	Platform.CompleteAllWork(Queue);
 #else
 	rectangle2i Cilp = { 0, 0, OutputTarget->Width, OutputTarget->Height };
 	RenderGroupToOutput(RenderGroup, OutputTarget, Cilp, false);

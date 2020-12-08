@@ -338,7 +338,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 		Work->RenderGroup = RenderGroup;
 		if (AllResoucePresent(RenderGroup)) {
 			GroundBuffer->P = *ChunkP;
-			PlatformAddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
+			Platform.AddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
 		}
 		else {
 			EndTaskWithMemory(Work->Task);
@@ -459,9 +459,8 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 game_memory* DebugGlobalMemory;
 #endif
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
-	PlatformAddEntry = Memory->PlatformAddEntry;
-	PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
-	DEBUGPlatformReadEntireFile = Memory->DEBUGPlatformReadEntireFile;
+	
+	Platform = Memory->PlatformAPI;
 #if HANDMADE_INTERNAL
 	DebugGlobalMemory = Memory;
 #endif
