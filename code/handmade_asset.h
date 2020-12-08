@@ -93,8 +93,13 @@ IsValid(bitmap_id ID) {
 inline loaded_bitmap*
 GetBitmap(game_assets* Assets, bitmap_id ID) {
 	Assert(ID.Value < Assets->AssetCount);
+    
     asset_slot *Slot = Assets->Slots + ID.Value;
-    loaded_bitmap* Result = (Slot->State >= AssetState_loaded? Slot->Bitmap: 0);
+    loaded_bitmap* Result = 0;
+    if (Slot->State >= AssetState_loaded) {
+        Result = Slot->Bitmap;
+    }
+    
 	return(Result);
 }
 
@@ -102,7 +107,10 @@ inline loaded_sound*
 GetSound(game_assets* Assets, sound_id ID) {
 	Assert(ID.Value < Assets->AssetCount);
     asset_slot *Slot = Assets->Slots + ID.Value;
-    loaded_sound *Result = (Slot->State >= AssetState_loaded? Slot->Sound: 0);
+    loaded_sound* Result = 0;
+    if (Slot->State >= AssetState_loaded) {
+        Result = Slot->Sound;
+    }
 	return(Result);
 }
 
