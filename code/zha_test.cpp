@@ -376,7 +376,8 @@ int main(int ArgCount, char **Args) {
     
 	Assets->AssetCount = 1;
 	Assets->TagCount = 1;
-	
+    
+	Assets->AssetTypeCount = 0;
 	Assets->DEBUGAssetType = 0;
 	Assets->AssetIndex = 0;
 	BeginAssetType(Assets, Asset_Shadow);

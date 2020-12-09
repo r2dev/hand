@@ -685,7 +685,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 		}
         
-		GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+		GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_NonMusic));
 		//ChangePitch(GameState->Music, 0.8f);
         
 		TranState->IsInitialized = true;
@@ -837,8 +837,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 					if (FurthestBuffer) {
 						FillGroundChunk(TranState, GameState, FurthestBuffer, &ChunkCenterP);
 					}
-                    //					
-                    
 				}
 			}
 		}

@@ -24,6 +24,7 @@ ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSecond
 internal void
 OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuffer, game_assets* Assets, memory_arena* TempArena) {
 	temporary_memory MixMemory = BeginTemporaryMemory(TempArena);
+    
 	u32 ChunkCount = (u32)(SoundBuffer->SampleCount / 4.0f);
 	__m128* RealChannel0 = PushArray(TempArena, ChunkCount, __m128, 16);
 	__m128* RealChannel1 = PushArray(TempArena, ChunkCount, __m128, 16);
@@ -197,18 +198,17 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 				LoadSound(Assets, PlayingSound->ID);
 				break;
 			}
-			// note(ren) not understand enough
-			if (SoundFinished) {
-				*PlayingSoundPtr = PlayingSound->Next;
-				PlayingSound->Next = AudioState->FirstFreePlayingSound;
-				AudioState->FirstFreePlayingSound = PlayingSound;
-			}
-			else {
-				PlayingSoundPtr = &PlayingSound->Next;
-			}
 		}
+        // note(ren) not understand enough
+        if (SoundFinished) {
+            *PlayingSoundPtr = PlayingSound->Next;
+            PlayingSound->Next = AudioState->FirstFreePlayingSound;
+            AudioState->FirstFreePlayingSound = PlayingSound;
+        }
+        else {
+            PlayingSoundPtr = &PlayingSound->Next;
+        }
 	}
-    
 	__m128* Source0 = RealChannel0;
 	__m128* Source1 = RealChannel1;
 	__m128i* SampleOut = (__m128i*)SoundBuffer->Samples;

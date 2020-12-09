@@ -164,10 +164,9 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 		Assets->TagRange[Tag] = 100000.0f;
 	}
 	Assets->TagRange[Tag_FaceDirection] = Tau32;
-    Assets->TagCount = 0;
-    Assets->AssetCount = 0;
+    Assets->TagCount = 1;
+    Assets->AssetCount = 1;
     
-#if 1
     platform_file_group FileGroup = Platform.GetAllFileOfTypeBegin("hha");
     Assets->FileCount = FileGroup.FileCount;
     Assets->Files = PushArray(Arena, Assets->FileCount, asset_file);
@@ -187,8 +186,8 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
             Platform.FileError(File->Handle, "for a late version");
         }
         if (PlatformNoFileErrors(File->Handle)) {
-            Assets->TagCount += File->Header.TagCount;
-            Assets->AssetCount += File->Header.AssetCount;
+            Assets->TagCount += File->Header.TagCount - 1;
+            Assets->AssetCount += File->Header.AssetCount - 1;
         } else {
             InvalidCodePath;
         }
@@ -200,15 +199,20 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
     Assets->Tags = PushArray(Arena, Assets->TagCount, hha_tag);
     
+    
     for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
         asset_file* File = Assets->Files + FileIndex;
         if (PlatformNoFileErrors(File->Handle)) {
             u32 TagArraySize = sizeof(hha_tag) * File->Header.TagCount;
-            Platform.ReadDataFromFile(File->Handle, File->Header.Tags, TagArraySize, Assets->Tags + File->TagBase);
+            Platform.ReadDataFromFile(File->Handle, File->Header.Tags + sizeof(hha_tag), TagArraySize, Assets->Tags + File->TagBase);
         }
     }
     
     u32 AssetCount = 0;
+    ZeroStruct(*(Assets->Assets + AssetCount));
+    
+    ++AssetCount;
+    
     
     for (u32 DestTypeId = 0; DestTypeId < Asset_Count; ++DestTypeId) {
         asset_type* DestType = Assets->AssetTypes + DestTypeId;
@@ -234,11 +238,16 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
                         
                         
                         for (u32 AssetIndex = 0; AssetIndex < AssetCountForType; ++AssetIndex) {
+                            Assert(AssetCount < Assets->AssetCount);
                             hha_asset* Source = HHAAssetArray + AssetIndex;
                             asset* Asset = Assets->Assets + AssetCount++;
                             Asset->HHA = *Source;
-                            Asset->HHA.FirstTagIndex += File->TagBase;
-                            Asset->HHA.OnePassLastTagIndex += File->TagBase;
+                            if (Asset->HHA.FirstTagIndex == 0) {
+                                Asset->HHA.FirstTagIndex = Asset->HHA.OnePassLastTagIndex = 0;
+                            } else {
+                                Asset->HHA.FirstTagIndex += File->TagBase - 1;
+                                Asset->HHA.OnePassLastTagIndex += File->TagBase - 1;
+                            }
                         }
                         EndTemporaryMemory(TempMem);
                     }
@@ -249,37 +258,6 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
         DestType->OnePassLastAssetIndex = AssetCount;
     }
     
-#else
-    
-    debug_read_file_result Result =  Platform.DEBUGReadEntireFile("test.hha");
-    if (Result.ContentsSize) {
-        Assets->HHAContent = (u8*)Result.Contents;
-        
-        hha_header * Header = (hha_header*)Result.Contents;
-        
-        Assets->AssetCount =  Header->AssetCount;
-        Assets->Assets = (hha_asset*)((u8*)Result.Contents + Header->Assets);
-        Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
-        
-        Assets->TagCount = Header->TagCount;
-        Assets->Tags = (hha_tag*) ((u8*)Result.Contents + Header->Tags);
-        
-        hha_asset_type* HHATypes = (hha_asset_type*)((u8*)Result.Contents + Header->AssetTypes);
-        
-        for (u32 TypeIndex = 0; TypeIndex < Header->AssetTypeCount; ++TypeIndex) {
-            hha_asset_type *Source = HHATypes + TypeIndex;
-            if (Source->TypeID < Asset_Count) {
-                asset_type *Dest = Assets->AssetTypes + Source->TypeID;
-                Assert(Dest->FirstAssetIndex == 0);
-                Assert(Dest->OnePassLastAssetIndex == 0);
-                
-                Dest->FirstAssetIndex = Source->FirstAssetIndex;
-                Dest->OnePassLastAssetIndex = Source->OnePassLastAssetIndex;
-            }
-        }
-    }
-    
-#endif
 	return(Assets);
 }
 
