@@ -14,10 +14,18 @@ struct load_asset_work {
 
 PLATFORM_WORK_QUEUE_CALLBACK(DoLoadAssetWork) {
     load_asset_work * Work = (load_asset_work *)Data;
+    Platform.ReadDataFromFile(Work->Handle, Work->Offset, Work->Size, Work->Destination);
     _WriteBarrier();
-	//Work->Assets->Slots[Work->ID.Value].Bitmap = Bitmap;
-	Work->Slot->State = Work->FinalState;
+    if (PlatformNoFileErrors(Work->Handle)) {
+        Work->Slot->State = Work->FinalState;
+    }
 	EndTaskWithMemory(Work->Task);
+}
+
+inline platform_file_handle*
+GetFileHandleFor(game_assets* Assets, u32 FileIndex) {
+    asset_file *File = Assets->Files + FileIndex;
+    return(File->Handle);
 }
 
 internal
@@ -26,8 +34,8 @@ void LoadSound(game_assets* Assets, sound_id ID) {
 		_InterlockedCompareExchange((long volatile*)&Assets->Slots[ID.Value].State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
 		task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
 		if (Task) {
-            hha_asset* Asset = Assets->Assets + ID.Value;
-            hha_sound* Info = &Asset->Sound;
+            asset* Asset = Assets->Assets + ID.Value;
+            hha_sound* Info = &Asset->HHA.Sound;
             
             loaded_sound* Sound = PushStruct(&Assets->Arena, loaded_sound);
             Sound->SampleCount = Info->SampleCount;
@@ -44,15 +52,14 @@ void LoadSound(game_assets* Assets, sound_id ID) {
             
 			load_asset_work* Work = PushStruct(&Task->Arena, load_asset_work);
             Work->Slot = Assets->Slots + ID.Value;
-            Work->Handle = 0;
-            Work->Offset = Asset->DataOffset;
+            Work->Handle = GetFileHandleFor(Assets, Asset->FileIndex);
+            Work->Offset = Asset->HHA.DataOffset;
             Work->Size = MemorySize;
 			Work->Task = Task;
             Work->Destination = Memory;
             
             Work->Slot->Sound = Sound;
-            Copy(Work->Size, Assets->HHAContent + Asset->DataOffset, Work->Destination);
-            
+            //Copy(Work->Size, Assets->HHAContent + Asset->DataOffset, Work->Destination);
 			Work->FinalState = AssetState_loaded;
             
 			Platform.AddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
@@ -67,14 +74,15 @@ inline void
 PrefetchSound(game_assets* Assets, sound_id ID) { LoadSound(Assets, ID); }
 
 
+
 internal void
 LoadBitmap(game_assets* Assets, bitmap_id ID) {
 	if (ID.Value &&
 		_InterlockedCompareExchange((long volatile*)&Assets->Slots[ID.Value].State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
 		task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
 		if (Task) {
-            hha_asset *Asset = Assets->Assets + ID.Value;
-            hha_bitmap* Info = &Asset->Bitmap;
+            asset *Asset = Assets->Assets + ID.Value;
+            hha_bitmap* Info = &Asset->HHA.Bitmap;
             loaded_bitmap* Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
             Bitmap->Width = Info->Dim[0];
             Bitmap->Height = Info->Dim[1];
@@ -87,13 +95,13 @@ LoadBitmap(game_assets* Assets, bitmap_id ID) {
 			load_asset_work* Work = PushStruct(&Task->Arena, load_asset_work);
 			
             Work->Slot = Assets->Slots + ID.Value;
-            Work->Handle = 0;
+            Work->Handle = GetFileHandleFor(Assets, Asset->FileIndex);
             Work->Size = MemorySize;
-            Work->Offset = Asset->DataOffset;
+            Work->Offset = Asset->HHA.DataOffset;
 			Work->Task = Task;
             Work->Destination = Bitmap->Memory;
             Work->Slot->Bitmap = Bitmap;
-            Copy(Work->Size, Assets->HHAContent + Asset->DataOffset, Work->Destination);
+            //Copy(Work->Size, Assets->HHAContent + Asset->DataOffset, Work->Destination);
 			Work->FinalState = AssetState_loaded;
             
 			Platform.AddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
@@ -113,9 +121,9 @@ BestMatchAsset(game_assets* Assets, asset_type_id TypeID, asset_vector* MatchVec
     }
 	real32 BestDiff = Real32Maximum;
 	for (uint32 AssetIndex = Type->FirstAssetIndex; AssetIndex < Type->OnePassLastAssetIndex; ++AssetIndex) {
-		hha_asset* Asset = Assets->Assets + AssetIndex;
+		asset* Asset = Assets->Assets + AssetIndex;
 		real32 TotalWeight = 0.0f;
-		for (uint32 TagIndex = Asset->FirstTagIndex; TagIndex < Asset->OnePassLastTagIndex; ++TagIndex) {
+		for (uint32 TagIndex = Asset->HHA.FirstTagIndex; TagIndex < Asset->HHA.OnePassLastTagIndex; ++TagIndex) {
 			hha_tag* Tag = Assets->Tags + TagIndex;
 			real32 A = MatchVector->E[Tag->ID];
 			real32 B = Tag->Value;
@@ -159,17 +167,16 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     Assets->TagCount = 0;
     Assets->AssetCount = 0;
     
-#if 0
-    platform_file_group* FileGroup = Platform.GetAllFilesOfTypeBegin("hha");
-    Assets->FileCount = FileGroup->FileCount;
+#if 1
+    platform_file_group FileGroup = Platform.GetAllFileOfTypeBegin("hha");
+    Assets->FileCount = FileGroup.FileCount;
     Assets->Files = PushArray(Arena, Assets->FileCount, asset_file);
     for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
         asset_file* File = Assets->Files + FileIndex;
         File->TagBase = Assets->TagCount;
-        File->Handle = PlatformOpenFile(FileGroup, FileIndex);
+        File->Handle = Platform.OpenFile(FileGroup, FileIndex);
         ZeroStruct(File->Header);
         Platform.ReadDataFromFile(File->Handle, 0, sizeof(File->Header), &File->Header);
-        
         u32 AssetTypeArraySize = File->Header.AssetTypeCount * sizeof(hha_asset_type);
         File->AssetTypeArray = (hha_asset_type*)PushSize(Arena, AssetTypeArraySize);
         Platform.ReadDataFromFile(File->Handle, File->Header.AssetTypes, AssetTypeArraySize, File->AssetTypeArray);
@@ -179,21 +186,19 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
         if (File->Header.Version > HHA_VERSION) {
             Platform.FileError(File->Handle, "for a late version");
         }
-        
-        
         if (PlatformNoFileErrors(File->Handle)) {
-            Assets->TagCount += Header->TagCount;
-            Assets->AssetCount += Header->AssetCount;
+            Assets->TagCount += File->Header.TagCount;
+            Assets->AssetCount += File->Header.AssetCount;
         } else {
             InvalidCodePath;
         }
     }
-    Platform.GetAllFilesOfTypeEnd(FileGroup);
+    Platform.GetAllFileOfTypeEnd(FileGroup);
     
     
-    Assets->Assets = PushArray(Arena, Assets->AssetCount, hha_asset);
+    Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
     Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
-    Assets->Tag = PushArray(Arena, Assets->TagCount, hha_tag);
+    Assets->Tags = PushArray(Arena, Assets->TagCount, hha_tag);
     
     for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
         asset_file* File = Assets->Files + FileIndex;
@@ -211,21 +216,31 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
         DestType->FirstAssetIndex = AssetCount;
         for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
             asset_file *File = Assets->Files + FileIndex;
-            if (PlatformNoFileErrors(File->Handle)) {
+            if (PlatformNoFileErrors(File->Handle)) 
+            {
                 for (u32 SourceIndex = 0; SourceIndex < File->Header.AssetTypeCount; ++SourceIndex) {
                     hha_asset_type *SourceType = File->AssetTypeArray + SourceIndex;
-                    if (SourceTyppe->TypeId == DestTypeId) {
+                    if (SourceType->TypeID == DestTypeId) {
                         u32 AssetCountForType = SourceType->OnePassLastAssetIndex - SourceType->FirstAssetIndex;
+                        
+                        temporary_memory TempMem = BeginTemporaryMemory(&TranState->TranArena);
+                        hha_asset *HHAAssetArray = PushArray(&TranState->TranArena, AssetCountForType, hha_asset);
+                        
                         Platform.ReadDataFromFile(File->Handle, 
                                                   File->Header.Assets + SourceType->FirstAssetIndex * sizeof(hha_asset),
                                                   AssetCountForType * sizeof(hha_asset),
-                                                  Assets->Assets + AssetCount);
-                        for (u32 AssetIndex = AssetCount; AssetIndex < AssetCount + AssetCountForType; ++AssetIndex) {
-                            hha_asset* Asset = Assets->Assets + AssetIndex;
-                            Asset->FirstTagIndex += File->TagBase;
-                            Assst->OnePassLastAssetIndex += File->TagBase;
+                                                  HHAAssetArray);
+                        
+                        
+                        
+                        for (u32 AssetIndex = 0; AssetIndex < AssetCountForType; ++AssetIndex) {
+                            hha_asset* Source = HHAAssetArray + AssetIndex;
+                            asset* Asset = Assets->Assets + AssetCount++;
+                            Asset->HHA = *Source;
+                            Asset->HHA.FirstTagIndex += File->TagBase;
+                            Asset->HHA.OnePassLastTagIndex += File->TagBase;
                         }
-                        AssetCount += AssetCountForType;
+                        EndTemporaryMemory(TempMem);
                     }
                 }
             }

@@ -48,16 +48,22 @@ struct asset_slot {
 	};
 };
 
+struct asset {
+    hha_asset HHA;
+    u32 FileIndex;
+};
+
 struct asset_vector {
 	real32 E[Tag_Count];
 };
 
 struct game_assets {
 	struct transient_state* TranState;
-    
+    u32 FileCount;
+    asset_file *Files;
 	
 	uint32 AssetCount;
-	hha_asset* Assets; 
+	asset* Assets; 
 	asset_slot* Slots;
     
 	real32 TagRange[Tag_Count];
@@ -92,7 +98,7 @@ IsValid(bitmap_id ID) {
 
 inline loaded_bitmap*
 GetBitmap(game_assets* Assets, bitmap_id ID) {
-	Assert(ID.Value < Assets->AssetCount);
+	Assert(ID.Value <= Assets->AssetCount);
     
     asset_slot *Slot = Assets->Slots + ID.Value;
     loaded_bitmap* Result = 0;
@@ -105,7 +111,7 @@ GetBitmap(game_assets* Assets, bitmap_id ID) {
 
 inline loaded_sound*
 GetSound(game_assets* Assets, sound_id ID) {
-	Assert(ID.Value < Assets->AssetCount);
+	Assert(ID.Value <= Assets->AssetCount);
     asset_slot *Slot = Assets->Slots + ID.Value;
     loaded_sound* Result = 0;
     if (Slot->State >= AssetState_loaded) {
