@@ -15,7 +15,6 @@ enum asset_type_id {
     
 	Asset_Music,
 	Asset_Bloop,
-    Asset_NonMusic,
     
 	Asset_Count
 };

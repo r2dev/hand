@@ -120,5 +120,4 @@ GetSound(game_assets* Assets, sound_id ID) {
 	return(Result);
 }
 
-
 internal void LoadBitmap(game_assets* Assets, bitmap_id ID);

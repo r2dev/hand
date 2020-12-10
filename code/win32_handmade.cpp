@@ -840,7 +840,7 @@ struct win32_platform_file_handle {
 PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(Win32GetAllFileOfTypeBegin) {
     
     platform_file_group Result = {};
-    Result.FileCount = 1;
+    Result.FileCount = 3;
     return(Result);
 }
 
@@ -851,8 +851,15 @@ PLATFORM_GET_ALL_FILE_OF_TYPE_END(Win32GetAllFileOfTypeEnd) {}
 
 PLATFORM_OPEN_FILE(Win32OpenFile) {
     win32_platform_file_handle* Result = (win32_platform_file_handle*)VirtualAlloc(0, sizeof(win32_platform_file_handle), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    char* Filename = "invalid.file";
     if (Result) {
-        char* Filename = "test.hha";
+        if (FileIndex == 0) {
+            Filename = "test1.hha";
+        } else if (FileIndex == 1) {
+            Filename = "test2.hha";
+        } else if (FileIndex == 2) {
+            Filename = "test3.hha";
+        }
         Result->Win32Handle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
         Result->H.NoErrors = (Result->Win32Handle != INVALID_HANDLE_VALUE);
     }
@@ -941,7 +948,7 @@ int CALLBACK WinMain(
             GlobalRunning = true;
             
             win32_sound_output SoundOutput = {};
-            int	MonitorRefreshHz = 60;
+            int MonitorRefreshHz = 60;
             HDC RefreshDC = GetDC(Window);
             int Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
             ReleaseDC(Window, RefreshDC);

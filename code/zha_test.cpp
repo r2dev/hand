@@ -342,7 +342,7 @@ AddSoundAsset(game_assets* Assets, char* FileName, u32 FirstSampleIndex = 0, u32
 	Dest->FirstTagIndex = Assets->TagCount;
 	Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
 	Dest->Sound.SampleCount = LoadSampleCount;
-	Dest->Sound.NextIDToPlay.Value = 0;
+	Dest->Sound.Chain = HHASoundChain_none;
     
 	Assets->AssetIndex = Result.Value;
 	return(Result);
@@ -369,54 +369,33 @@ AddTag(game_assets* Assets, asset_tag_id TagID, real32 Value) {
 	Tag->Value = Value;
 }
 
-
-int main(int ArgCount, char **Args) {
-	game_assets Assets_;
-	game_assets* Assets = &Assets_;
-    
-	Assets->AssetCount = 1;
+internal void
+InitialAssets(game_assets *Assets) {
+    Assets->AssetCount = 1;
 	Assets->TagCount = 1;
     
-	Assets->AssetTypeCount = 0;
 	Assets->DEBUGAssetType = 0;
 	Assets->AssetIndex = 0;
-	BeginAssetType(Assets, Asset_Shadow);
-	AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", 0.5f, 0.156682029f);
-	EndAssetType(Assets);
     
-	BeginAssetType(Assets, Asset_Tree);
-	AddBitmapAsset(Assets, "test2/tree00.bmp", 0.493827164f, 0.295652181f);
-    EndAssetType(Assets);
+    Assets->AssetTypeCount = Asset_Count;
+    memset(Assets->AssetTypes, 0, sizeof(Assets->AssetTypes)); 
     
-	BeginAssetType(Assets, Asset_Sword);
-	AddBitmapAsset(Assets, "test2/rock02.bmp", 0.5f, 0.65625f);
-	EndAssetType(Assets);
-    
-    
-	BeginAssetType(Assets, Asset_Grass);
-	AddBitmapAsset(Assets, "test2/grass00.bmp");
-	AddBitmapAsset(Assets, "test2/grass01.bmp");
-	EndAssetType(Assets);
-    
-	BeginAssetType(Assets, Asset_Ground);
-	AddBitmapAsset(Assets, "test2/ground00.bmp");
-	AddBitmapAsset(Assets, "test2/ground01.bmp");
-	AddBitmapAsset(Assets, "test2/ground02.bmp");
-	AddBitmapAsset(Assets, "test2/ground03.bmp");
-	EndAssetType(Assets);
-    
-    
-	BeginAssetType(Assets, Asset_Tuft);
-	AddBitmapAsset(Assets, "test2/tuft00.bmp");
-	AddBitmapAsset(Assets, "test2/tuft01.bmp");
-	EndAssetType(Assets);
+}
+
+internal void
+PackHero() {
+    game_assets Assets_;
+	game_assets* Assets = &Assets_;
+    InitialAssets(Assets);
     
 	real32 AngleRight = 0.0f * Tau32;
 	real32 AngleBack = 0.25f * Tau32;
 	real32 AngleLeft = 0.5f * Tau32;
 	real32 AngleFront = 0.75f * Tau32;
     
-    
+	BeginAssetType(Assets, Asset_Shadow);
+	AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", 0.5f, 0.156682029f);
+	EndAssetType(Assets);
     
 	BeginAssetType(Assets, Asset_Head);
 	AddBitmapAsset(Assets, "test/test_hero_right_head.bmp", 0.5f, 0.156682029f);
@@ -452,36 +431,7 @@ int main(int ArgCount, char **Args) {
 	EndAssetType(Assets);
     
     
-	BeginAssetType(Assets, Asset_Music);
-    
-	u32 TotalSampleCount = 7468095;
-	u32 MusicChunkSize = 10 * 48000;
-	sound_id LastMusic = {};
-    
-	for (u32 FirstSampleIndex = 0; FirstSampleIndex < TotalSampleCount; FirstSampleIndex += MusicChunkSize) {
-		u32 SampleCount = TotalSampleCount - FirstSampleIndex;
-		if (SampleCount > MusicChunkSize) {
-			SampleCount = MusicChunkSize;
-		}
-		sound_id thisMusic = AddSoundAsset(Assets, "test3/music_test.wav", FirstSampleIndex, SampleCount);
-		if (LastMusic.Value) {
-			Assets->Assets[LastMusic.Value].Sound.NextIDToPlay = thisMusic;
-		}
-		LastMusic = thisMusic;
-	}
-	EndAssetType(Assets);
-    
-	BeginAssetType(Assets, Asset_Bloop);
-	AddSoundAsset(Assets, "test3/bloop_00.wav");
-	AddSoundAsset(Assets, "test3/bloop_01.wav");
-	AddSoundAsset(Assets, "test3/bloop_02.wav");
-	AddSoundAsset(Assets, "test3/bloop_03.wav");
-	AddSoundAsset(Assets, "test3/bloop_04.wav");
-	EndAssetType(Assets);
-    
-    
-    
-	Out = fopen("test.hha", "wb");
+	Out = fopen("test1.hha", "wb");
 	if (Out) {
         
 		hha_header Header = {};
@@ -505,7 +455,6 @@ int main(int ArgCount, char **Args) {
 		fwrite(&Header, sizeof(Header), 1, Out);
 		fwrite(Assets->Tags, TagArraySize, 1, Out);
 		fwrite(Assets->AssetTypes, AssetTypeArraySize, 1, Out);
-		//fwrite(Header.Assets, AssetArraySize, 1, Out);
         fseek(Out, AssetArraySize, SEEK_CUR);
         for (u32 AssetIndex = 1; AssetIndex < Header.AssetCount; ++AssetIndex) {
             asset_source* Source = Assets->AssetSources + AssetIndex;
@@ -537,10 +486,201 @@ int main(int ArgCount, char **Args) {
 	else {
 		printf("Err: Could not open file\n");
 	}
+}
+
+internal void
+PackOtherAsset() {
+    game_assets Assets_;
+    game_assets* Assets = &Assets_;
+    InitialAssets(Assets);
+    BeginAssetType(Assets, Asset_Tree);
+    AddBitmapAsset(Assets, "test2/tree00.bmp", 0.493827164f, 0.295652181f);
+    EndAssetType(Assets);
+    
+    BeginAssetType(Assets, Asset_Sword);
+    AddBitmapAsset(Assets, "test2/rock02.bmp", 0.5f, 0.65625f);
+    EndAssetType(Assets);
+    
+    
+    BeginAssetType(Assets, Asset_Grass);
+    AddBitmapAsset(Assets, "test2/grass00.bmp");
+    AddBitmapAsset(Assets, "test2/grass01.bmp");
+    EndAssetType(Assets);
+    
+    BeginAssetType(Assets, Asset_Ground);
+    AddBitmapAsset(Assets, "test2/ground00.bmp");
+    AddBitmapAsset(Assets, "test2/ground01.bmp");
+    AddBitmapAsset(Assets, "test2/ground02.bmp");
+    AddBitmapAsset(Assets, "test2/ground03.bmp");
+    EndAssetType(Assets);
+    
+    
+    BeginAssetType(Assets, Asset_Tuft);
+    AddBitmapAsset(Assets, "test2/tuft00.bmp");
+    AddBitmapAsset(Assets, "test2/tuft01.bmp");
+    EndAssetType(Assets);
+    
+    
+    
+    Out = fopen("test2.hha", "wb");
+    if (Out) {
+        
+        hha_header Header = {};
+        Header.MagicValue = HHA_MAGIC_VALUE;
+        Header.Version = HHA_VERSION;
+        
+        Header.AssetTypeCount = Asset_Count;
+        Header.AssetCount = Assets->AssetCount;
+        
+        Header.TagCount = Assets->TagCount;
+        
+        u32 TagArraySize = Header.TagCount * sizeof(hha_tag);
+        u32 AssetArraySize = Header.AssetCount * sizeof(hha_asset);
+        u32 AssetTypeArraySize = Header.AssetTypeCount * sizeof(hha_asset_type);
+        
+        Header.Tags = sizeof(Header);
+        Header.AssetTypes = Header.Tags + TagArraySize;
+        Header.Assets = Header.AssetTypes + AssetTypeArraySize;
+        
+        
+        fwrite(&Header, sizeof(Header), 1, Out);
+        fwrite(Assets->Tags, TagArraySize, 1, Out);
+        fwrite(Assets->AssetTypes, AssetTypeArraySize, 1, Out);
+        //fwrite(Header.Assets, AssetArraySize, 1, Out);
+        fseek(Out, AssetArraySize, SEEK_CUR);
+        for (u32 AssetIndex = 1; AssetIndex < Header.AssetCount; ++AssetIndex) {
+            asset_source* Source = Assets->AssetSources + AssetIndex;
+            hha_asset* Asset = Assets->Assets + AssetIndex;
+            
+            Asset->DataOffset = ftell(Out);
+            
+            if (Source->Type == AssetType_Sound) {
+                loaded_sound Wave = LoadWAV(Source->FileName, Source->FirstSampleIndex, Asset->Sound.SampleCount);
+                Asset->Sound.SampleCount = Wave.SampleCount;
+                Asset->Sound.ChannelCount = Wave.ChannelCount;
+                for (u32 ChannelIndex = 0; ChannelIndex < Asset->Sound.ChannelCount; ++ChannelIndex) {
+                    fwrite(Wave.Samples[ChannelIndex], Wave.SampleCount*sizeof(s16), 1, Out);
+                }
+                free(Wave.Free);
+            } else if (Source->Type == AssetType_Bitmap) {
+                loaded_bitmap Bitmap = LoadBMP(Source->FileName);
+                Asset->Bitmap.Dim[0] = Bitmap.Width;
+                Asset->Bitmap.Dim[1] = Bitmap.Height;
+                Assert((Bitmap.Width * 4) == Bitmap.Pitch);
+                fwrite(Bitmap.Memory, Bitmap.Width * Bitmap.Height * 4, 1, Out);
+                free(Bitmap.Free);
+            }
+        }
+        fseek(Out, (u32)Header.Assets, SEEK_SET);
+        fwrite(Assets->Assets, AssetArraySize, 1, Out);
+        fclose(Out);
+    }
+    else {
+        printf("Err: Could not open file\n");
+    }
+}
+
+
+
+internal void
+PackMusic() {
+    game_assets Assets_;
+    game_assets* Assets = &Assets_;
+    InitialAssets(Assets);
+    
+    BeginAssetType(Assets, Asset_Music);
+    
+    u32 TotalSampleCount = 7468095;
+    u32 MusicChunkSize = 10 * 48000;
+    sound_id LastMusic = {};
+    
+    for (u32 FirstSampleIndex = 0; FirstSampleIndex < TotalSampleCount; FirstSampleIndex += MusicChunkSize) {
+        u32 SampleCount = TotalSampleCount - FirstSampleIndex;
+        if (SampleCount > MusicChunkSize) {
+            SampleCount = MusicChunkSize;
+        }
+        sound_id thisMusic = AddSoundAsset(Assets, "test3/music_test.wav", FirstSampleIndex, SampleCount);
+        if (LastMusic.Value) {
+            Assets->Assets[LastMusic.Value].Sound.Chain = HHASoundChain_Advance;
+        }
+        LastMusic = thisMusic;
+    }
+    
+    EndAssetType(Assets);
+    
+    BeginAssetType(Assets, Asset_Bloop);
+    AddSoundAsset(Assets, "test3/bloop_00.wav");
+    AddSoundAsset(Assets, "test3/bloop_01.wav");
+    AddSoundAsset(Assets, "test3/bloop_02.wav");
+    AddSoundAsset(Assets, "test3/bloop_03.wav");
+    AddSoundAsset(Assets, "test3/bloop_04.wav");
+    EndAssetType(Assets);
+    
+    
+    
+    Out = fopen("test3.hha", "wb");
+    if (Out) {
+        
+        hha_header Header = {};
+        Header.MagicValue = HHA_MAGIC_VALUE;
+        Header.Version = HHA_VERSION;
+        
+        Header.AssetTypeCount = Asset_Count;
+        Header.AssetCount = Assets->AssetCount;
+        
+        Header.TagCount = Assets->TagCount;
+        
+        u32 TagArraySize = Header.TagCount * sizeof(hha_tag);
+        u32 AssetArraySize = Header.AssetCount * sizeof(hha_asset);
+        u32 AssetTypeArraySize = Header.AssetTypeCount * sizeof(hha_asset_type);
+        
+        Header.Tags = sizeof(Header);
+        Header.AssetTypes = Header.Tags + TagArraySize;
+        Header.Assets = Header.AssetTypes + AssetTypeArraySize;
+        
+        
+        fwrite(&Header, sizeof(Header), 1, Out);
+        fwrite(Assets->Tags, TagArraySize, 1, Out);
+        fwrite(Assets->AssetTypes, AssetTypeArraySize, 1, Out);
+        //fwrite(Header.Assets, AssetArraySize, 1, Out);
+        fseek(Out, AssetArraySize, SEEK_CUR);
+        for (u32 AssetIndex = 1; AssetIndex < Header.AssetCount; ++AssetIndex) {
+            asset_source* Source = Assets->AssetSources + AssetIndex;
+            hha_asset* Asset = Assets->Assets + AssetIndex;
+            
+            Asset->DataOffset = ftell(Out);
+            
+            if (Source->Type == AssetType_Sound) {
+                loaded_sound Wave = LoadWAV(Source->FileName, Source->FirstSampleIndex, Asset->Sound.SampleCount);
+                Asset->Sound.SampleCount = Wave.SampleCount;
+                Asset->Sound.ChannelCount = Wave.ChannelCount;
+                for (u32 ChannelIndex = 0; ChannelIndex < Asset->Sound.ChannelCount; ++ChannelIndex) {
+                    fwrite(Wave.Samples[ChannelIndex], Wave.SampleCount*sizeof(s16), 1, Out);
+                }
+                free(Wave.Free);
+            } else if (Source->Type == AssetType_Bitmap) {
+                loaded_bitmap Bitmap = LoadBMP(Source->FileName);
+                Asset->Bitmap.Dim[0] = Bitmap.Width;
+                Asset->Bitmap.Dim[1] = Bitmap.Height;
+                Assert((Bitmap.Width * 4) == Bitmap.Pitch);
+                fwrite(Bitmap.Memory, Bitmap.Width * Bitmap.Height * 4, 1, Out);
+                free(Bitmap.Free);
+            }
+        }
+        fseek(Out, (u32)Header.Assets, SEEK_SET);
+        fwrite(Assets->Assets, AssetArraySize, 1, Out);
+        fclose(Out);
+    }
+    else {
+        printf("Err: Could not open file\n");
+    }
+}
+
+
+int main(int ArgCount, char **Args) {
+	PackMusic();
+    PackOtherAsset();
+    PackHero();
 	printf("hello world");
-    
-    
-    
-	
 	return(0);
 } 

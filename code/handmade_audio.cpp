@@ -1,10 +1,5 @@
 #include "handmade.h"
 
-hha_sound* GetSoundInfo(game_assets* Assets, sound_id ID) {
-	hha_sound* Result = &Assets->Assets[ID.Value].HHA.Sound;
-	return(Result);
-}
-
 internal void
 ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSeconds) {
     
@@ -57,8 +52,8 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 			//todo
 			loaded_sound* LoadedSound = GetSound(Assets, PlayingSound->ID);
 			if (LoadedSound) {
-				hha_sound* Info = GetSoundInfo(Assets, PlayingSound->ID);
-				PrefetchSound(Assets, Info->NextIDToPlay);
+				sound_id NextSoundID = GetNextSoundInChain(Assets, PlayingSound->ID);
+				PrefetchSound(Assets, NextSoundID);
                 
 				v2 Volume = PlayingSound->CurrentVolume;
 				v2 dVolume = PlayingSound->dVolume * SecondsPerSamples;
@@ -181,8 +176,8 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 				Assert(TotalChunkToMix >= ChunkToMix);
 				TotalChunkToMix -= ChunkToMix;
 				if (ChunkRemainingInSound == ChunkToMix) {
-					if (IsValid(Info->NextIDToPlay)) {
-						PlayingSound->ID = Info->NextIDToPlay;
+					if (IsValid(NextSoundID)) {
+						PlayingSound->ID = NextSoundID;
 						PlayingSound->SamplesPlayed -= (r32)LoadedSound->SampleCount;
 						if (PlayingSound->SamplesPlayed < 0) {
 							PlayingSound->SamplesPlayed = 0.0f;
@@ -199,7 +194,6 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 				break;
 			}
 		}
-        // note(ren) not understand enough
         if (SoundFinished) {
             *PlayingSoundPtr = PlayingSound->Next;
             PlayingSound->Next = AudioState->FirstFreePlayingSound;

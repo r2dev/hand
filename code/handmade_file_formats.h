@@ -9,6 +9,11 @@ struct sound_id {
 	uint32 Value;
 };
 
+enum {
+    HHASoundChain_none,
+    HHASoundChain_loop,
+    HHASoundChain_Advance
+};
 #define RIFF_CODE(a, b, c, d) (((uint32)(a) << 0) | ((uint32)(b) << 8) | ((uint32)(c) << 16) | ((uint32)(d) << 24))
 
 struct hha_header {
@@ -30,11 +35,12 @@ struct hha_bitmap {
 	u32 Dim[2];
 	r32 AlignPercentage[2];
 };
+
 struct hha_sound {
 	u32 FirstSampleIndex;
     u32 ChannelCount;
 	u32 SampleCount;
-    sound_id NextIDToPlay;
+    u32 Chain;
 };
 
 struct hha_asset_type {
