@@ -178,6 +178,7 @@ LoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
                     
                     Assert(fmt->wFormatTag == 1);
                     Assert(fmt->nSamplesPerSec == 48000);
+                    Assert(fmt->wBitsPerSample == 16);
                     
                     ChannelCount = fmt->nChannels;
                 } break;
@@ -615,7 +616,6 @@ PackMusic() {
     AddSoundAsset(Assets, "test3/bloop_03.wav");
     AddSoundAsset(Assets, "test3/bloop_04.wav");
     EndAssetType(Assets);
-    
     
     
     Out = fopen("test3.hha", "wb");

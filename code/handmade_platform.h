@@ -210,16 +210,15 @@ extern "C" {
     
     typedef struct platform_file_group {
         u32 FileCount;
-        void* Data;
     } platform_file_group;
     
-#define PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(name) platform_file_group name(char* Type)
+#define PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(name) platform_file_group* name(char* Type)
     typedef PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(platform_get_all_file_of_type_begin);
     
-#define PLATFORM_GET_ALL_FILE_OF_TYPE_END(name) void name(platform_file_group FileGroup)
+#define PLATFORM_GET_ALL_FILE_OF_TYPE_END(name) void name(platform_file_group *FileGroup)
     typedef PLATFORM_GET_ALL_FILE_OF_TYPE_END(platform_get_all_file_of_type_end);
     
-#define PLATFORM_OPEN_FILE(name) platform_file_handle *name(platform_file_group FileGroup, u32 FileIndex)
+#define PLATFORM_OPEN_FILE(name) platform_file_handle *name(platform_file_group *FileGroup)
     typedef PLATFORM_OPEN_FILE(platform_open_file);
     
 #define PLATFORM_READ_DATA_FROM_FILE(name) void name(platform_file_handle *Source, u64 Offset, u64 Size, void* Dest)

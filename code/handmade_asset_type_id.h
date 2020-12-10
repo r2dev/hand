@@ -14,6 +14,7 @@ enum asset_type_id {
 	Asset_Torso,
     
 	Asset_Music,
+    //Asset_Forget,
 	Asset_Bloop,
     
 	Asset_Count
