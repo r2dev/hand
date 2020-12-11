@@ -2,6 +2,16 @@
 #define HANDMADE_INTRINSICS_H
 #include <math.h>
 
+#if COMPILER_MSVC
+#define CompletePreviousReadsBeforeFutureReads _ReadBarrier()
+#define CompletePreviousWritesBeforeFutureWrites _WriteBarrier()
+#else
+#define CompletePreviousReadsBeforeFutureReads
+#define CompletePreviousWritesBeforeFutureWrites
+#endif
+
+
+
 inline real32
 SquareRoot(real32 Real32) {
 	real32 Result = sqrtf(Real32);
@@ -99,7 +109,7 @@ struct bit_scan_result {
 inline bit_scan_result
 FindLeastSignificantSetBit(uint32 Value) {
 	bit_scan_result Result = {};
-
+    
 #if COMPILER_MSVC
 	Result.Found = _BitScanForward((unsigned long *)&Result.Index, Value);
 #else

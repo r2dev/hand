@@ -31,14 +31,17 @@ GetFileHandleFor(game_assets* Assets, u32 FileIndex) {
 
 internal
 void LoadSound(game_assets* Assets, sound_id ID) {
+    
+    asset_slot *Slot = Assets->Slots + ID.Value;
 	if (ID.Value &&
-		_InterlockedCompareExchange((long volatile*)&Assets->Slots[ID.Value].State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
+		_InterlockedCompareExchange((long volatile*)&Slot->State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
 		task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
 		if (Task) {
+            
             asset* Asset = Assets->Assets + ID.Value;
             hha_sound* Info = &Asset->HHA.Sound;
             
-            loaded_sound* Sound = PushStruct(&Assets->Arena, loaded_sound);
+            loaded_sound* Sound = &Slot->Sound;
             Sound->SampleCount = Info->SampleCount;
             Sound->ChannelCount = Info->ChannelCount;
             u32 ChannelSize = Sound->SampleCount * sizeof(s16);
@@ -52,21 +55,21 @@ void LoadSound(game_assets* Assets, sound_id ID) {
             }
             
 			load_asset_work* Work = PushStruct(&Task->Arena, load_asset_work);
-            Work->Slot = Assets->Slots + ID.Value;
+            Work->Slot = Slot;
             Work->Handle = GetFileHandleFor(Assets, Asset->FileIndex);
             Work->Offset = Asset->HHA.DataOffset;
             Work->Size = MemorySize;
 			Work->Task = Task;
             Work->Destination = Memory;
             
-            Work->Slot->Sound = Sound;
+            //Work->Slot->Sound = Sound;
             //Copy(Work->Size, Assets->HHAContent + Asset->DataOffset, Work->Destination);
 			Work->FinalState = AssetState_loaded;
             
 			Platform.AddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
 		}
 		else {
-			Assets->Slots[ID.Value].State = AssetState_Unloaded;
+			Slot->State = AssetState_Unloaded;
 		}
 	}
 }
@@ -105,16 +108,18 @@ GetNextSoundInChain(game_assets* Assets, sound_id ID) {
 
 internal void
 LoadBitmap(game_assets* Assets, bitmap_id ID) {
+    
+    asset_slot *Slot = Assets->Slots + ID.Value;
 	if (ID.Value &&
-		_InterlockedCompareExchange((long volatile*)&Assets->Slots[ID.Value].State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
+		_InterlockedCompareExchange((long volatile*)&Slot->State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
 		task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
 		if (Task) {
             asset *Asset = Assets->Assets + ID.Value;
             hha_bitmap* Info = &Asset->HHA.Bitmap;
-            loaded_bitmap* Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
-            Bitmap->Width = Info->Dim[0];
-            Bitmap->Height = Info->Dim[1];
-            Bitmap->Pitch = Bitmap->Width * BITMAP_BYTE_PER_PIXEL;
+            loaded_bitmap* Bitmap = &Slot->Bitmap;
+            Bitmap->Width = SafeTruncateToUInt16(Info->Dim[0]);
+            Bitmap->Height = SafeTruncateToUInt16(Info->Dim[1]);
+            Bitmap->Pitch = SafeTruncateToUInt16(Info->Dim[0]) * BITMAP_BYTE_PER_PIXEL;
             Bitmap->WidthOverHeight = SafeRatio1((r32)Bitmap->Width, (r32)Bitmap->Height);
             Bitmap->AlignPercentage = v2{Info->AlignPercentage[0], Info->AlignPercentage[1]};
             u32 MemorySize = Bitmap->Pitch * Bitmap->Height;
@@ -122,20 +127,20 @@ LoadBitmap(game_assets* Assets, bitmap_id ID) {
             
 			load_asset_work* Work = PushStruct(&Task->Arena, load_asset_work);
 			
-            Work->Slot = Assets->Slots + ID.Value;
+            Work->Slot = Slot;
             Work->Handle = GetFileHandleFor(Assets, Asset->FileIndex);
             Work->Size = MemorySize;
             Work->Offset = Asset->HHA.DataOffset;
 			Work->Task = Task;
             Work->Destination = Bitmap->Memory;
-            Work->Slot->Bitmap = Bitmap;
+            //Work->Slot->Bitmap = Bitmap;
             //Copy(Work->Size, Assets->HHAContent + Asset->DataOffset, Work->Destination);
 			Work->FinalState = AssetState_loaded;
             
 			Platform.AddEntry(Assets->TranState->LowPriorityQueue, DoLoadAssetWork, Work);
 		}
 		else {
-			Assets->Slots[ID.Value].State = AssetState_Unloaded;
+			Slot->State = AssetState_Unloaded;
 		}
 	}
 }

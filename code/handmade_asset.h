@@ -1,13 +1,13 @@
 #pragma once
 
 struct loaded_bitmap {
+    void* Memory;
 	v2 AlignPercentage;
-	real32 WidthOverHeight;
+	r32 WidthOverHeight;
     
-	int32 Width;
-	int32 Height;
-	int32 Pitch;
-	void* Memory;
+	s16 Width;
+	s16 Height;
+	s16 Pitch;
 };
 struct environment_map {
 	loaded_bitmap LOD[4];
@@ -15,9 +15,9 @@ struct environment_map {
 };
 
 struct loaded_sound {
-	uint32 SampleCount;
-	uint32 ChannelCount;
-	int16* Samples[2];
+	u32 SampleCount;
+	u32 ChannelCount;
+	s16* Samples[2];
 };
 
 struct asset_file {
@@ -41,10 +41,10 @@ enum asset_state {
 };
 
 struct asset_slot {
-	asset_state State;
+    u32 State;
 	union { 
-		loaded_bitmap* Bitmap; 
-		loaded_sound* Sound;
+		loaded_bitmap Bitmap; 
+		loaded_sound Sound;
 	};
 };
 
@@ -103,7 +103,8 @@ GetBitmap(game_assets* Assets, bitmap_id ID) {
     asset_slot *Slot = Assets->Slots + ID.Value;
     loaded_bitmap* Result = 0;
     if (Slot->State >= AssetState_loaded) {
-        Result = Slot->Bitmap;
+        CompletePreviousReadsBeforeFutureReads;
+        Result = &Slot->Bitmap;
     }
     
 	return(Result);
@@ -115,7 +116,8 @@ GetSound(game_assets* Assets, sound_id ID) {
     asset_slot *Slot = Assets->Slots + ID.Value;
     loaded_sound* Result = 0;
     if (Slot->State >= AssetState_loaded) {
-        Result = Slot->Sound;
+        CompletePreviousReadsBeforeFutureReads;
+        Result = &Slot->Sound;
     }
 	return(Result);
 }

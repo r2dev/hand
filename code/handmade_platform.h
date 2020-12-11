@@ -291,6 +291,14 @@ extern "C" {
         uint32 Result = (uint32)Value;
         return(Result);
     }
+    
+    inline u16
+        SafeTruncateToUInt16(uint32 Value) {
+        Assert(Value <= 65535);
+        Assert(Value >= 0);
+        u16 Result = (u16)Value;
+        return(Result);
+    }
 	
 #ifdef __cplusplus
 }

@@ -358,9 +358,9 @@ ClearBitmap(loaded_bitmap* Bitmap) {
 internal loaded_bitmap
 MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool32 ClearToZero = true) {
 	loaded_bitmap Result = {};
-	Result.Width = Width;
-	Result.Height = Height;
-	Result.Pitch = Width * BITMAP_BYTE_PER_PIXEL;
+	Result.Width = SafeTruncateToUInt16(Width);
+	Result.Height = SafeTruncateToUInt16(Height);
+	Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;
 	int32 TotalBitmapSize = Width * Height * BITMAP_BYTE_PER_PIXEL;
 	Result.Memory = PushSize(Arena, TotalBitmapSize, 16);
 	if (ClearToZero) {
@@ -653,7 +653,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		TranState->HighPriorityQueue = Memory->HighPriorityQueue;
 		TranState->LowPriorityQueue = Memory->LowPriorityQueue;
         
-		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(64), TranState);
+		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(4), TranState);
 		
 		TranState->GroundBufferCount = 256;
 		TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);
@@ -686,7 +686,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 		}
         
-		GameState->Music = 0;//PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+		GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 		//ChangePitch(GameState->Music, 0.8f);
         
 		TranState->IsInitialized = true;
@@ -764,9 +764,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
 	loaded_bitmap DrawBuffer_ = {};
 	loaded_bitmap* DrawBuffer = &DrawBuffer_;
-	DrawBuffer->Height = Buffer->Height;
-	DrawBuffer->Width = Buffer->Width;
-	DrawBuffer->Pitch = Buffer->Pitch;
+	DrawBuffer->Height = SafeTruncateToUInt16(Buffer->Height);
+	DrawBuffer->Width = SafeTruncateToUInt16(Buffer->Width);
+    DrawBuffer->Pitch = SafeTruncateToUInt16(Buffer->Pitch);
 	DrawBuffer->Memory = Buffer->Memory;
     
 	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
