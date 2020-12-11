@@ -127,6 +127,7 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 #include "handmade_file_formats.h"
+#include "handmade_random.h"
 #include "handmade_asset_type_id.h"
 #include "handmade_asset.h"
 #include "handmade_world.h"
@@ -162,7 +163,18 @@ struct ground_buffer {
 	loaded_bitmap Bitmap;
 };
 
+struct particle_cel {
+    r32 Density;
+    v3 VelocityTimesDensity;
+};
 
+struct particle {
+    v3 P;
+    v3 dP;
+    v3 ddP;
+    v4 Color;
+    v4 dColor;
+};
 
 struct game_state;
 internal void AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide);
@@ -196,6 +208,13 @@ struct game_state {
 	sim_entity_collision_volume_group* StandardRoomCollision;
     
 	real32 time;
+    
+    u32 NextParticle;
+    particle Particle[256];
+#define PARTICEL_CEL_DIM 16
+    particle_cel ParticleCels[PARTICEL_CEL_DIM][PARTICEL_CEL_DIM];
+    
+    random_series EffectEntropy;
     
 	loaded_bitmap TestDiffuse;
 	loaded_bitmap TestNormal;

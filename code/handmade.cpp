@@ -506,6 +506,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		GameState->FamiliarCollision = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
         
 		random_series Series = RandomSeed(1234);
+        GameState->EffectEntropy = RandomSeed(5456);
 		
 		
 		uint32 ScreenBaseX = 0;
@@ -685,7 +686,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 		}
         
-		GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+		GameState->Music = 0;//PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 		//ChangePitch(GameState->Music, 0.8f);
         
 		TranState->IsInitialized = true;
@@ -984,6 +985,115 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
                     DrawHitPoints(Entity, RenderGroup);
                     
+                    
+                    for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 2; ++ParticleSpawnIndex) {
+                        particle *Particle = GameState->Particle + GameState->NextParticle++;
+                        if (GameState->NextParticle >= ArrayCount(GameState->Particle)) {
+                            GameState->NextParticle = 0;
+                        }
+                        
+                        Particle->P = v3{RandomBetween(&GameState->EffectEntropy, -0.1f, 0.1f), 0, 0};
+                        Particle->dP = v3{ 
+                            RandomBetween(&GameState->EffectEntropy, -0.1f, 0.1f), 
+                            7.0f * RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f), 
+                            0.0f};
+                        Particle->ddP = v3{0, -9.8f, 0};
+                        Particle->dColor = v4{0, 0, 0, -0.5f};
+                        Particle->Color = v4{
+                            RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
+                            RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
+                            RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
+                            1.0f
+                        };
+                        
+                    }
+                    
+                    ZeroStruct(GameState->ParticleCels);
+                    
+                    r32 GridScale = 0.5f;
+                    v3 GridOrigin = {-0.5f * GridScale * PARTICEL_CEL_DIM, 0, 0};
+                    r32 InvGridScale = 1.0f / GridScale;
+                    for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
+                        particle *Particle = GameState->Particle + ParticleIndex;
+                        
+                        v3 P = InvGridScale * (Particle->P - GridOrigin);
+                        s32 X = TruncateReal32ToInt32(P.x);
+                        s32 Y = TruncateReal32ToInt32(P.y);
+                        
+                        if (X < 0) {X = 0;}
+                        if (X > PARTICEL_CEL_DIM - 1) { X = PARTICEL_CEL_DIM - 1;}
+                        if (Y < 0) {Y = 0;}
+                        if (Y > PARTICEL_CEL_DIM - 1) { Y = PARTICEL_CEL_DIM - 1;}
+                        particle_cel *Cel = &GameState->ParticleCels[Y][X];
+                        real32 Density = Particle->Color.a;
+                        Cel->Density += Density;
+                        Cel->VelocityTimesDensity += Particle->dP * Density;
+                    }
+                    
+                    
+                    for (u32 Y = 0; Y < PARTICEL_CEL_DIM; ++Y) {
+                        for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
+                            particle_cel *Cel = &GameState->ParticleCels[Y][X];
+                            r32 Alpha = Clamp01(0.1f * Cel->Density);
+                            PushRect(RenderGroup, (GridScale * v3{(r32)X,(r32)Y, 0} + GridOrigin), GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
+                        }
+                    }
+                    
+                    
+                    for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
+                        particle *Particle = GameState->Particle + ParticleIndex;
+                        
+                        v3 P = InvGridScale * (Particle->P - GridOrigin);
+                        
+                        s32 X = TruncateReal32ToInt32(P.x);
+                        s32 Y = TruncateReal32ToInt32(P.y);
+                        
+                        if (X < 1) {X = 1;}
+                        if (X > PARTICEL_CEL_DIM - 2) { X = PARTICEL_CEL_DIM - 2;}
+                        if (Y < 1) {Y = 1;}
+                        if (Y > PARTICEL_CEL_DIM - 2) { Y = PARTICEL_CEL_DIM - 2;}
+                        
+                        particle_cel *CelCenter = &GameState->ParticleCels[Y][X];
+                        particle_cel *CelLeft = &GameState->ParticleCels[Y][X - 1];
+                        particle_cel *CelRight = &GameState->ParticleCels[Y][X + 1];
+                        particle_cel *CelDown = &GameState->ParticleCels[Y - 1][X];
+                        particle_cel *CelUp = &GameState->ParticleCels[Y + 1][X];
+                        
+                        v3 Dispersion = {};
+                        r32 Dc = 0.02f;
+                        Dispersion += Dc * (CelCenter->Density - CelLeft->Density) * v3{-1, 0, 0};
+                        Dispersion += Dc * (CelCenter->Density - CelRight->Density) * v3{1, 0, 0};
+                        Dispersion += Dc * (CelCenter->Density - CelUp->Density) * v3{0, -1, 0};
+                        Dispersion += Dc * (CelCenter->Density - CelDown->Density) * v3{0, 1, 0};
+                        
+                        Particle->ddP += Dispersion;
+                        
+                        Particle->P += 0.5f * Square(Input->dtForFrame) * Particle->ddP + Particle->dP * Input->dtForFrame;
+                        Particle->dP += Input->dtForFrame * Particle->ddP;
+                        Particle->Color += Input->dtForFrame * Particle->dColor;
+                        
+                        if (Particle->P.y < 0) {
+                            r32 CoefficientRestitution = 0.3f;
+                            Particle->P.y = -Particle->P.y;
+                            Particle->dP.y = - CoefficientRestitution * Particle->dP.y;
+                        }
+                        
+                        Particle->ddP += Dispersion;
+                        
+                        v4 Color;
+                        Color.r = Clamp01(Particle->Color.r);
+                        Color.g = Clamp01(Particle->Color.g);
+                        Color.b = Clamp01(Particle->Color.b);
+                        Color.a = Clamp01(Particle->Color.a);
+                        
+                        if (Color.a > 0.9f) {
+                            Color.a = 0.9f * Clamp01MapToRange(1.0f, Color.a, 0.9f);
+                        }
+                        
+                        PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Head), 1.0f, Particle->P, Color);
+                        //PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+                    }
+                    
                 } break;
                 case EntityType_Wall: {
                     
@@ -1022,77 +1132,80 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 default: {
                     InvalidCodePath
                 } break;
-			}
-		}
-	}
-	RenderGroup->GlobalAlpha = 1.0;
+            }
+        }
+    }
+    RenderGroup->GlobalAlpha = 1.0;
+    
+    
 #if 0
-	GameState->time += Input->dtForFrame;
-	
-	real32 Angle = GameState->time;
-	v2 Origin = ScreenCenter;
-	v2 Offset = v2{ 0.5f + 10.0f  * (Sin(GameState->time) + 0.5f), 0 };
-	v2 AxisX = 200 * v2{ Sin(GameState->time), Cos(GameState->time) };
-	v2 AxisY = Perp(AxisX);
-	v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
+    GameState->time += Input->dtForFrame;
     
-	v3 MapColor[] = {
-		{1, 0, 0},
-		{0, 1, 0},
-		{0, 0, 1}
-	};
+    real32 Angle = GameState->time;
+    v2 Origin = ScreenCenter;
+    v2 Offset = v2{ 0.5f + 10.0f  * (Sin(GameState->time) + 0.5f), 0 };
+    v2 AxisX = 200 * v2{ Sin(GameState->time), Cos(GameState->time) };
+    v2 AxisY = Perp(AxisX);
+    v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
     
-	for (uint32 MapIndex = 0;
+    v3 MapColor[] = {
+        {1, 0, 0},
+        {0, 1, 0},
+        {0, 0, 1}
+    };
+    
+    for (uint32 MapIndex = 0;
          MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
-		environment_map* Map = TranState->EnvMaps + MapIndex;
-		loaded_bitmap* LOD = Map->LOD + 0;
-		bool32 RowCheckerOn = false;
-		int32 CheckerWidth = 16;
-		int32 CheckerHeight = 16;
-		for (int32 Y = 0; Y < LOD->Height; Y += CheckerHeight) {
-			bool32 CheckerOn = RowCheckerOn;
-			for (int32 X = 0; X < LOD->Width; X += CheckerWidth) {
-				v4 Color = CheckerOn ? ToV4(MapColor[MapIndex], 1.0f) : v4{ 0, 0, 0, 1.0f };
-				v2 MinP = V2i(X, Y);
-				v2 MaxP = MinP + V2i(CheckerWidth, CheckerHeight);
-				DrawRectangle(LOD, MinP, MaxP, Color);
-				CheckerOn = !CheckerOn;
-			}
-			RowCheckerOn = !RowCheckerOn;
-		}
-	}
+        environment_map* Map = TranState->EnvMaps + MapIndex;
+        loaded_bitmap* LOD = Map->LOD + 0;
+        bool32 RowCheckerOn = false;
+        int32 CheckerWidth = 16;
+        int32 CheckerHeight = 16;
+        for (int32 Y = 0; Y < LOD->Height; Y += CheckerHeight) {
+            bool32 CheckerOn = RowCheckerOn;
+            for (int32 X = 0; X < LOD->Width; X += CheckerWidth) {
+                v4 Color = CheckerOn ? ToV4(MapColor[MapIndex], 1.0f) : v4{ 0, 0, 0, 1.0f };
+                v2 MinP = V2i(X, Y);
+                v2 MaxP = MinP + V2i(CheckerWidth, CheckerHeight);
+                DrawRectangle(LOD, MinP, MaxP, Color);
+                CheckerOn = !CheckerOn;
+            }
+            RowCheckerOn = !RowCheckerOn;
+        }
+    }
     
-	TranState->EnvMaps[0].Pz = -1.5f;
-	TranState->EnvMaps[1].Pz = 0.0f;
-	TranState->EnvMaps[2].Pz = 1.5f;
+    TranState->EnvMaps[0].Pz = -1.5f;
+    TranState->EnvMaps[1].Pz = 0.0f;
+    TranState->EnvMaps[2].Pz = 1.5f;
     
-	CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{ AxisX.x, AxisY.y }, AxisX, AxisY, Color, 
+    CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{ AxisX.x, AxisY.y }, AxisX, AxisY, Color, 
                      &GameState->TestDiffuse, &GameState->TestNormal, TranState->EnvMaps + 2, TranState->EnvMaps + 1, TranState->EnvMaps + 0);
-	v2 MapP = { 0.0f, 0.0f };
-	for (uint32 MapIndex = 0; MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
-		environment_map* Map = TranState->EnvMaps + MapIndex;
-		loaded_bitmap* LOD = Map->LOD + 0;
+    v2 MapP = { 0.0f, 0.0f };
+    for (uint32 MapIndex = 0; MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
+        environment_map* Map = TranState->EnvMaps + MapIndex;
+        loaded_bitmap* LOD = Map->LOD + 0;
         
-		v2 XAxis = 0.5f * v2{ (real32)LOD->Width, 0 };
-		v2 YAxis = 0.5f * v2{ 0, (real32)LOD->Height };
-		CoordinateSystem(RenderGroup, MapP, XAxis, YAxis, v4{ 1.0f, 1.0f, 1.0f, 1.0f },
+        v2 XAxis = 0.5f * v2{ (real32)LOD->Width, 0 };
+        v2 YAxis = 0.5f * v2{ 0, (real32)LOD->Height };
+        CoordinateSystem(RenderGroup, MapP, XAxis, YAxis, v4{ 1.0f, 1.0f, 1.0f, 1.0f },
                          LOD, 0, 0, 0, 0);
-		MapP += YAxis + v2{ 0.0f, 6.0f };
-	}
+        MapP += YAxis + v2{ 0.0f, 6.0f };
+    }
     
 #endif
     rectangle2i d = {4, 4, 120, 120};
-	TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
-	EndSim(SimRegion, GameState);
-	EndTemporaryMemory(SimMemory);
-	EndTemporaryMemory(RenderMemory);
-	CheckArena(&TranState->TranArena);
-	CheckArena(&GameState->WorldArena);
-	END_TIMED_BLOCK(GameUpdateAndRender);
+    
+    TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
+    EndSim(SimRegion, GameState);
+    EndTemporaryMemory(SimMemory);
+    EndTemporaryMemory(RenderMemory);
+    CheckArena(&TranState->TranArena);
+    CheckArena(&GameState->WorldArena);
+    END_TIMED_BLOCK(GameUpdateAndRender);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
-	game_state* GameState = (game_state*)Memory->PermanentStorage;
-	transient_state* TranState = (transient_state*)Memory->TransientStorage;
-	OutputPlayingSounds(&GameState->AudioState, SoundBuffer, TranState->Assets, &TranState->TranArena);
+    game_state* GameState = (game_state*)Memory->PermanentStorage;
+    transient_state* TranState = (transient_state*)Memory->TransientStorage;
+    OutputPlayingSounds(&GameState->AudioState, SoundBuffer, TranState->Assets, &TranState->TranArena);
 }

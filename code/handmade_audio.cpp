@@ -2,16 +2,17 @@
 
 internal void
 ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSeconds) {
-    
-	if (ChangeInSeconds <= 0.0f) {
-		PlayingSound->CurrentVolume = PlayingSound->TargetVolume = TargetVolumn;
-	}
-	else {
-		real32 OneOverChange = 1.0f / ChangeInSeconds;
-		PlayingSound->TargetVolume = TargetVolumn;
-        
-		PlayingSound->dVolume = OneOverChange * (TargetVolumn - PlayingSound->CurrentVolume);
-	}
+    if (PlayingSound) {
+        if (ChangeInSeconds <= 0.0f) {
+            PlayingSound->CurrentVolume = PlayingSound->TargetVolume = TargetVolumn;
+        }
+        else {
+            real32 OneOverChange = 1.0f / ChangeInSeconds;
+            PlayingSound->TargetVolume = TargetVolumn;
+            
+            PlayingSound->dVolume = OneOverChange * (TargetVolumn - PlayingSound->CurrentVolume);
+        }
+    }
 }
 
 #define OutputChannelCount 2
@@ -253,5 +254,7 @@ PlaySound(audio_state* AudioState, sound_id ID) {
 
 internal void
 ChangePitch(playing_sound* PlayingSound, real32 dSample) {
-	PlayingSound->dSample = dSample;
+    if (PlayingSound) {
+        PlayingSound->dSample = dSample;
+    }
 }
