@@ -905,7 +905,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                             }
                             MoveSpec.UnitMaxAccelVector = true;
                             MoveSpec.Speed = 50.0f;
-                            MoveSpec.Drag = 8.5f;
+                            MoveSpec.Drag = 9.0f;
                             ddP = V3(ConHero->ddP, 0);
                             
                             
@@ -961,7 +961,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     
                     MoveSpec.UnitMaxAccelVector = true;
                     MoveSpec.Speed = 50.0f;
-                    MoveSpec.Drag = 8.0f;
+                    MoveSpec.Drag = 0.2f;
                 }
                 
 			}
@@ -1030,7 +1030,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         Cel->VelocityTimesDensity += Particle->dP * Density;
                     }
                     
-                    
+                    /*
                     for (u32 Y = 0; Y < PARTICEL_CEL_DIM; ++Y) {
                         for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
                             particle_cel *Cel = &GameState->ParticleCels[Y][X];
@@ -1038,7 +1038,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                             PushRect(RenderGroup, (GridScale * v3{(r32)X,(r32)Y, 0} + GridOrigin), GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
                         }
                     }
-                    
+                    */
                     
                     for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
                         particle *Particle = GameState->Particle + ParticleIndex;
@@ -1199,6 +1199,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     EndSim(SimRegion, GameState);
     EndTemporaryMemory(SimMemory);
     EndTemporaryMemory(RenderMemory);
+    
+    EvictAssetsAsNecessary(TranState->Assets);
+    
+    
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
     END_TIMED_BLOCK(GameUpdateAndRender);

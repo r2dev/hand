@@ -237,6 +237,13 @@ extern "C" {
     typedef void platform_add_entry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data);
     typedef void platform_complete_all_work(platform_work_queue* Queue);
     
+    
+#define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_index Size)
+    typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
+    
+#define PLATFORM_DEALLOCATE_MEMORY(name) void name(void* Memory)
+    typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory);
+    
     typedef struct platform_api {
         platform_add_entry* AddEntry;
         platform_complete_all_work* CompleteAllWork;
@@ -247,6 +254,8 @@ extern "C" {
         platform_read_data_from_file* ReadDataFromFile;
         platform_file_error* FileError;
         
+        platform_allocate_memory *AllocateMemory;
+        platform_deallocate_memory *DeallocateMemory;
         
         debug_platform_read_entire_file* DEBUGReadEntireFile;
         debug_platform_write_entire_file* DEBUGWriteEntireFile;
@@ -297,6 +306,14 @@ extern "C" {
         Assert(Value <= 65535);
         Assert(Value >= 0);
         u16 Result = (u16)Value;
+        return(Result);
+    }
+
+    inline s16
+        SafeTruncateToInt16(uint32 Value) {
+        Assert(Value <= 32767);
+        Assert(Value > 0);
+        s16 Result = (s16)Value;
         return(Result);
     }
 	

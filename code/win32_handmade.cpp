@@ -919,6 +919,16 @@ PLATFORM_READ_DATA_FROM_FILE(Win32ReadDataFromFile) {
     }
 }
 
+PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
+    void* Result = VirtualAlloc(0, Size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+    return(Result);
+}
+PLATFORM_DEALLOCATE_MEMORY(Win32DeallocateMemory) {
+    if (Memory) {
+        VirtualFree(Memory, 0, MEM_RELEASE);
+    }
+}
+
 int CALLBACK WinMain(
                      HINSTANCE Instance,
                      HINSTANCE PrevInstance,
@@ -1030,6 +1040,8 @@ int CALLBACK WinMain(
             GameMemory.PlatformAPI.OpenFile = Win32OpenNextFile;
             GameMemory.PlatformAPI.ReadDataFromFile = Win32ReadDataFromFile;
             GameMemory.PlatformAPI.FileError = Win32FileError;
+            GameMemory.PlatformAPI.AllocateMemory = Win32AllocateMemory;
+            GameMemory.PlatformAPI.DeallocateMemory = Win32DeallocateMemory;
             
             Win32State.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
             Win32State.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)Win32State.TotalSize,
