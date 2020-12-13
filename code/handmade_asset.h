@@ -65,18 +65,30 @@ struct asset_vector {
 	real32 E[Tag_Count];
 };
 
+enum asset_memory_block_flag {
+    AssetMemory_Used = 0x1,
+};
+
+struct asset_memory_block {
+    asset_memory_block* Prev;
+    asset_memory_block* Next;
+    
+    // note why 64 for alignment not 32
+    u64 Flags;
+    memory_index Size;
+    
+};
+
 struct game_assets {
 	struct transient_state* TranState;
     u32 FileCount;
-    
-    u64 TotalMemoryUsed;
-    u64 TargetMemoryUsed;
     asset_file *Files;
 	
 	uint32 AssetCount;
 	asset* Assets;
     
     asset_memory_header LoadedAssetSentinel;
+    asset_memory_block MemorySentinel;
     
 	real32 TagRange[Tag_Count];
 	uint32 TagCount;

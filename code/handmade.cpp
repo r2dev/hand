@@ -1199,10 +1199,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     EndSim(SimRegion, GameState);
     EndTemporaryMemory(SimMemory);
     EndTemporaryMemory(RenderMemory);
-    
-    EvictAssetsAsNecessary(TranState->Assets);
-    
-    
+    //EvictAssetsAsNecessary(TranState->Assets);
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
     END_TIMED_BLOCK(GameUpdateAndRender);
