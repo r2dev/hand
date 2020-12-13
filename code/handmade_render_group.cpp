@@ -73,14 +73,14 @@ PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset,
 
 inline void
 PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
-	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID);
+	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->AssetsShouldBeLocked);
     
 	if (Bitmap) {
 		PushBitmap(Group, Bitmap, Height, Offset, Color);
 	}
 	else {
-		LoadBitmap(Group->Assets, ID);
-		Group->MissingResourceCount++;
+		LoadBitmap(Group->Assets, ID, Group->AssetsShouldBeLocked);
+		++Group->MissingResourceCount;
 	}
 }
 
@@ -175,7 +175,7 @@ AllResoucePresent(render_group* Group) {
 }
 
 render_group*
-AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBufferSize) {
+AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBufferSize, b32 AssetsShouldBeLocked) {
 	render_group* Result = PushStruct(Arena, render_group);
     
 	if (MaxPushBufferSize == 0) {
@@ -190,6 +190,7 @@ AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBuff
 	Result->PushBufferSize = 0;
 	Result->GlobalAlpha = 1.0f;
 	Result->MissingResourceCount = 0;
+    Result->AssetsShouldBeLocked = AssetsShouldBeLocked;
     
 	return(Result);
 }

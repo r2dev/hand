@@ -25,13 +25,13 @@ struct render_entity_basis {
 struct render_transform {
 	real32 DistanceAboveTarget;
 	real32 FocalLength;
-
+    
 	real32 Scale;
 	v3 OffsetP;
 	v2 ScreenCenter;
 	
 	real32 MetersToPixels;
-
+    
 	bool32 Orthographic;
 };
 
@@ -47,8 +47,9 @@ struct render_group {
 	
 	render_transform Transform;
 	struct game_assets* Assets;
-
+    
 	uint32 MissingResourceCount;
+    b32 AssetsShouldBeLocked;
 };
 
 struct render_entry_clear {
@@ -59,7 +60,7 @@ struct render_entry_rectangle {
 	v2 P;
 	v4 Color;
 	v2 Dim;
-
+    
 };
 
 struct render_entry_bitmap {
@@ -74,10 +75,10 @@ struct render_entry_coordinate_system {
 	v2 AxisX;
 	v2 AxisY;
 	v4 Color;
-
+    
 	loaded_bitmap* Texture;
 	loaded_bitmap* NormalMap;
-
+    
 	environment_map* Top;
 	environment_map* Middle;
 	environment_map* Bottom;

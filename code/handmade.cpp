@@ -290,7 +290,7 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 		Buffer->WidthOverHeight = 1.0f;
 		real32 Width = GameState->World->ChunkDimInMeters.x;
 		real32 Height = GameState->World->ChunkDimInMeters.y;
-		render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &AvailableTask->Arena, 0);
+		render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &AvailableTask->Arena, 0, true);
 		Orthographic(RenderGroup, Buffer->Width, Buffer->Height, (Buffer->Width - 2) / Width);
 		Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
 #if 1
@@ -770,7 +770,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	DrawBuffer->Memory = Buffer->Memory;
     
 	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
-                                                    Megabytes(4));
+                                                    Megabytes(4), false);
 	real32 FocalLength = 0.6f;
 	real32 DistanceAboveTarget = 9.0f;
     
