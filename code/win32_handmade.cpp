@@ -830,44 +830,47 @@ Win32MakeQueue(platform_work_queue* Queue, uint32 ThreadCount) {
 }
 
 struct win32_platform_file_handle {
-    platform_file_handle H;
     HANDLE Win32Handle;
 };
 
 struct win32_platform_file_group {
-    platform_file_group H;
     HANDLE FindHandle;
-    WIN32_FIND_DATAA FindData;
+    WIN32_FIND_DATAW FindData;
 };
 PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(Win32GetAllFileOfTypeBegin) {
     
+    platform_file_group Result = {};
     win32_platform_file_group *Win32FileGroup = (win32_platform_file_group *)VirtualAlloc(0, sizeof(win32_platform_file_group), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-    char* TypeAt = Type;
-    char WildCard[32] = "*.";
-    for (u32 WildCardIndex = 2; WildCardIndex < ArrayCount(WildCard); ++WildCardIndex) {
-        WildCard[WildCardIndex] = *TypeAt;
-        if (*TypeAt == 0) {
-            break;
-        }
-        ++TypeAt;
+    Result.Platform = Win32FileGroup;
+    
+    wchar_t *WildCard = L"*.*";
+    
+    switch(Type) {
+        case PlatformFileType_AssetFile: {
+            WildCard = L"*.hha";
+        } break;
+        case PlatformFileType_SaveGameFile: {
+            WildCard = L"*.hhs";
+        } break;
+        
+        InvalidDefaultCase;
     }
-    WildCard[sizeof(WildCard) - 1] = 0;
-    Win32FileGroup->H.FileCount = 0;
-    WIN32_FIND_DATAA FindData;
-    HANDLE FindHandle = FindFirstFileA(WildCard, &FindData);
+    Result.FileCount = 0;
+    WIN32_FIND_DATAW FindData;
+    HANDLE FindHandle = FindFirstFileW(Wildcard, &FindData);
     while(FindHandle != INVALID_HANDLE_VALUE) {
-        ++Win32FileGroup->H.FileCount;
-        if (!FindNextFileA(FindHandle, &FindData)) {
+        ++Result.FileCount;
+        if (!FindNextFileW(FindHandle, &FindData)) {
             break;
         };
     }
     FindClose(FindHandle);
-    Win32FileGroup->FindHandle = FindFirstFileA(WildCard, &Win32FileGroup->FindData);
-    return((platform_file_group*)Win32FileGroup);
+    Win32FileGroup->FindHandle = FindFirstFileW(WildCard, &Win32FileGroup->FindData);
+    return(Result);
 }
 
 PLATFORM_GET_ALL_FILE_OF_TYPE_END(Win32GetAllFileOfTypeEnd) {
-    win32_platform_file_group* Win32FileGroup = (win32_platform_file_group*)FileGroup;
+    win32_platform_file_group* Win32FileGroup = (win32_platform_file_group*)FileGroup->Platform;
     if (Win32FileGroup) {
         FindClose(Win32FileGroup->FindHandle);
         VirtualFree(Win32FileGroup, 0, MEM_RELEASE);
@@ -877,24 +880,25 @@ PLATFORM_GET_ALL_FILE_OF_TYPE_END(Win32GetAllFileOfTypeEnd) {
 
 
 PLATFORM_OPEN_FILE(Win32OpenNextFile) {
-    win32_platform_file_group* Win32FileGroup = (win32_platform_file_group*)FileGroup;
-    win32_platform_file_handle* Result = 0;
+    platform_file_handle Result = {};
+    win32_platform_file_group* Win32FileGroup = (win32_platform_file_group*)FileGroup->Platform;
     
     if (Win32FileGroup->FindHandle != INVALID_HANDLE_VALUE) {
-        Result = (win32_platform_file_handle* )VirtualAlloc(0, sizeof(win32_platform_file_handle), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-        if (Result) {
-            char* FileName = Win32FileGroup->FindData.cFileName;
-            Result->Win32Handle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-            Result->H.NoErrors = (Result->Win32Handle != INVALID_HANDLE_VALUE);
+        win32_platform_file_handle* Win32Handle= (win32_platform_file_handle* )VirtualAlloc(0, sizeof(win32_platform_file_handle), MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+        Result.Platform = Win32Handle;
+        if (Win32Handle) {
+            wchar_t* FileName = Win32FileGroup->FindData.cFileName;
+            Win32Handle->Win32Handle = CreateFileW(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+            Result.NoErrors = (Win32Handle->Win32Handle != INVALID_HANDLE_VALUE);
             
         }
         
-        if (!FindNextFileA(Win32FileGroup->FindHandle, &Win32FileGroup->FindData)) {
+        if (!FindNextFileW(Win32FileGroup->FindHandle, &Win32FileGroup->FindData)) {
             FindClose(Win32FileGroup->FindHandle);
             Win32FileGroup->FindHandle = INVALID_HANDLE_VALUE;
         }
     }
-    return(platform_file_handle*)Result;
+    return(Result);
 }
 
 PLATFORM_FILE_ERROR(Win32FileError) {
@@ -906,7 +910,7 @@ PLATFORM_FILE_ERROR(Win32FileError) {
 
 PLATFORM_READ_DATA_FROM_FILE(Win32ReadDataFromFile) {
     if (PlatformNoFileErrors(Source)) {
-        win32_platform_file_handle* Handle = (win32_platform_file_handle*)Source;
+        win32_platform_file_handle* Handle = (win32_platform_file_handle*)Source->Platform;
         OVERLAPPED Overlapped = {};
         Overlapped.Offset = (u32)(((Offset >> 0) & 0xFFFFFFFF));
         Overlapped.OffsetHigh = (u32)((Offset >> 32) & 0xFFFFFFFF);
@@ -914,7 +918,7 @@ PLATFORM_READ_DATA_FROM_FILE(Win32ReadDataFromFile) {
         DWORD BytesRead;
         if (ReadFile(Handle->Win32Handle, Dest, FileSize32, &BytesRead, &Overlapped) && (FileSize32 == BytesRead)) {
         } else {
-            Win32FileError(&Handle->H, "Read file failed");
+            Win32FileError(Source, "Read file failed");
         }
     }
 }
@@ -1037,7 +1041,7 @@ int CALLBACK WinMain(
             GameMemory.PlatformAPI.CompleteAllWork = Win32CompleteAllWork;
             GameMemory.PlatformAPI.GetAllFileOfTypeBegin = Win32GetAllFileOfTypeBegin;
             GameMemory.PlatformAPI.GetAllFileOfTypeEnd = Win32GetAllFileOfTypeEnd;
-            GameMemory.PlatformAPI.OpenFile = Win32OpenNextFile;
+            GameMemory.PlatformAPI.OpenNextFile = Win32OpenNextFile;
             GameMemory.PlatformAPI.ReadDataFromFile = Win32ReadDataFromFile;
             GameMemory.PlatformAPI.FileError = Win32FileError;
             GameMemory.PlatformAPI.AllocateMemory = Win32AllocateMemory;

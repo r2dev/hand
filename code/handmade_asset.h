@@ -21,7 +21,7 @@ struct loaded_sound {
 };
 
 struct asset_file {
-    platform_file_handle *Handle;
+    platform_file_handle Handle;
     hha_header Header;
     hha_asset_type *AssetTypeArray;
     u32 TagBase;

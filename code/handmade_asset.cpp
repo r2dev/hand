@@ -24,8 +24,9 @@ PLATFORM_WORK_QUEUE_CALLBACK(DoLoadAssetWork) {
 
 inline platform_file_handle*
 GetFileHandleFor(game_assets* Assets, u32 FileIndex) {
-    asset_file *File = Assets->Files + FileIndex;
-    return(File->Handle);
+    Assert(FileIndex < Assets->FileCount);
+    platform_file_handle *Result = &Assets->Files[FileIndex].Handle;
+    return(Result);
 }
 
 internal asset_memory_block*
@@ -378,32 +379,32 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     Assets->LoadedAssetSentinel.Prev = &Assets->LoadedAssetSentinel;
     Assets->LoadedAssetSentinel.Next = &Assets->LoadedAssetSentinel;
     
-    platform_file_group *FileGroup = Platform.GetAllFileOfTypeBegin("hha");
-    Assets->FileCount = FileGroup->FileCount;
+    platform_file_group FileGroup = Platform.GetAllFileOfTypeBegin(PlatformFileType_AssetFile);
+    Assets->FileCount = FileGroup.FileCount;
     Assets->Files = PushArray(Arena, Assets->FileCount, asset_file);
     for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
         asset_file* File = Assets->Files + FileIndex;
         File->TagBase = Assets->TagCount;
-        File->Handle = Platform.OpenFile(FileGroup);
+        File->Handle = Platform.OpenNextFile(&FileGroup);
         ZeroStruct(File->Header);
-        Platform.ReadDataFromFile(File->Handle, 0, sizeof(File->Header), &File->Header);
+        Platform.ReadDataFromFile(&File->Handle, 0, sizeof(File->Header), &File->Header);
         u32 AssetTypeArraySize = File->Header.AssetTypeCount * sizeof(hha_asset_type);
         File->AssetTypeArray = (hha_asset_type*)PushSize(Arena, AssetTypeArraySize);
-        Platform.ReadDataFromFile(File->Handle, File->Header.AssetTypes, AssetTypeArraySize, File->AssetTypeArray);
+        Platform.ReadDataFromFile(&File->Handle, File->Header.AssetTypes, AssetTypeArraySize, File->AssetTypeArray);
         if (File->Header.MagicValue != HHA_MAGIC_VALUE) {
-            Platform.FileError(File->Handle, "invalid magic value");
+            Platform.FileError(&File->Handle, "invalid magic value");
         }
         if (File->Header.Version > HHA_VERSION) {
-            Platform.FileError(File->Handle, "for a late version");
+            Platform.FileError(&File->Handle, "for a late version");
         }
-        if (PlatformNoFileErrors(File->Handle)) {
+        if (PlatformNoFileErrors(&File->Handle)) {
             Assets->TagCount += File->Header.TagCount - 1;
             Assets->AssetCount += File->Header.AssetCount - 1;
         } else {
             InvalidCodePath;
         }
     }
-    Platform.GetAllFileOfTypeEnd(FileGroup);
+    Platform.GetAllFileOfTypeEnd(&FileGroup);
     
     
     Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
@@ -413,9 +414,9 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     
     for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
         asset_file* File = Assets->Files + FileIndex;
-        if (PlatformNoFileErrors(File->Handle)) {
+        if (PlatformNoFileErrors(&File->Handle)) {
             u32 TagArraySize = sizeof(hha_tag) * (File->Header.TagCount - 1);
-            Platform.ReadDataFromFile(File->Handle, File->Header.Tags + sizeof(hha_tag), TagArraySize, Assets->Tags + File->TagBase);
+            Platform.ReadDataFromFile(&File->Handle, File->Header.Tags + sizeof(hha_tag), TagArraySize, Assets->Tags + File->TagBase);
         }
     }
     
@@ -430,7 +431,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
         DestType->FirstAssetIndex = AssetCount;
         for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
             asset_file *File = Assets->Files + FileIndex;
-            if (PlatformNoFileErrors(File->Handle)) {
+            if (PlatformNoFileErrors(&File->Handle)) {
                 for (u32 SourceIndex = 0; SourceIndex < File->Header.AssetTypeCount; ++SourceIndex) {
                     hha_asset_type *SourceType = File->AssetTypeArray + SourceIndex;
                     if (SourceType->TypeID == DestTypeId) {
@@ -441,7 +442,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
                         temporary_memory TempMem = BeginTemporaryMemory(&TranState->TranArena);
                         hha_asset *HHAAssetArray = PushArray(&TranState->TranArena, AssetCountForType, hha_asset);
                         
-                        Platform.ReadDataFromFile(File->Handle, 
+                        Platform.ReadDataFromFile(&File->Handle, 
                                                   File->Header.Assets + SourceType->FirstAssetIndex * sizeof(hha_asset),
                                                   AssetCountForType * sizeof(hha_asset),
                                                   HHAAssetArray);
