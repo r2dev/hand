@@ -360,6 +360,8 @@ MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool32 ClearToZe
 	loaded_bitmap Result = {};
 	Result.Width = SafeTruncateToUInt16(Width);
 	Result.Height = SafeTruncateToUInt16(Height);
+    Result.AlignPercentage = v2{0.5f, 0.5f};
+    Result.WidthOverHeight = SafeRatio1((r32)Width, (r32)Height);
 	Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;
 	int32 TotalBitmapSize = Width * Height * BITMAP_BYTE_PER_PIXEL;
 	Result.Memory = PushSize(Arena, TotalBitmapSize, 16);
@@ -484,6 +486,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		InitializeAudioState(&GameState->AudioState, &GameState->WorldArena);
 		GameState->World = PushStruct(&GameState->WorldArena, world);
 		world* World = GameState->World;
+        
 		InitializeWorld(World, WorldChunkDimMeters);
 		
 		int32 TileSideInPixels = 60;
@@ -1030,16 +1033,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         Cel->VelocityTimesDensity += Particle->dP * Density;
                     }
                     
-                    /*
-                    for (u32 Y = 0; Y < PARTICEL_CEL_DIM; ++Y) {
-                        for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
-                            particle_cel *Cel = &GameState->ParticleCels[Y][X];
-                            r32 Alpha = Clamp01(0.1f * Cel->Density);
-                            PushRect(RenderGroup, (GridScale * v3{(r32)X,(r32)Y, 0} + GridOrigin), GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
-                        }
-                    }
-                    */
-                    
                     for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
                         particle *Particle = GameState->Particle + ParticleIndex;
                         
@@ -1090,7 +1083,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                             Color.a = 0.9f * Clamp01MapToRange(1.0f, Color.a, 0.9f);
                         }
                         
-                        PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Head), 1.0f, Particle->P, Color);
+                        asset_vector MatchV = {};
+                        asset_vector WeightV = {};
+                        MatchV.E[Tag_UnicodeCodepoint] = (r32)'R';
+                        
+                        WeightV.E[Tag_UnicodeCodepoint] = 1.0f;
+                        PushBitmap(RenderGroup,GetBestMatchBitmapFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
+                        
+                        //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Font, &GameState->EffectEntropy), 0.5f, Particle->P, Color);
+                        //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameState->EffectEntropy), 1.0f, Particle->P, Color);
                         //PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
                     }
                     

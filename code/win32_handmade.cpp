@@ -857,7 +857,7 @@ PLATFORM_GET_ALL_FILE_OF_TYPE_BEGIN(Win32GetAllFileOfTypeBegin) {
     }
     Result.FileCount = 0;
     WIN32_FIND_DATAW FindData;
-    HANDLE FindHandle = FindFirstFileW(Wildcard, &FindData);
+    HANDLE FindHandle = FindFirstFileW(WildCard, &FindData);
     while(FindHandle != INVALID_HANDLE_VALUE) {
         ++Result.FileCount;
         if (!FindNextFileW(FindHandle, &FindData)) {

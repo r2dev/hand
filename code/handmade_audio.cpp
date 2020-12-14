@@ -230,7 +230,7 @@ InitializeAudioState(audio_state* AudioState, memory_arena* Arena) {
 	AudioState->FirstFreePlayingSound = 0;
 	AudioState->FirstPlayingSound = 0;
 	AudioState->PermArena = Arena;
-	AudioState->MasterVolume = v2{ 1.0f, 1.0f };
+	AudioState->MasterVolume = v2{ 0.3f, 0.3f };
 }
 
 internal playing_sound*

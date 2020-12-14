@@ -128,7 +128,6 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 #include "handmade_math.h"
 #include "handmade_file_formats.h"
 #include "handmade_random.h"
-#include "handmade_asset_type_id.h"
 #include "handmade_asset.h"
 #include "handmade_world.h"
 #include "handmade_sim_region.h"
