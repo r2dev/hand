@@ -192,8 +192,8 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
     if (ID.Value) {
         if (AtomicCompareExchangeUInt32((uint32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
             task_with_memory* Task = 0;
-            if (Immediate) {
-                BeginTaskWithMemory(Assets->TranState);
+            if (!Immediate) {
+                Task = BeginTaskWithMemory(Assets->TranState);
             }
             if (Immediate || Task) {
                 
@@ -240,7 +240,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
             else {
                 Asset->State = AssetState_Unloaded;
             }
-        } else {
+        } else if (Immediate) {
             asset_state volatile* State = (asset_state volatile*)&Asset->State;
             while(Asset->State == AssetState_Queued) {}
         }
