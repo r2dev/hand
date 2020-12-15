@@ -584,7 +584,7 @@ PackOtherAsset() {
     
     BeginAssetType(Assets, Asset_Font);
     for(u32 Character = 'A'; Character <= 'Z'; ++Character) {
-        AddCharacterAsset(Assets, "C:/Windows/Fonts/arial.ttf", Character);
+        AddCharacterAsset(Assets, "C:/Windows/Fonts/cour.ttf", Character);
         AddTag(Assets, Tag_UnicodeCodepoint, (r32)Character);
     }
     

@@ -5,6 +5,10 @@
 #if COMPILER_MSVC
 #define CompletePreviousReadsBeforeFutureReads _ReadBarrier()
 #define CompletePreviousWritesBeforeFutureWrites _WriteBarrier()
+inline u32 AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expect) {
+    u32 Result = _InterlockedCompareExchange((long volatile*)Value, New, Expect);
+    return(Result);
+}
 #else
 #define CompletePreviousReadsBeforeFutureReads
 #define CompletePreviousWritesBeforeFutureWrites

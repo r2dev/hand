@@ -20,6 +20,7 @@ ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSecond
 internal void
 OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuffer, game_assets* Assets, memory_arena* TempArena) {
 	temporary_memory MixMemory = BeginTemporaryMemory(TempArena);
+    u32 GenerationID = BeginGeneration(Assets);
     
 	u32 ChunkCount = (u32)(SoundBuffer->SampleCount / 4.0f);
 	__m128* RealChannel0 = PushArray(TempArena, ChunkCount, __m128, 16);
@@ -51,7 +52,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
         
 		while (TotalChunkToMix && !SoundFinished) {
 			//todo
-			loaded_sound* LoadedSound = GetSound(Assets, PlayingSound->ID);
+			loaded_sound* LoadedSound = GetSound(Assets, PlayingSound->ID, GenerationID);
 			if (LoadedSound) {
 				sound_id NextSoundID = GetNextSoundInChain(Assets, PlayingSound->ID);
 				PrefetchSound(Assets, NextSoundID);
@@ -221,7 +222,7 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
         
 		*SampleOut++ = S01;
 	}
-    
+    EndGeneration(Assets, GenerationID);
 	EndTemporaryMemory(MixMemory);
 }
 

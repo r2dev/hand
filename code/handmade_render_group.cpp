@@ -73,14 +73,19 @@ PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset,
 
 inline void
 PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
-	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->AssetsShouldBeLocked);
+	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
     
+    if (Group->RenderInBackground && !Bitmap) {
+        LoadBitmap(Group->Assets, ID, true);
+        Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
+        
+    }
 	if (Bitmap) {
 		PushBitmap(Group, Bitmap, Height, Offset, Color);
 	}
 	else {
-		LoadBitmap(Group->Assets, ID, Group->AssetsShouldBeLocked);
-		++Group->MissingResourceCount;
+        Assert(!Group->RenderInBackground);
+		LoadBitmap(Group->Assets, ID, false);
 	}
 }
 
@@ -174,8 +179,16 @@ AllResoucePresent(render_group* Group) {
 	return(Result);
 }
 
+internal void
+FinishRenderGroup(render_group* Group) {
+    if (Group) {
+        EndGeneration(Group->Assets, Group->GenerationID);
+    }
+}
+
+
 render_group*
-AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBufferSize, b32 AssetsShouldBeLocked) {
+AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBufferSize, b32 RenderInBackground) {
 	render_group* Result = PushStruct(Arena, render_group);
     
 	if (MaxPushBufferSize == 0) {
@@ -183,6 +196,7 @@ AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBuff
 	}
 	Result->Transform.OffsetP = v3{ 0, 0, 0 };
 	Result->Transform.Scale = 1.0f;
+    Result->GenerationID = BeginGeneration(Assets);
     
 	Result->PushBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
 	Result->MaxPushBufferSize = MaxPushBufferSize;
@@ -190,9 +204,9 @@ AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBuff
 	Result->PushBufferSize = 0;
 	Result->GlobalAlpha = 1.0f;
 	Result->MissingResourceCount = 0;
-    Result->AssetsShouldBeLocked = AssetsShouldBeLocked;
+    Result->RenderInBackground = RenderInBackground;
     
-	return(Result);
+    return(Result);
 }
 
 

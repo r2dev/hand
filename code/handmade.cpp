@@ -267,15 +267,66 @@ AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageInde
 }
 
 struct fill_ground_chunk_work {
-	render_group* RenderGroup;
-	loaded_bitmap* Buffer;
+    transient_state *TranState;
+    game_state* GameState;
+    ground_buffer* GroundBuffer;
+    world_position ChunkP;
 	task_with_memory* Task;
 	
 };
 
 PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
 	fill_ground_chunk_work* Work = (fill_ground_chunk_work*)Data;
-	RenderGroupToOutput(Work->RenderGroup, Work->Buffer);
+    loaded_bitmap* Buffer = &Work->GroundBuffer->Bitmap;
+    Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
+    Buffer->WidthOverHeight = 1.0f;
+    real32 Width = Work->GameState->World->ChunkDimInMeters.x;
+    real32 Height =Work->GameState->World->ChunkDimInMeters.y;
+    render_group* RenderGroup = AllocateRenderGroup(Work->TranState->Assets, &Work->Task->Arena, 0, true);
+    Orthographic(RenderGroup, Buffer->Width, Buffer->Height, (Buffer->Width - 2) / Width);
+    Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
+    
+    v2 HalfDim = 0.5f * V2(Width, Height);
+    HalfDim = 2.0f * HalfDim;
+    for (int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+        for (int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
+            
+            int32 ChunkX = Work->ChunkP.ChunkX + ChunkOffsetX;
+            int32 ChunkY = Work->ChunkP.ChunkY + ChunkOffsetY;
+            int32 ChunkZ = Work->ChunkP.ChunkZ;
+            random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
+            
+            v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
+            
+            for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
+                bitmap_id Stamp = GetRandomBitmapFrom(Work->TranState->Assets, RandomChoice(&Series, 2) ? Asset_Grass : Asset_Ground, &Series);
+                v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+                PushBitmap(RenderGroup, Stamp, 4.0f, V3(P, 0.0f));
+            }
+        }
+    }
+    for (int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
+        for (int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
+            
+            int32 ChunkX = Work->ChunkP.ChunkX + ChunkOffsetX;
+            int32 ChunkY = Work->ChunkP.ChunkY + ChunkOffsetY;
+            int32 ChunkZ = Work->ChunkP.ChunkZ;
+            random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
+            
+            v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
+            
+            for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
+                
+                bitmap_id Stamp = GetRandomBitmapFrom(Work->TranState->Assets, Asset_Tuft, &Series);
+                
+                v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+                PushBitmap(RenderGroup, Stamp, 0.4f, V3(P, 0.0f));
+            }
+        }
+    }
+    Assert(AllResoucePresent(RenderGroup));
+	RenderGroupToOutput(RenderGroup, Buffer);
+    FinishRenderGroup(RenderGroup);
 	EndTaskWithMemory(Work->Task);
 }
 
@@ -284,67 +335,15 @@ FillGroundChunk(transient_state *TranState, game_state* GameState, ground_buffer
 	task_with_memory* AvailableTask = BeginTaskWithMemory(TranState);
 	if (AvailableTask) {
 		fill_ground_chunk_work* Work = PushStruct(&AvailableTask->Arena, fill_ground_chunk_work);
-		
-		loaded_bitmap* Buffer = &GroundBuffer->Bitmap;
-		Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
-		Buffer->WidthOverHeight = 1.0f;
-		real32 Width = GameState->World->ChunkDimInMeters.x;
-		real32 Height = GameState->World->ChunkDimInMeters.y;
-		render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &AvailableTask->Arena, 0, true);
-		Orthographic(RenderGroup, Buffer->Width, Buffer->Height, (Buffer->Width - 2) / Width);
-		Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
-#if 1
-        
-		v2 HalfDim = 0.5f * V2(Width, Height);
-		HalfDim = 2.0f * HalfDim;
-		for (int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-			for (int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-                
-				int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-				int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-				int32 ChunkZ = ChunkP->ChunkZ;
-				random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
-                
-				v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
-                
-				for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
-					bitmap_id Stamp = GetRandomBitmapFrom(TranState->Assets, RandomChoice(&Series, 2) ? Asset_Grass : Asset_Ground, &Series);
-					v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-					PushBitmap(RenderGroup, Stamp, 4.0f, V3(P, 0.0f));
-				}
-			}
-		}
-		for (int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-			for (int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-                
-				int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-				int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-				int32 ChunkZ = ChunkP->ChunkZ;
-				random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
-                
-				v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
-                
-				for (uint32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
-					
-					bitmap_id Stamp = GetRandomBitmapFrom(TranState->Assets, Asset_Tuft, &Series);
-                    
-					v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-					PushBitmap(RenderGroup, Stamp, 0.4f, V3(P, 0.0f));
-				}
-			}
-		}
-		Work->Buffer = Buffer;
 		Work->Task = AvailableTask;
-		Work->RenderGroup = RenderGroup;
-		if (AllResoucePresent(RenderGroup)) {
-			GroundBuffer->P = *ChunkP;
-			Platform.AddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
-		}
-		else {
-			EndTaskWithMemory(Work->Task);
-		}
+		
+		Work->TranState = TranState;
+        Work->GameState = GameState;
+        Work->GroundBuffer = GroundBuffer;
+		Work->ChunkP = *ChunkP;
+        GroundBuffer->P = *ChunkP;
+        Platform.AddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
 	}
-#endif
 }
 
 internal void
@@ -1197,6 +1196,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     rectangle2i d = {4, 4, 120, 120};
     
     TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
+    FinishRenderGroup(RenderGroup);
     EndSim(SimRegion, GameState);
     EndTemporaryMemory(SimMemory);
     EndTemporaryMemory(RenderMemory);

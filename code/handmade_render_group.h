@@ -49,7 +49,8 @@ struct render_group {
 	struct game_assets* Assets;
     
 	uint32 MissingResourceCount;
-    b32 AssetsShouldBeLocked;
+    u32 GenerationID;
+    b32 RenderInBackground;
 };
 
 struct render_entry_clear {
