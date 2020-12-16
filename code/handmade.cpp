@@ -283,6 +283,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
     real32 Width = Work->GameState->World->ChunkDimInMeters.x;
     real32 Height =Work->GameState->World->ChunkDimInMeters.y;
     render_group* RenderGroup = AllocateRenderGroup(Work->TranState->Assets, &Work->Task->Arena, 0, true);
+    BeginRender(RenderGroup);
     Orthographic(RenderGroup, Buffer->Width, Buffer->Height, (Buffer->Width - 2) / Width);
     Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
     
@@ -326,7 +327,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
     }
     Assert(AllResoucePresent(RenderGroup));
 	RenderGroupToOutput(RenderGroup, Buffer);
-    FinishRenderGroup(RenderGroup);
+    EndRender(RenderGroup);
 	EndTaskWithMemory(Work->Task);
 }
 
@@ -455,6 +456,99 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 	rectangle2 Result = GetCameraRectAtDistance(RenderGroup, RenderGroup->Transform.DistanceAboveTarget);
 	return(Result);
 }
+
+global_variable render_group *DEBUGRenderGroup;
+global_variable r32 AtY;
+global_variable r32 LeftEdge;
+global_variable r32 FontScale;
+internal void
+DEBUGReset(u32 Width, u32 Height) {
+    FontScale = 80.0f / 255.0f;
+    Orthographic(DEBUGRenderGroup, Width, Height, 1.0f);
+    AtY = 0.5f * (r32)Height - 0.5f * FontScale;
+    LeftEdge = -0.5f * (r32)Width + 0.5f * FontScale;
+    
+}
+internal void
+DEBUGTextLine(char *String) {
+    if (DEBUGRenderGroup) {
+        render_group* RenderGroup = DEBUGRenderGroup;
+        asset_vector MatchVector = {};
+        asset_vector WeightVector = {};
+        
+        font_id FontID = GetBestMatchFontFrom(RenderGroup->Assets, Asset_Font, &MatchVector, &WeightVector);
+        loaded_font* Font = GetFont(RenderGroup->Assets, FontID, RenderGroup->GenerationID);
+        if (Font) {
+            hha_font *Info = GetFontInfo(RenderGroup->Assets, FontID);
+            u32 PrevCodePoint = 0;
+            
+            r32 AtX = LeftEdge;
+            r32 CharScale = FontScale;
+            
+            for(char* At = String;
+                *At;
+                ++At) {
+                
+                u32 CodePoint = *At;
+                r32 AdvancedX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
+                AtX += AdvancedX;
+                
+                if (CodePoint != ' ') {
+                    // proportional mode
+                    // AdvancedX = CharScale * (r32)(Info->Dim[0] + 2);
+                    
+                    bitmap_id BitmapID = GetBitmapForGlyph(RenderGroup->Assets, Info, Font, CodePoint);
+                    hha_bitmap* BitmapInfo = GetBitmapInfo(RenderGroup->Assets, BitmapID);
+                    PushBitmap(RenderGroup, BitmapID, CharScale * (r32)BitmapInfo->Dim[1], v3{AtX, AtY, 0}, v4{1.0f, 1.0f, 1.0f, 1});
+                }
+                // advance here
+                
+                PrevCodePoint = CodePoint;
+                
+            }
+            AtY -= GetLineAdvancedFor(Info, Font) * CharScale;
+        } else {
+            
+        }
+    }
+}
+
+internal void
+OverlayCycleCounters(game_memory* Memory) {
+#if HANDMADE_INTERNAL
+    
+    char* NameTable[] = {
+        "GameUpdateAndRender",
+        "RenderGroupToOutput",
+        "DrawRectangleSlowly",
+        "FillPixel",
+        "TestPixel",
+    };
+    DEBUGTextLine("Debug cycle count: \n");
+	
+	for (int CounterIndex = 0; CounterIndex < ArrayCount(Memory->Counters); ++CounterIndex) {
+		debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
+		if (Counter->HitCount) {
+            
+#if 0
+            
+			char TextBuffer[256];
+			_snprintf_s(TextBuffer, sizeof(TextBuffer), 
+                        "  %d: %I64ucy %uh %I64ucy/h\n",
+                        CounterIndex,
+                        Counter->CycleCount,
+                        Counter->HitCount,
+                        Counter->CycleCount / Counter->HitCount);
+            
+			OutputDebugStringA(TextBuffer);
+#else
+            DEBUGTextLine(NameTable[CounterIndex]);
+#endif
+		}
+	}
+#endif
+}
+
 
 #if HANDMADE_INTERNAL
 game_memory* DebugGlobalMemory;
@@ -656,6 +750,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		TranState->LowPriorityQueue = Memory->LowPriorityQueue;
         
 		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(4), TranState);
+        DEBUGRenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, Megabytes(16), false);
 		
 		TranState->GroundBufferCount = 256;
 		TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);
@@ -688,11 +783,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			}
 		}
         
-		GameState->Music = PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
+		GameState->Music = 0; //PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 		//ChangePitch(GameState->Music, 0.8f);
         
 		TranState->IsInitialized = true;
 	}
+    if (DEBUGRenderGroup) {
+        BeginRender(DEBUGRenderGroup);
+        DEBUGReset(Buffer->Width, Buffer->Height);
+    }
     
 	world* World = GameState->World;
     
@@ -773,6 +872,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
 	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
                                                     Megabytes(4), false);
+    BeginRender(RenderGroup);
 	real32 FocalLength = 0.6f;
 	real32 DistanceAboveTarget = 9.0f;
     
@@ -1087,7 +1187,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         MatchV.E[Tag_UnicodeCodepoint] = (r32)'R';
                         
                         WeightV.E[Tag_UnicodeCodepoint] = 1.0f;
-                        PushBitmap(RenderGroup,GetBestMatchBitmapFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
+                        PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
                         
                         //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Font, &GameState->EffectEntropy), 0.5f, Particle->P, Color);
                         //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameState->EffectEntropy), 1.0f, Particle->P, Color);
@@ -1196,7 +1296,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     rectangle2i d = {4, 4, 120, 120};
     
     TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
-    FinishRenderGroup(RenderGroup);
+    EndRender(RenderGroup);
+    
     EndSim(SimRegion, GameState);
     EndTemporaryMemory(SimMemory);
     EndTemporaryMemory(RenderMemory);
@@ -1204,6 +1305,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
     END_TIMED_BLOCK(GameUpdateAndRender);
+    OverlayCycleCounters(Memory);
+    
+    if (DEBUGRenderGroup) {
+        TiledRenderGroupToOutput(TranState->HighPriorityQueue, DEBUGRenderGroup, DrawBuffer);
+        EndRender(DEBUGRenderGroup);
+        
+    }
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {

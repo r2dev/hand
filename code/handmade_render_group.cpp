@@ -40,6 +40,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 
 inline void*
 PushRenderElement_(render_group* Group, uint32 Size, render_group_entry_type Type) {
+    Assert(Group->InsideRender);
 	void* Result = 0;
 	Size += sizeof(render_group_entry_header);
 	if (Group->PushBufferSize + Size < Group->MaxPushBufferSize) {
@@ -179,14 +180,6 @@ AllResoucePresent(render_group* Group) {
 	return(Result);
 }
 
-internal void
-FinishRenderGroup(render_group* Group) {
-    if (Group) {
-        EndGeneration(Group->Assets, Group->GenerationID);
-    }
-}
-
-
 render_group*
 AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBufferSize, b32 RenderInBackground) {
 	render_group* Result = PushStruct(Arena, render_group);
@@ -196,7 +189,7 @@ AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBuff
 	}
 	Result->Transform.OffsetP = v3{ 0, 0, 0 };
 	Result->Transform.Scale = 1.0f;
-    Result->GenerationID = BeginGeneration(Assets);
+    Result->GenerationID = 0;
     
 	Result->PushBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
 	Result->MaxPushBufferSize = MaxPushBufferSize;
@@ -205,10 +198,31 @@ AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, uint32 MaxPushBuff
 	Result->GlobalAlpha = 1.0f;
 	Result->MissingResourceCount = 0;
     Result->RenderInBackground = RenderInBackground;
-    
+    Result->InsideRender = false;
     return(Result);
 }
 
+internal void
+BeginRender(render_group* Group) {
+    if (Group) {
+        Assert(!Group->InsideRender);
+        Group->InsideRender = true;
+        Group->GenerationID = BeginGeneration(Group->Assets);
+    }
+    
+}
+
+internal void
+EndRender(render_group* Group) {
+    if (Group) {
+        Assert(Group->InsideRender);
+        Group->InsideRender = false;
+        
+        EndGeneration(Group->Assets, Group->GenerationID);
+        Group->GenerationID = 0;
+        Group->PushBufferSize = 0;
+    }
+}
 
 internal void
 DrawBitmap(loaded_bitmap* Buffer, loaded_bitmap* Bitmap,
@@ -672,6 +686,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(DoTileRenderWork) {
 
 internal void 
 TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+    Assert(RenderGroup->InsideRender);
 	uint32 const TileCountX = 4;
 	uint32 const TileCountY = 4;
     
@@ -717,6 +732,7 @@ TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, 
 }
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+    Assert(RenderGroup->InsideRender);
 	rectangle2i ClipRect;
 	ClipRect.MinX = 0;
 	ClipRect.MinY = 0;

@@ -51,6 +51,8 @@ struct render_group {
 	uint32 MissingResourceCount;
     u32 GenerationID;
     b32 RenderInBackground;
+    
+    b32 InsideRender;
 };
 
 struct render_entry_clear {

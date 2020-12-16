@@ -38,6 +38,11 @@ enum asset_state {
 	AssetState_Loaded,
 };
 
+struct loaded_font {
+    bitmap_id *CodePoints;
+    r32 *HorizontalAdvance;
+};
+
 struct asset_memory_header {
     asset_memory_header *Next;
     asset_memory_header *Prev;
@@ -47,6 +52,7 @@ struct asset_memory_header {
     union { 
 		loaded_bitmap Bitmap; 
 		loaded_sound Sound;
+        loaded_font Font;
 	};
 };
 
@@ -194,6 +200,19 @@ GetSound(game_assets* Assets, sound_id ID, u32 GenerationID) {
     return(Result);
 }
 
+
+inline loaded_font*
+GetFont(game_assets* Assets, font_id ID, u32 GenerationID) {
+	asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
+    loaded_font* Result = 0;
+    if (Header) {
+        Result = &Header->Font;
+    }
+    
+    return(Result);
+}
+
+
 inline u32
 BeginGeneration(game_assets* Assets) {
     BeginAssetLock(Assets);
@@ -215,8 +234,6 @@ EndGeneration(game_assets* Assets, u32 GenerationID) {
     }
     
     EndAssetLock(Assets);
-    
-    
 }
 
 internal void LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate);

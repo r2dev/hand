@@ -301,31 +301,46 @@ LoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
 }
 
 internal loaded_bitmap
-LoadGlyphBitmap(char* FileName, u32 Codepoint) {
+LoadGlyphBitmap(char* FileName, u32 Codepoint, hha_asset* Asset) {
     entire_file TTFFile = ReadEntireFile(FileName);
     loaded_bitmap Result = {};
     if (TTFFile.ContentsSize != 0) {
         stbtt_fontinfo Font;
         stbtt_InitFont(&Font, (u8*)TTFFile.Contents, stbtt_GetFontOffsetForIndex((u8*)TTFFile.Contents, 0));
         
-        int Width, Height, XOffset, YOffset;
-        u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font, 0, stbtt_ScaleForPixelHeight(&Font, 128.0f),
+        int Width, Height, XOffset, YOffset, Ascent, Descent, Linegap;
+        r32 Scale = stbtt_ScaleForPixelHeight(&Font, 255.0f);
+        u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font, 0, Scale,
                                                   Codepoint, &Width, &Height, &XOffset, &YOffset);
+        stbtt_GetFontVMetrics(&Font, &Ascent, &Descent, &Linegap);
         
         Result.Pitch = Width * BITMAP_BYTE_PER_PIXEL;
         Result.Width = Width;
         Result.Height = Height;
         Result.Memory = malloc(Result.Pitch * Height);
         Result.Free = Result.Memory;
+        Asset->Bitmap.AlignPercentage[0] = 0.0f;
         
+        Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Scale * Ascent) / Height);
         
         u8* Source = MonoBitmap;
         u8 *DestRow = (u8*)Result.Memory + (Height - 1) * Result.Pitch;
         for (int Y = 0; Y < Height; Y++) {
             u32 *Dest = (u32 *)DestRow;
             for (int X = 0; X < Width; X++) {
-                u8 Alpha = *Source++;
-                *Dest++ = ((Alpha << 24) | (Alpha < 16) | (Alpha < 8) | (Alpha < 0));
+                //gamma correction
+                r32 Gray = (r32)(*Source++ & 0xFF);
+                
+                v4 Texel = v4{255.0f, 255.0f, 255.0f, Gray};
+                Texel = SRGBToLinear1(Texel);
+                Texel.rgb *= Texel.a;
+                
+                Texel = Linear1ToSRGB(Texel);
+                
+				*Dest++ = (uint32)(Texel.a + 0.5f) << 24 |
+					(uint32)(Texel.r + 0.5f) << 16 |
+					(uint32)(Texel.g + 0.5f) << 8 |
+					(uint32)(Texel.b + 0.5f) << 0;
             }
             DestRow -= Result.Pitch;
         }
@@ -583,8 +598,9 @@ PackOtherAsset() {
     EndAssetType(Assets);
     
     BeginAssetType(Assets, Asset_Font);
-    for(u32 Character = 'A'; Character <= 'Z'; ++Character) {
-        AddCharacterAsset(Assets, "C:/Windows/Fonts/cour.ttf", Character);
+    for(u32 Character = '!'; Character <= '~'; ++Character) {
+        //AddCharacterAsset(Assets, "C:/Windows/Fonts/consola.ttf", Character);
+        AddCharacterAsset(Assets, "C:/Windows/Fonts/arial.ttf", Character);
         AddTag(Assets, Tag_UnicodeCodepoint, (r32)Character);
     }
     
@@ -633,13 +649,15 @@ PackOtherAsset() {
             } else {
                 loaded_bitmap Bitmap = {};
                 if (Source->Type == AssetType_Font) {
-                    Bitmap = LoadGlyphBitmap(Source->FileName, Source->Codepoint);
+                    Bitmap = LoadGlyphBitmap(Source->FileName, Source->Codepoint, Asset);
                 } else {
                     Assert(Source->Type == AssetType_Bitmap);
                     Bitmap = LoadBMP(Source->FileName);
                 }
                 Asset->Bitmap.Dim[0] = Bitmap.Width;
                 Asset->Bitmap.Dim[1] = Bitmap.Height;
+                
+                
                 Assert((Bitmap.Width * 4) == Bitmap.Pitch);
                 fwrite(Bitmap.Memory, Bitmap.Width * Bitmap.Height * 4, 1, Out);
                 free(Bitmap.Free);

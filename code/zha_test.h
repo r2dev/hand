@@ -11,6 +11,7 @@ enum asset_type {
     AssetType_Bitmap,
     AssetType_Sound,
     AssetType_Font,
+    AssetType_FontGlyph,
 };
 
 struct asset_source {
