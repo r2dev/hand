@@ -1187,7 +1187,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         MatchV.E[Tag_UnicodeCodepoint] = (r32)'R';
                         
                         WeightV.E[Tag_UnicodeCodepoint] = 1.0f;
-                        PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
+                        //PushBitmap(RenderGroup, GetBestMatchFontFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
                         
                         //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Font, &GameState->EffectEntropy), 0.5f, Particle->P, Color);
                         //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameState->EffectEntropy), 1.0f, Particle->P, Color);

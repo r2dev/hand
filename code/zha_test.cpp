@@ -19,6 +19,18 @@ struct loaded_bitmap {
     void *Free;
 };
 
+struct loaded_font {
+    u32 CodePointCount;
+    r32 LineAdvance;
+    bitmap_id* BitmapIDs;
+    r32* HorizontalAdvance;
+    
+    stbtt_fontinfo Font;
+    r32 Scale;
+    b32 Loaded;
+    void *Contents;
+};
+
 #pragma pack(push, 1)
 struct bitmap_header {
 	uint16 FileType;
@@ -300,19 +312,41 @@ LoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
 	return(Result);
 }
 
-internal loaded_bitmap
-LoadGlyphBitmap(char* FileName, u32 Codepoint, hha_asset* Asset) {
+internal loaded_font*
+InitFont(char* FileName, u32 CodePointCount) {
+    loaded_font* Result = (loaded_font*)malloc(sizeof(loaded_font));
     entire_file TTFFile = ReadEntireFile(FileName);
-    loaded_bitmap Result = {};
     if (TTFFile.ContentsSize != 0) {
-        stbtt_fontinfo Font;
-        stbtt_InitFont(&Font, (u8*)TTFFile.Contents, stbtt_GetFontOffsetForIndex((u8*)TTFFile.Contents, 0));
+        Result->Contents = TTFFile.Contents;
+        Result->Loaded = true;
+        stbtt_InitFont(&Result->Font, (u8*)TTFFile.Contents, stbtt_GetFontOffsetForIndex((u8*)TTFFile.Contents, 0));
+        Result->Scale = stbtt_ScaleForPixelHeight(&Result->Font, 255.0f);
         
+        int Ascent, Descent, Linegap;
+        stbtt_GetFontVMetrics(&Result->Font, &Ascent, &Descent, &Linegap);
+        
+        Result->LineAdvance = Result->Scale * (Ascent - Descent + Linegap);
+        Result->CodePointCount = CodePointCount;
+        Result->BitmapIDs = (bitmap_id*)malloc(sizeof(bitmap_id) * CodePointCount);
+        Result->HorizontalAdvance = (r32*)malloc(sizeof(r32) * CodePointCount * CodePointCount);
+    }
+    return(Result);
+}
+
+internal void
+FreeFont(loaded_font* Font) {
+    free(Font->Contents);
+}
+
+internal loaded_bitmap
+LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
+    
+    loaded_bitmap Result = {};
+    if (Font->Loaded) {
         int Width, Height, XOffset, YOffset, Ascent, Descent, Linegap;
-        r32 Scale = stbtt_ScaleForPixelHeight(&Font, 255.0f);
-        u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font, 0, Scale,
-                                                  Codepoint, &Width, &Height, &XOffset, &YOffset);
-        stbtt_GetFontVMetrics(&Font, &Ascent, &Descent, &Linegap);
+        u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font->Font, 0, Font->Scale,
+                                                  CodePoint, &Width, &Height, &XOffset, &YOffset);
+        stbtt_GetFontVMetrics(&Font->Font, &Ascent, &Descent, &Linegap);
         
         Result.Pitch = Width * BITMAP_BYTE_PER_PIXEL;
         Result.Width = Width;
@@ -320,8 +354,7 @@ LoadGlyphBitmap(char* FileName, u32 Codepoint, hha_asset* Asset) {
         Result.Memory = malloc(Result.Pitch * Height);
         Result.Free = Result.Memory;
         Asset->Bitmap.AlignPercentage[0] = 0.0f;
-        
-        Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Scale * Ascent) / Height);
+        Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Font->Scale * Ascent) / Height);
         
         u8* Source = MonoBitmap;
         u8 *DestRow = (u8*)Result.Memory + (Height - 1) * Result.Pitch;
@@ -344,11 +377,18 @@ LoadGlyphBitmap(char* FileName, u32 Codepoint, hha_asset* Asset) {
             }
             DestRow -= Result.Pitch;
         }
+        
+        for (u32 OtherCodePoint = 0; OtherCodePoint < Font->CodePointCount; ++OtherCodePoint) {
+            Font->HorizontalAdvance[CodePoint * Font->CodePointCount + OtherCodePoint] = (r32)Result.Width;
+            
+        }
         stbtt_FreeBitmap(MonoBitmap, 0);
-        free(TTFFile.Contents);
+        // todo
+        //
     }
     return(Result);
 }
+
 
 
 internal void
@@ -361,67 +401,83 @@ BeginAssetType(game_assets* Assets, asset_type_id ID) {
 	Assets->DEBUGAssetType->OnePassLastAssetIndex = Assets->DEBUGAssetType->FirstAssetIndex;
 }
 
-internal bitmap_id
-AddBitmapAsset(game_assets* Assets, char* FileName, r32 AlignmentPercentageX = 0.5f, r32 AlignmentPercentageY = 0.5f) {
-	bitmap_id Result = { Assets->DEBUGAssetType->OnePassLastAssetIndex++ };
-	Assert(Assets->DEBUGAssetType);
-    
-	asset_source* Source = Assets->AssetSources + Result.Value;
-    Source->Type = AssetType_Bitmap;
-    Source->FileName = FileName;
-    
-    hha_asset *Dest = Assets->Assets + Result.Value;
-	
+struct added_asset {
+    u32 ID;
+    hha_asset *HHA;
+    asset_source* Source;
+};
+
+internal added_asset 
+AddAsset(game_assets* Assets) {
+    Assert(Assets->DEBUGAssetType);
+    u32 Index = Assets->DEBUGAssetType->OnePassLastAssetIndex++;
+	asset_source* Source = Assets->AssetSources + Index;
+    hha_asset *Dest = Assets->Assets + Index;
     Dest->FirstTagIndex = Assets->TagCount;
 	Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
-	
-	Dest->Bitmap.AlignPercentage[0] = AlignmentPercentageX;
-	Dest->Bitmap.AlignPercentage[1] = AlignmentPercentageY;
-	
-	Assets->AssetIndex = Result.Value;
+    Assets->AssetIndex = Index;
+    added_asset Result = {};
+    Result.ID = Index;
+    Result.HHA = Dest;
+    Result.Source = Source;
+    return(Result);
+}
+
+
+internal bitmap_id
+AddBitmapAsset(game_assets* Assets, char* FileName, r32 AlignmentPercentageX = 0.5f, r32 AlignmentPercentageY = 0.5f) {
+    
+    added_asset Asset = AddAsset(Assets);
+    
+    Asset.Source->Type = AssetType_Bitmap;
+    Asset.Source->Bitmap.FileName = FileName;
+    
+	Asset.HHA->Bitmap.AlignPercentage[0] = AlignmentPercentageX;
+	Asset.HHA->Bitmap.AlignPercentage[1] = AlignmentPercentageY;
+	bitmap_id Result = {Asset.ID};
 	return(Result);
 }
 
-internal bitmap_id
-AddCharacterAsset(game_assets* Assets, char* FileName, u32 Codepoint, r32 AlignmentPercentageX = 0.5f, r32 AlignmentPercentageY = 0.5f) {
-    
-    bitmap_id Result = { Assets->DEBUGAssetType->OnePassLastAssetIndex++ };
-	Assert(Assets->DEBUGAssetType);
-    
-	asset_source* Source = Assets->AssetSources + Result.Value;
-    Source->Type = AssetType_Font;
-    Source->FileName = FileName;
-    Source->Codepoint = Codepoint;
-    
-    hha_asset *Dest = Assets->Assets + Result.Value;
-	
-    Dest->FirstTagIndex = Assets->TagCount;
-	Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
-    Dest->Bitmap.AlignPercentage[0] = AlignmentPercentageX;
-	Dest->Bitmap.AlignPercentage[1] = AlignmentPercentageY;
-	
-	Assets->AssetIndex = Result.Value;
+internal font_id
+AddFontAsset(game_assets* Assets, loaded_font *Font) {
+    added_asset Asset = AddAsset(Assets);
+    Asset.HHA->Font.LineAdvance = Font->LineAdvance;
+    Asset.HHA->Font.CodePointCount = Font->CodePointCount;
+    Asset.Source->Type = AssetType_Font;
+    Asset.Source->Font.Font = Font;
+    font_id Result = {Asset.ID};
 	return(Result);
+}
+
+
+internal bitmap_id
+AddCharacterAsset(game_assets* Assets, loaded_font* Font, u32 Codepoint) {
     
-    
+    added_asset Asset = AddAsset(Assets);
+    Asset.Source->Type = AssetType_FontGlyph;
+    Asset.Source->Glyph.Font = Font;
+    Asset.Source->Glyph.Codepoint = Codepoint;
+    // alignment get set when we load the font
+    Asset.HHA->Bitmap.AlignPercentage[0] = 0.0f;
+	Asset.HHA->Bitmap.AlignPercentage[1] = 0.0f;
+	
+    bitmap_id Result = { Asset.ID };
+	return(Result);
 }
 
 internal sound_id
 AddSoundAsset(game_assets* Assets, char* FileName, u32 FirstSampleIndex = 0, u32 LoadSampleCount = 0) {
-	sound_id Result = { Assets->DEBUGAssetType->OnePassLastAssetIndex++ };
-	Assert(Assets->DEBUGAssetType);
-	asset_source* Source = Assets->AssetSources + Result.Value;
-    Source->Type = AssetType_Sound;
-    Source->FileName = FileName;
-    Source->FirstSampleIndex = FirstSampleIndex;
+	added_asset Asset = AddAsset(Assets);
+    Asset.Source->Type = AssetType_Sound;
+    Asset.Source->Sound.FileName = FileName;
+    Asset.Source->Sound.FirstSampleIndex = FirstSampleIndex;
     
-    hha_asset *Dest = Assets->Assets + Result.Value;
-	Dest->FirstTagIndex = Assets->TagCount;
-	Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
-	Dest->Sound.SampleCount = LoadSampleCount;
-	Dest->Sound.Chain = HHASoundChain_none;
+	Asset.HHA->FirstTagIndex = Assets->TagCount;
+	Asset.HHA->OnePassLastTagIndex = Asset.HHA->FirstTagIndex;
+	Asset.HHA->Sound.SampleCount = LoadSampleCount;
+	Asset.HHA->Sound.Chain = HHASoundChain_none;
     
-	Assets->AssetIndex = Result.Value;
+    sound_id Result = { Asset.ID };
 	return(Result);
 }
 
@@ -540,7 +596,7 @@ PackHero() {
             Asset->DataOffset = ftell(Out);
             
             if (Source->Type == AssetType_Sound) {
-                loaded_sound Wave = LoadWAV(Source->FileName, Source->FirstSampleIndex, Asset->Sound.SampleCount);
+                loaded_sound Wave = LoadWAV(Source->Sound.FileName, Source->Sound.FirstSampleIndex, Asset->Sound.SampleCount);
                 Asset->Sound.SampleCount = Wave.SampleCount;
                 Asset->Sound.ChannelCount = Wave.ChannelCount;
                 for (u32 ChannelIndex = 0; ChannelIndex < Asset->Sound.ChannelCount; ++ChannelIndex) {
@@ -548,7 +604,7 @@ PackHero() {
                 }
                 free(Wave.Free);
             } else if (Source->Type == AssetType_Bitmap) {
-                loaded_bitmap Bitmap = LoadBMP(Source->FileName);
+                loaded_bitmap Bitmap = LoadBMP(Source->Bitmap.FileName);
                 Asset->Bitmap.Dim[0] = Bitmap.Width;
                 Asset->Bitmap.Dim[1] = Bitmap.Height;
                 Assert((Bitmap.Width * 4) == Bitmap.Pitch);
@@ -597,14 +653,8 @@ PackOtherAsset() {
     AddBitmapAsset(Assets, "test2/tuft01.bmp");
     EndAssetType(Assets);
     
-    BeginAssetType(Assets, Asset_Font);
-    for(u32 Character = '!'; Character <= '~'; ++Character) {
-        //AddCharacterAsset(Assets, "C:/Windows/Fonts/consola.ttf", Character);
-        AddCharacterAsset(Assets, "C:/Windows/Fonts/arial.ttf", Character);
-        AddTag(Assets, Tag_UnicodeCodepoint, (r32)Character);
-    }
     
-    EndAssetType(Assets);
+    
     
     Out = fopen("test2.hha", "wb");
     if (Out) {
@@ -639,20 +689,122 @@ PackOtherAsset() {
             Asset->DataOffset = ftell(Out);
             
             if (Source->Type == AssetType_Sound) {
-                loaded_sound Wave = LoadWAV(Source->FileName, Source->FirstSampleIndex, Asset->Sound.SampleCount);
+                loaded_sound Wave = LoadWAV(Source->Sound.FileName, Source->Sound.FirstSampleIndex, Asset->Sound.SampleCount);
                 Asset->Sound.SampleCount = Wave.SampleCount;
                 Asset->Sound.ChannelCount = Wave.ChannelCount;
                 for (u32 ChannelIndex = 0; ChannelIndex < Asset->Sound.ChannelCount; ++ChannelIndex) {
                     fwrite(Wave.Samples[ChannelIndex], Wave.SampleCount*sizeof(s16), 1, Out);
                 }
                 free(Wave.Free);
+            } else if (Source->Type == AssetType_Font) {
+                loaded_font *Font = Source->Font.Font;
+                u32 CodePointSize = Font->CodePointCount * sizeof(bitmap_id);
+                u32 HorizontalAdvanceSize = (u32)(Font->CodePointCount * Font->CodePointCount * sizeof(r32));
+                fwrite(Font->BitmapIDs, CodePointSize, 1, Out);
+                fwrite(Font->HorizontalAdvance, HorizontalAdvanceSize, 1, Out);
             } else {
                 loaded_bitmap Bitmap = {};
-                if (Source->Type == AssetType_Font) {
-                    Bitmap = LoadGlyphBitmap(Source->FileName, Source->Codepoint, Asset);
+                if (Source->Type == AssetType_FontGlyph) {
+                    
+                    Bitmap = LoadGlyphBitmap(Source->Glyph.Font, Source->Glyph.Codepoint, Asset);
                 } else {
                     Assert(Source->Type == AssetType_Bitmap);
-                    Bitmap = LoadBMP(Source->FileName);
+                    Bitmap = LoadBMP(Source->Bitmap.FileName);
+                }
+                Asset->Bitmap.Dim[0] = Bitmap.Width;
+                Asset->Bitmap.Dim[1] = Bitmap.Height;
+                
+                
+                Assert((Bitmap.Width * 4) == Bitmap.Pitch);
+                fwrite(Bitmap.Memory, Bitmap.Width * Bitmap.Height * 4, 1, Out);
+                free(Bitmap.Free);
+            }
+        }
+        
+        fseek(Out, (u32)Header.Assets, SEEK_SET);
+        fwrite(Assets->Assets, AssetArraySize, 1, Out);
+        fclose(Out);
+    }
+    else {
+        printf("Err: Could not open file\n");
+    }
+}
+
+internal void
+PackFont() {
+    game_assets Assets_;
+    game_assets* Assets = &Assets_;
+    InitialAssets(Assets);
+    
+    loaded_font *DebugFont = InitFont("C:/Windows/Fonts/arial.ttf", '~' + 1);
+    //AddCharacterAsset(Assets, "C:/Windows/Fonts/consola.ttf", Character);
+    
+    BeginAssetType(Assets, Asset_Font);
+    AddFontAsset(Assets, DebugFont);
+    EndAssetType(Assets);
+    
+    BeginAssetType(Assets, Asset_FontGlyph);
+    
+    for(u32 Character = '!'; Character <= '~'; ++Character) {
+        DebugFont->BitmapIDs[Character] = AddCharacterAsset(Assets, DebugFont, Character);
+    }
+    
+    EndAssetType(Assets);
+    
+    Out = fopen("font.hha", "wb");
+    if (Out) {
+        
+        hha_header Header = {};
+        Header.MagicValue = HHA_MAGIC_VALUE;
+        Header.Version = HHA_VERSION;
+        
+        Header.AssetTypeCount = Asset_Count;
+        Header.AssetCount = Assets->AssetCount;
+        
+        Header.TagCount = Assets->TagCount;
+        
+        u32 TagArraySize = Header.TagCount * sizeof(hha_tag);
+        u32 AssetArraySize = Header.AssetCount * sizeof(hha_asset);
+        u32 AssetTypeArraySize = Header.AssetTypeCount * sizeof(hha_asset_type);
+        
+        Header.Tags = sizeof(Header);
+        Header.AssetTypes = Header.Tags + TagArraySize;
+        Header.Assets = Header.AssetTypes + AssetTypeArraySize;
+        
+        
+        fwrite(&Header, sizeof(Header), 1, Out);
+        fwrite(Assets->Tags, TagArraySize, 1, Out);
+        fwrite(Assets->AssetTypes, AssetTypeArraySize, 1, Out);
+        //fwrite(Header.Assets, AssetArraySize, 1, Out);
+        fseek(Out, AssetArraySize, SEEK_CUR);
+        for (u32 AssetIndex = 1; AssetIndex < Header.AssetCount; ++AssetIndex) {
+            asset_source* Source = Assets->AssetSources + AssetIndex;
+            hha_asset* Asset = Assets->Assets + AssetIndex;
+            
+            Asset->DataOffset = ftell(Out);
+            
+            if (Source->Type == AssetType_Sound) {
+                loaded_sound Wave = LoadWAV(Source->Sound.FileName, Source->Sound.FirstSampleIndex, Asset->Sound.SampleCount);
+                Asset->Sound.SampleCount = Wave.SampleCount;
+                Asset->Sound.ChannelCount = Wave.ChannelCount;
+                for (u32 ChannelIndex = 0; ChannelIndex < Asset->Sound.ChannelCount; ++ChannelIndex) {
+                    fwrite(Wave.Samples[ChannelIndex], Wave.SampleCount*sizeof(s16), 1, Out);
+                }
+                free(Wave.Free);
+            } else if (Source->Type == AssetType_Font) {
+                loaded_font *Font = Source->Font.Font;
+                u32 CodePointSize = Font->CodePointCount * sizeof(bitmap_id);
+                u32 HorizontalAdvanceSize = (u32)(Font->CodePointCount * Font->CodePointCount * sizeof(r32));
+                fwrite(Font->BitmapIDs, CodePointSize, 1, Out);
+                fwrite(Font->HorizontalAdvance, HorizontalAdvanceSize, 1, Out);
+            } else {
+                loaded_bitmap Bitmap = {};
+                if (Source->Type == AssetType_FontGlyph) {
+                    
+                    Bitmap = LoadGlyphBitmap(Source->Glyph.Font, Source->Glyph.Codepoint, Asset);
+                } else {
+                    Assert(Source->Type == AssetType_Bitmap);
+                    Bitmap = LoadBMP(Source->Bitmap.FileName);
                 }
                 Asset->Bitmap.Dim[0] = Bitmap.Width;
                 Asset->Bitmap.Dim[1] = Bitmap.Height;
@@ -665,6 +817,7 @@ PackOtherAsset() {
         }
         fseek(Out, (u32)Header.Assets, SEEK_SET);
         fwrite(Assets->Assets, AssetArraySize, 1, Out);
+        FreeFont(DebugFont);
         fclose(Out);
     }
     else {
@@ -742,7 +895,7 @@ PackMusic() {
             Asset->DataOffset = ftell(Out);
             
             if (Source->Type == AssetType_Sound) {
-                loaded_sound Wave = LoadWAV(Source->FileName, Source->FirstSampleIndex, Asset->Sound.SampleCount);
+                loaded_sound Wave = LoadWAV(Source->Sound.FileName, Source->Sound.FirstSampleIndex, Asset->Sound.SampleCount);
                 Asset->Sound.SampleCount = Wave.SampleCount;
                 Asset->Sound.ChannelCount = Wave.ChannelCount;
                 for (u32 ChannelIndex = 0; ChannelIndex < Asset->Sound.ChannelCount; ++ChannelIndex) {
@@ -750,7 +903,7 @@ PackMusic() {
                 }
                 free(Wave.Free);
             } else if (Source->Type == AssetType_Bitmap) {
-                loaded_bitmap Bitmap = LoadBMP(Source->FileName);
+                loaded_bitmap Bitmap = LoadBMP(Source->Bitmap.FileName);
                 Asset->Bitmap.Dim[0] = Bitmap.Width;
                 Asset->Bitmap.Dim[1] = Bitmap.Height;
                 Assert((Bitmap.Width * 4) == Bitmap.Pitch);
@@ -773,5 +926,6 @@ int main(int ArgCount, char **Args) {
     PackOtherAsset();
     PackHero();
 	printf("hello world");
+    PackFont();
 	return(0);
 } 

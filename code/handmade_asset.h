@@ -25,6 +25,7 @@ struct asset_file {
     hha_header Header;
     hha_asset_type *AssetTypeArray;
     u32 TagBase;
+    s32 FontBitmapIDOffset;
 };
 
 struct asset_type {
@@ -41,6 +42,8 @@ enum asset_state {
 struct loaded_font {
     bitmap_id *CodePoints;
     r32 *HorizontalAdvance;
+    
+    u32 BitmapIDOffset;
 };
 
 struct asset_memory_header {

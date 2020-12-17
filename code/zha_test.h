@@ -14,12 +14,32 @@ enum asset_type {
     AssetType_FontGlyph,
 };
 
+struct asset_source_sound {
+    char *FileName;
+    u32 FirstSampleIndex;
+};
+
+struct loaded_font;
+struct asset_source_font {
+    loaded_font *Font;
+};
+
+struct asset_source_bitmap {
+    char *FileName;
+};
+
+struct asset_source_font_glyph {
+    loaded_font *Font;
+    u32 Codepoint;
+};
+
 struct asset_source {
     asset_type Type;
-    char *FileName;
     union {
-        u32 FirstSampleIndex;
-        u32 Codepoint;
+        asset_source_sound Sound;
+        asset_source_font_glyph Glyph;
+        asset_source_font Font;
+        asset_source_bitmap Bitmap;
     };
 };
 

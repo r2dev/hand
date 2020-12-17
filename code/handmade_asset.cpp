@@ -27,10 +27,16 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork) {
     EndTaskWithMemory(Work->Task);
 }
 
+inline asset_file*
+GetFile(game_assets* Assets, u32 FileIndex) {
+    Assert(FileIndex < Assets->FileCount);
+    asset_file*Result = Assets->Files + FileIndex;
+    return(Result);
+}
+
 inline platform_file_handle*
 GetFileHandleFor(game_assets* Assets, u32 FileIndex) {
-    Assert(FileIndex < Assets->FileCount);
-    platform_file_handle *Result = &Assets->Files[FileIndex].Handle;
+    platform_file_handle *Result = &GetFile(Assets, FileIndex)->Handle;
     return(Result);
 }
 
@@ -262,20 +268,20 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
                 
                 hha_font* Info = &Asset->HHA.Font;
                 
+                u32 HorizontalAdvanceSize = Info->CodePointCount * Info->CodePointCount * sizeof(r32);
                 u32 CodePointSize = Info->CodePointCount * sizeof(bitmap_id);
-                u32 HorizontalAdvanceSize = u32(Square((r32)Info->CodePointCount) * sizeof(r32));
                 u32 SizeData = HorizontalAdvanceSize + CodePointSize; 
                 u32 SizeTotal = SizeData + sizeof(asset_memory_header);
                 
                 Asset->Header = AcquireAssetMemory(Assets, SizeTotal, ID.Value);
                 
                 loaded_font* Font = &Asset->Header->Font;
+                Font->BitmapIDOffset = GetFile(Assets, Asset->FileIndex)->FontBitmapIDOffset;
+                //Font->HorizontalAdvance = (r32* )Asset->Header + 1;
+                //Font->CodePoints = (bitmap_id*)((u8*)Font->HorizontalAdvance + HorizontalAdvanceSize);
                 
-                Font->HorizontalAdvance = (r32* )Asset->Header + 1;
-                Font->CodePoints = (bitmap_id*)((u8*)Font->HorizontalAdvance + HorizontalAdvanceSize);
-                
-                // Font->CodePoints = Asset->Header + 1;
-                // Font->HorizontalAdvance = (u8*)Font->CodePoints + Info->CodePointCount * sizeof(bitmap_id);
+                Font->CodePoints = (bitmap_id*)(Asset->Header + 1);
+                Font->HorizontalAdvance = (r32*)((u8*)Font->CodePoints + CodePointSize);
                 
                 load_asset_work Work;
                 Work.Asset = Asset;
@@ -479,8 +485,11 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     Assets->Files = PushArray(Arena, Assets->FileCount, asset_file);
     for (u32 FileIndex = 0; FileIndex < Assets->FileCount; ++FileIndex) {
         asset_file* File = Assets->Files + FileIndex;
+        
+        File->FontBitmapIDOffset = 0;
         File->TagBase = Assets->TagCount;
         File->Handle = Platform.OpenNextFile(&FileGroup);
+        
         ZeroStruct(File->Header);
         Platform.ReadDataFromFile(&File->Handle, 0, sizeof(File->Header), &File->Header);
         u32 AssetTypeArraySize = File->Header.AssetTypeCount * sizeof(hha_asset_type);
@@ -530,7 +539,9 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
                 for (u32 SourceIndex = 0; SourceIndex < File->Header.AssetTypeCount; ++SourceIndex) {
                     hha_asset_type *SourceType = File->AssetTypeArray + SourceIndex;
                     if (SourceType->TypeID == DestTypeId) {
-                        
+                        if (SourceType->TypeID == Asset_FontGlyph) {
+                            File->FontBitmapIDOffset = AssetCount - SourceType->FirstAssetIndex;
+                        }
                         Assert(SourceType->OnePassLastAssetIndex >= SourceType->FirstAssetIndex);
                         u32 AssetCountForType = SourceType->OnePassLastAssetIndex - SourceType->FirstAssetIndex;
                         
@@ -625,7 +636,8 @@ GetHorizontalAdvanceForPair(hha_font* FontInfo, loaded_font* Font, u32 DesiredPr
 internal bitmap_id
 GetBitmapForGlyph(game_assets *Assets, hha_font* FontInfo, loaded_font* Font, u32 DesiredCodePoint) {
     u32 CodePoint = GetClampedCodePoint(FontInfo, DesiredCodePoint);
-    bitmap_id Result = Font->CodePoints[CodePoint];
+    bitmap_id Result = {};
+    Result.Value = Font->CodePoints[CodePoint].Value + Font->BitmapIDOffset;
     return(Result);
 }
 
