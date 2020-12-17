@@ -496,9 +496,6 @@ DEBUGTextLine(char *String) {
                 if (CodePoint != ' ') {
                     // proportional mode
                     // AdvancedX = CharScale * (r32)(Info->Dim[0] + 2);
-                    if (CodePoint == 10) {
-                        int a = 1;
-                    }
                     bitmap_id BitmapID = GetBitmapForGlyph(RenderGroup->Assets, Info, Font, CodePoint);
                     hha_bitmap* BitmapInfo = GetBitmapInfo(RenderGroup->Assets, BitmapID);
                     PushBitmap(RenderGroup, BitmapID, CharScale * (r32)BitmapInfo->Dim[1], v3{AtX, AtY, 0}, v4{1.0f, 1.0f, 1.0f, 1});

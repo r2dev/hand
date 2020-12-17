@@ -329,13 +329,32 @@ InitFont(char* FileName, u32 CodePointCount) {
         Result->CodePointCount = CodePointCount;
         Result->BitmapIDs = (bitmap_id*)malloc(sizeof(bitmap_id) * CodePointCount);
         Result->HorizontalAdvance = (r32*)malloc(sizeof(r32) * CodePointCount * CodePointCount);
-        
         //
         for (u32 CodePoint = 0; CodePoint < Result->CodePointCount; ++CodePoint) {
+            int AdvanceWidth, LeftSideBearing;
+            stbtt_GetCodepointHMetrics(&Result->Font, CodePoint, &AdvanceWidth, &LeftSideBearing);
             for (u32 OtherCodePoint = 0; OtherCodePoint < Result->CodePointCount; ++OtherCodePoint) {
-                Result->HorizontalAdvance[CodePoint * Result->CodePointCount + OtherCodePoint] = 10.0f;
+                Result->HorizontalAdvance[CodePoint * Result->CodePointCount + OtherCodePoint] = (r32)(Result->Scale * AdvanceWidth);
             }
         }
+        
+        int KerningTableLength = stbtt_GetKerningTableLength(&Result->Font);
+        stbtt_kerningentry *Entries = (stbtt_kerningentry *)malloc(sizeof(stbtt_kerningentry) * KerningTableLength);
+        stbtt_GetKerningTable(&Result->Font, Entries, KerningTableLength);
+        
+        for (int KerningTableIndex = 0; KerningTableIndex < KerningTableLength; ++KerningTableIndex) {
+            stbtt_kerningentry *Entry = Entries + KerningTableIndex;
+            
+            int CodePoint = Entry->glyph1;
+            int CodePoint2 = Entry->glyph2;
+            if (CodePoint < (int)Result->CodePointCount && CodePoint2 < (int)Result->CodePointCount) {
+                if (CodePoint == 'T' && CodePoint2 == 'o') {
+                    int a = 0;
+                }
+                Result->HorizontalAdvance[CodePoint * Result->CodePointCount + CodePoint2] += Entry->advance;
+            }
+        }
+        free(Entries);
     }
     return(Result);
 }
@@ -360,7 +379,7 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
         Result.Height = Height;
         Result.Memory = malloc(Result.Pitch * Height);
         Result.Free = Result.Memory;
-        Asset->Bitmap.AlignPercentage[0] = 0.0f;
+        Asset->Bitmap.AlignPercentage[0] = -XOffset / (r32)Width;
         Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Font->Scale * Ascent) / Height);
         
         u8* Source = MonoBitmap;
