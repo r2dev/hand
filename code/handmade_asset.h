@@ -43,7 +43,7 @@ struct loaded_font {
     bitmap_id *CodePoints;
     r32 *HorizontalAdvance;
     
-    u32 BitmapIDOffset;
+    s32 BitmapIDOffset;
 };
 
 struct asset_memory_header {
@@ -183,13 +183,15 @@ GetAsset(game_assets* Assets, u32 ID, u32 GenerationID) {
     
 }
 
-inline loaded_bitmap*
-GetBitmap(game_assets* Assets, bitmap_id ID, u32 GenerationID) {
-    asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
-    loaded_bitmap* Result = 0;
-    if(Header) {
-        Result = &Header->Bitmap;
+
+inline loaded_font*
+GetFont(game_assets* Assets, font_id ID, u32 GenerationID) {
+	asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
+    loaded_font* Result = 0;
+    if (Header) {
+        Result = &Header->Font;
     }
+    
     return(Result);
 }
 
@@ -203,18 +205,15 @@ GetSound(game_assets* Assets, sound_id ID, u32 GenerationID) {
     return(Result);
 }
 
-
-inline loaded_font*
-GetFont(game_assets* Assets, font_id ID, u32 GenerationID) {
-	asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
-    loaded_font* Result = 0;
-    if (Header) {
-        Result = &Header->Font;
+inline loaded_bitmap*
+GetBitmap(game_assets* Assets, bitmap_id ID, u32 GenerationID) {
+    asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
+    loaded_bitmap* Result = 0;
+    if(Header) {
+        Result = &Header->Bitmap;
     }
-    
     return(Result);
 }
-
 
 inline u32
 BeginGeneration(game_assets* Assets) {
@@ -240,3 +239,4 @@ EndGeneration(game_assets* Assets, u32 GenerationID) {
 }
 
 internal void LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate);
+internal void LoadFont(game_assets* Assets, font_id ID, b32 Immediate);

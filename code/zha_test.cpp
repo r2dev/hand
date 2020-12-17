@@ -329,6 +329,13 @@ InitFont(char* FileName, u32 CodePointCount) {
         Result->CodePointCount = CodePointCount;
         Result->BitmapIDs = (bitmap_id*)malloc(sizeof(bitmap_id) * CodePointCount);
         Result->HorizontalAdvance = (r32*)malloc(sizeof(r32) * CodePointCount * CodePointCount);
+        
+        //
+        for (u32 CodePoint = 0; CodePoint < Result->CodePointCount; ++CodePoint) {
+            for (u32 OtherCodePoint = 0; OtherCodePoint < Result->CodePointCount; ++OtherCodePoint) {
+                Result->HorizontalAdvance[CodePoint * Result->CodePointCount + OtherCodePoint] = 10.0f;
+            }
+        }
     }
     return(Result);
 }
@@ -376,11 +383,6 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
 					(uint32)(Texel.b + 0.5f) << 0;
             }
             DestRow -= Result.Pitch;
-        }
-        
-        for (u32 OtherCodePoint = 0; OtherCodePoint < Font->CodePointCount; ++OtherCodePoint) {
-            Font->HorizontalAdvance[CodePoint * Font->CodePointCount + OtherCodePoint] = (r32)Result.Width;
-            
         }
         stbtt_FreeBitmap(MonoBitmap, 0);
         // todo

@@ -72,6 +72,7 @@ PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset,
 	}
 }
 
+
 inline void
 PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
 	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
@@ -87,7 +88,22 @@ PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color
 	else {
         Assert(!Group->RenderInBackground);
 		LoadBitmap(Group->Assets, ID, false);
+        ++Group->MissingResourceCount;
 	}
+}
+
+inline loaded_font*
+PushFont(render_group* Group, font_id ID) {
+	loaded_font* Font = GetFont(Group->Assets, ID, Group->GenerationID);
+	if (Font) {
+		//PushBitmap(Group, Font, Height, Offset, Color);
+	}
+	else {
+        Assert(!Group->RenderInBackground);
+		LoadFont(Group->Assets, ID, false);
+        ++Group->MissingResourceCount;
+	}
+    return(Font);
 }
 
 
