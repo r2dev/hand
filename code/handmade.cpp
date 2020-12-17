@@ -480,7 +480,6 @@ DEBUGTextLine(char *String) {
         loaded_font* Font = PushFont(RenderGroup, FontID);
         if (Font) {
             hha_font *Info = GetFontInfo(RenderGroup->Assets, FontID);
-            Font = PushFont(RenderGroup, FontID);
             u32 PrevCodePoint = 0;
             
             r32 AtX = LeftEdge;
@@ -497,7 +496,9 @@ DEBUGTextLine(char *String) {
                 if (CodePoint != ' ') {
                     // proportional mode
                     // AdvancedX = CharScale * (r32)(Info->Dim[0] + 2);
-                    
+                    if (CodePoint == 10) {
+                        int a = 1;
+                    }
                     bitmap_id BitmapID = GetBitmapForGlyph(RenderGroup->Assets, Info, Font, CodePoint);
                     hha_bitmap* BitmapInfo = GetBitmapInfo(RenderGroup->Assets, BitmapID);
                     PushBitmap(RenderGroup, BitmapID, CharScale * (r32)BitmapInfo->Dim[1], v3{AtX, AtY, 0}, v4{1.0f, 1.0f, 1.0f, 1});
@@ -525,7 +526,7 @@ OverlayCycleCounters(game_memory* Memory) {
         "FillPixel",
         "TestPixel",
     };
-    DEBUGTextLine("Debug cycle count: \n");
+    //DEBUGTextLine("Debug cycle count: \n");
 	
 	for (int CounterIndex = 0; CounterIndex < ArrayCount(Memory->Counters); ++CounterIndex) {
 		debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
