@@ -180,7 +180,6 @@ GetAsset(game_assets* Assets, u32 ID, u32 GenerationID) {
     EndAssetLock(Assets);
     
 	return(Result);
-    
 }
 
 

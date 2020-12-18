@@ -21,7 +21,9 @@ struct loaded_bitmap {
 
 struct loaded_font {
     u32 CodePointCount;
-    r32 LineAdvance;
+    r32 Ascent;
+    r32 Descent;
+    r32 ExternalLeading;
     bitmap_id* BitmapIDs;
     r32* HorizontalAdvance;
     
@@ -325,7 +327,11 @@ InitFont(char* FileName, u32 CodePointCount) {
         int Ascent, Descent, Linegap;
         stbtt_GetFontVMetrics(&Result->Font, &Ascent, &Descent, &Linegap);
         
-        Result->LineAdvance = Result->Scale * (Ascent - Descent + Linegap);
+        // Result->LineAdvance = Result->Scale * (Ascent - Descent + Linegap);
+        Result->Ascent = Result->Scale * Ascent;
+        // (ren) store as positive value for now, change if needed in the future
+        Result->Descent = -Result->Scale * Descent;
+        Result->ExternalLeading = Result->Scale * Linegap;
         Result->CodePointCount = CodePointCount;
         Result->BitmapIDs = (bitmap_id*)malloc(sizeof(bitmap_id) * CodePointCount);
         Result->HorizontalAdvance = (r32*)malloc(sizeof(r32) * CodePointCount * CodePointCount);
@@ -337,8 +343,6 @@ InitFont(char* FileName, u32 CodePointCount) {
                 Result->HorizontalAdvance[CodePoint * Result->CodePointCount + OtherCodePoint] = (r32)(Result->Scale * AdvanceWidth);
             }
         }
-        
-        
         
         int KerningTableLength = stbtt_GetKerningTableLength(&Result->Font);
         stbtt_kerningentry *Entries = (stbtt_kerningentry *)malloc(sizeof(stbtt_kerningentry) * KerningTableLength);
@@ -381,7 +385,7 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
         Result.Height = Height;
         Result.Memory = malloc(Result.Pitch * Height);
         Result.Free = Result.Memory;
-        Asset->Bitmap.AlignPercentage[0] = -XOffset / (r32)Width;
+        Asset->Bitmap.AlignPercentage[0] = XOffset / (r32)Width;
         Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Font->Scale * Ascent) / Height);
         
         u8* Source = MonoBitmap;
@@ -411,7 +415,6 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
     }
     return(Result);
 }
-
 
 
 internal void
@@ -464,7 +467,9 @@ AddBitmapAsset(game_assets* Assets, char* FileName, r32 AlignmentPercentageX = 0
 internal font_id
 AddFontAsset(game_assets* Assets, loaded_font *Font) {
     added_asset Asset = AddAsset(Assets);
-    Asset.HHA->Font.LineAdvance = Font->LineAdvance;
+    Asset.HHA->Font.Ascent = Font->Ascent;
+    Asset.HHA->Font.Descent = Font->Descent;
+    Asset.HHA->Font.ExternalLeading = Font->ExternalLeading;
     Asset.HHA->Font.CodePointCount = Font->CodePointCount;
     Asset.Source->Type = AssetType_Font;
     Asset.Source->Font.Font = Font;

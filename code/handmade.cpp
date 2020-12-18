@@ -471,12 +471,12 @@ DEBUGReset(game_assets *Assets, u32 Width, u32 Height) {
     
     FontScale = 80.0f / 255.0f;
     Orthographic(DEBUGRenderGroup, Width, Height, 1.0f);
-    LeftEdge = -0.5f * (r32)Width + 0.5f * FontScale;
+    LeftEdge = -0.5f * (r32)Width;
     
     hha_font *Info = GetFontInfo(Assets, FontID);
-    AtY = 0.5f * Height - FontScale * GetLineAdvancedFor(Info);
-    
+    AtY = Height - (Info->Ascent + Info->Descent);
 }
+
 internal void
 DEBUGTextLine(char *String) {
     if (DEBUGRenderGroup) {
@@ -493,9 +493,11 @@ DEBUGTextLine(char *String) {
             for(char* At = String;
                 *At;
                 ++At) {
-                
                 u32 CodePoint = *At;
-                r32 AdvancedX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
+                r32 AdvancedX = 0;
+                if(PrevCodePoint) {
+                    AdvancedX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
+                }
                 AtX += AdvancedX;
                 
                 if (CodePoint != ' ') {
