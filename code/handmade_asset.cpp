@@ -642,7 +642,7 @@ GetBitmapForGlyph(game_assets *Assets, hha_font* FontInfo, loaded_font* Font, u3
 }
 
 internal r32
-GetLineAdvancedFor(hha_font* FontInfo, loaded_font* Font) {
+GetLineAdvancedFor(hha_font* FontInfo) {
     r32 Result = FontInfo->LineAdvance;
     return(Result);
 }

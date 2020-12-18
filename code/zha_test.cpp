@@ -329,7 +329,7 @@ InitFont(char* FileName, u32 CodePointCount) {
         Result->CodePointCount = CodePointCount;
         Result->BitmapIDs = (bitmap_id*)malloc(sizeof(bitmap_id) * CodePointCount);
         Result->HorizontalAdvance = (r32*)malloc(sizeof(r32) * CodePointCount * CodePointCount);
-        //
+        
         for (u32 CodePoint = 0; CodePoint < Result->CodePointCount; ++CodePoint) {
             int AdvanceWidth, LeftSideBearing;
             stbtt_GetCodepointHMetrics(&Result->Font, CodePoint, &AdvanceWidth, &LeftSideBearing);
@@ -338,20 +338,22 @@ InitFont(char* FileName, u32 CodePointCount) {
             }
         }
         
+        
+        
         int KerningTableLength = stbtt_GetKerningTableLength(&Result->Font);
         stbtt_kerningentry *Entries = (stbtt_kerningentry *)malloc(sizeof(stbtt_kerningentry) * KerningTableLength);
         stbtt_GetKerningTable(&Result->Font, Entries, KerningTableLength);
         
+        u32 CodePointOffset = '!' - stbtt_FindGlyphIndex(&Result->Font, '!');
+        
         for (int KerningTableIndex = 0; KerningTableIndex < KerningTableLength; ++KerningTableIndex) {
             stbtt_kerningentry *Entry = Entries + KerningTableIndex;
             
-            int CodePoint = Entry->glyph1;
-            int CodePoint2 = Entry->glyph2;
+            int CodePoint = Entry->glyph1 + CodePointOffset;
+            int CodePoint2 = Entry->glyph2 + CodePointOffset;
+            
             if (CodePoint < (int)Result->CodePointCount && CodePoint2 < (int)Result->CodePointCount) {
-                if (CodePoint == 'T' && CodePoint2 == 'o') {
-                    int a = 0;
-                }
-                Result->HorizontalAdvance[CodePoint * Result->CodePointCount + CodePoint2] += Entry->advance;
+                Result->HorizontalAdvance[CodePoint * Result->CodePointCount + CodePoint2] += Result->Scale * (r32)Entry->advance;
             }
         }
         free(Entries);
@@ -396,10 +398,10 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
                 
                 Texel = Linear1ToSRGB(Texel);
                 
-				*Dest++ = (uint32)(Texel.a + 0.5f) << 24 |
-					(uint32)(Texel.r + 0.5f) << 16 |
-					(uint32)(Texel.g + 0.5f) << 8 |
-					(uint32)(Texel.b + 0.5f) << 0;
+                *Dest++ = (uint32)(Texel.a + 0.5f) << 24 |
+                    (uint32)(Texel.r + 0.5f) << 16 |
+                    (uint32)(Texel.g + 0.5f) << 8 |
+                    (uint32)(Texel.b + 0.5f) << 0;
             }
             DestRow -= Result.Pitch;
         }
@@ -414,12 +416,12 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
 
 internal void
 BeginAssetType(game_assets* Assets, asset_type_id ID) {
-	Assert(Assets->DEBUGAssetType == 0);
+    Assert(Assets->DEBUGAssetType == 0);
     
-	Assets->DEBUGAssetType = Assets->AssetTypes + ID;
-	Assets->DEBUGAssetType->TypeID = ID;
-	Assets->DEBUGAssetType->FirstAssetIndex = Assets->AssetCount++;
-	Assets->DEBUGAssetType->OnePassLastAssetIndex = Assets->DEBUGAssetType->FirstAssetIndex;
+    Assets->DEBUGAssetType = Assets->AssetTypes + ID;
+    Assets->DEBUGAssetType->TypeID = ID;
+    Assets->DEBUGAssetType->FirstAssetIndex = Assets->AssetCount++;
+    Assets->DEBUGAssetType->OnePassLastAssetIndex = Assets->DEBUGAssetType->FirstAssetIndex;
 }
 
 struct added_asset {
@@ -432,10 +434,10 @@ internal added_asset
 AddAsset(game_assets* Assets) {
     Assert(Assets->DEBUGAssetType);
     u32 Index = Assets->DEBUGAssetType->OnePassLastAssetIndex++;
-	asset_source* Source = Assets->AssetSources + Index;
+    asset_source* Source = Assets->AssetSources + Index;
     hha_asset *Dest = Assets->Assets + Index;
     Dest->FirstTagIndex = Assets->TagCount;
-	Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
+    Dest->OnePassLastTagIndex = Dest->FirstTagIndex;
     Assets->AssetIndex = Index;
     added_asset Result = {};
     Result.ID = Index;
@@ -453,10 +455,10 @@ AddBitmapAsset(game_assets* Assets, char* FileName, r32 AlignmentPercentageX = 0
     Asset.Source->Type = AssetType_Bitmap;
     Asset.Source->Bitmap.FileName = FileName;
     
-	Asset.HHA->Bitmap.AlignPercentage[0] = AlignmentPercentageX;
-	Asset.HHA->Bitmap.AlignPercentage[1] = AlignmentPercentageY;
-	bitmap_id Result = {Asset.ID};
-	return(Result);
+    Asset.HHA->Bitmap.AlignPercentage[0] = AlignmentPercentageX;
+    Asset.HHA->Bitmap.AlignPercentage[1] = AlignmentPercentageY;
+    bitmap_id Result = {Asset.ID};
+    return(Result);
 }
 
 internal font_id
@@ -467,7 +469,7 @@ AddFontAsset(game_assets* Assets, loaded_font *Font) {
     Asset.Source->Type = AssetType_Font;
     Asset.Source->Font.Font = Font;
     font_id Result = {Asset.ID};
-	return(Result);
+    return(Result);
 }
 
 
@@ -480,32 +482,32 @@ AddCharacterAsset(game_assets* Assets, loaded_font* Font, u32 Codepoint) {
     Asset.Source->Glyph.Codepoint = Codepoint;
     // alignment get set when we load the font
     Asset.HHA->Bitmap.AlignPercentage[0] = 0.0f;
-	Asset.HHA->Bitmap.AlignPercentage[1] = 0.0f;
-	
+    Asset.HHA->Bitmap.AlignPercentage[1] = 0.0f;
+    
     bitmap_id Result = { Asset.ID };
-	return(Result);
+    return(Result);
 }
 
 internal sound_id
 AddSoundAsset(game_assets* Assets, char* FileName, u32 FirstSampleIndex = 0, u32 LoadSampleCount = 0) {
-	added_asset Asset = AddAsset(Assets);
+    added_asset Asset = AddAsset(Assets);
     Asset.Source->Type = AssetType_Sound;
     Asset.Source->Sound.FileName = FileName;
     Asset.Source->Sound.FirstSampleIndex = FirstSampleIndex;
     
-	Asset.HHA->FirstTagIndex = Assets->TagCount;
-	Asset.HHA->OnePassLastTagIndex = Asset.HHA->FirstTagIndex;
-	Asset.HHA->Sound.SampleCount = LoadSampleCount;
-	Asset.HHA->Sound.Chain = HHASoundChain_none;
+    Asset.HHA->FirstTagIndex = Assets->TagCount;
+    Asset.HHA->OnePassLastTagIndex = Asset.HHA->FirstTagIndex;
+    Asset.HHA->Sound.SampleCount = LoadSampleCount;
+    Asset.HHA->Sound.Chain = HHASoundChain_none;
     
     sound_id Result = { Asset.ID };
-	return(Result);
+    return(Result);
 }
 
 
 internal void
 EndAssetType(game_assets* Assets) {
-	Assert(Assets->DEBUGAssetType);
+    Assert(Assets->DEBUGAssetType);
     Assets->AssetCount = Assets->DEBUGAssetType->OnePassLastAssetIndex;
     Assets->DEBUGAssetType = 0;
     Assets->AssetIndex = 0;
@@ -513,23 +515,23 @@ EndAssetType(game_assets* Assets) {
 
 internal void
 AddTag(game_assets* Assets, asset_tag_id TagID, real32 Value) {
-	Assert(Assets->AssetIndex);
+    Assert(Assets->AssetIndex);
     
     hha_asset *HHA = Assets->Assets + Assets->AssetIndex;
     ++HHA->OnePassLastTagIndex;
     
-	hha_tag* Tag = Assets->Tags + Assets->TagCount++;
-	Tag->ID = TagID;
-	Tag->Value = Value;
+    hha_tag* Tag = Assets->Tags + Assets->TagCount++;
+    Tag->ID = TagID;
+    Tag->Value = Value;
 }
 
 internal void
 InitialAssets(game_assets *Assets) {
     Assets->AssetCount = 1;
-	Assets->TagCount = 1;
+    Assets->TagCount = 1;
     
-	Assets->DEBUGAssetType = 0;
-	Assets->AssetIndex = 0;
+    Assets->DEBUGAssetType = 0;
+    Assets->AssetIndex = 0;
     
     Assets->AssetTypeCount = Asset_Count;
     memset(Assets->AssetTypes, 0, sizeof(Assets->AssetTypes)); 
@@ -539,76 +541,76 @@ InitialAssets(game_assets *Assets) {
 internal void
 PackHero() {
     game_assets Assets_;
-	game_assets* Assets = &Assets_;
+    game_assets* Assets = &Assets_;
     InitialAssets(Assets);
     
-	real32 AngleRight = 0.0f * Tau32;
-	real32 AngleBack = 0.25f * Tau32;
-	real32 AngleLeft = 0.5f * Tau32;
-	real32 AngleFront = 0.75f * Tau32;
+    real32 AngleRight = 0.0f * Tau32;
+    real32 AngleBack = 0.25f * Tau32;
+    real32 AngleLeft = 0.5f * Tau32;
+    real32 AngleFront = 0.75f * Tau32;
     
-	BeginAssetType(Assets, Asset_Shadow);
-	AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", 0.5f, 0.156682029f);
-	EndAssetType(Assets);
+    BeginAssetType(Assets, Asset_Shadow);
+    AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", 0.5f, 0.156682029f);
+    EndAssetType(Assets);
     
-	BeginAssetType(Assets, Asset_Head);
-	AddBitmapAsset(Assets, "test/test_hero_right_head.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleRight);
-	AddBitmapAsset(Assets, "test/test_hero_back_head.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleBack);
-	AddBitmapAsset(Assets, "test/test_hero_left_head.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleLeft);
-	AddBitmapAsset(Assets, "test/test_hero_front_head.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleFront);
-	EndAssetType(Assets);
+    BeginAssetType(Assets, Asset_Head);
+    AddBitmapAsset(Assets, "test/test_hero_right_head.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleRight);
+    AddBitmapAsset(Assets, "test/test_hero_back_head.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleBack);
+    AddBitmapAsset(Assets, "test/test_hero_left_head.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleLeft);
+    AddBitmapAsset(Assets, "test/test_hero_front_head.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleFront);
+    EndAssetType(Assets);
     
-	BeginAssetType(Assets, Asset_Cape);
-	AddBitmapAsset(Assets, "test/test_hero_right_cape.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleRight);
-	AddBitmapAsset(Assets, "test/test_hero_back_cape.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleBack);
-	AddBitmapAsset(Assets, "test/test_hero_left_cape.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleLeft);
-	AddBitmapAsset(Assets, "test/test_hero_front_cape.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleFront);
-	EndAssetType(Assets);
+    BeginAssetType(Assets, Asset_Cape);
+    AddBitmapAsset(Assets, "test/test_hero_right_cape.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleRight);
+    AddBitmapAsset(Assets, "test/test_hero_back_cape.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleBack);
+    AddBitmapAsset(Assets, "test/test_hero_left_cape.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleLeft);
+    AddBitmapAsset(Assets, "test/test_hero_front_cape.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleFront);
+    EndAssetType(Assets);
     
-	BeginAssetType(Assets, Asset_Torso);
-	AddBitmapAsset(Assets, "test/test_hero_right_torso.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleRight);
-	AddBitmapAsset(Assets, "test/test_hero_back_torso.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleBack);
-	AddBitmapAsset(Assets, "test/test_hero_left_torso.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleLeft);
-	AddBitmapAsset(Assets, "test/test_hero_front_torso.bmp", 0.5f, 0.156682029f);
-	AddTag(Assets, Tag_FaceDirection, AngleFront);
-	EndAssetType(Assets);
+    BeginAssetType(Assets, Asset_Torso);
+    AddBitmapAsset(Assets, "test/test_hero_right_torso.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleRight);
+    AddBitmapAsset(Assets, "test/test_hero_back_torso.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleBack);
+    AddBitmapAsset(Assets, "test/test_hero_left_torso.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleLeft);
+    AddBitmapAsset(Assets, "test/test_hero_front_torso.bmp", 0.5f, 0.156682029f);
+    AddTag(Assets, Tag_FaceDirection, AngleFront);
+    EndAssetType(Assets);
     
     
-	Out = fopen("test1.hha", "wb");
-	if (Out) {
+    Out = fopen("test1.hha", "wb");
+    if (Out) {
         
-		hha_header Header = {};
-		Header.MagicValue = HHA_MAGIC_VALUE;
-		Header.Version = HHA_VERSION;
+        hha_header Header = {};
+        Header.MagicValue = HHA_MAGIC_VALUE;
+        Header.Version = HHA_VERSION;
         
-		Header.AssetTypeCount = Asset_Count;
-		Header.AssetCount = Assets->AssetCount;
+        Header.AssetTypeCount = Asset_Count;
+        Header.AssetCount = Assets->AssetCount;
         
-		Header.TagCount = Assets->TagCount;
+        Header.TagCount = Assets->TagCount;
         
-		u32 TagArraySize = Header.TagCount * sizeof(hha_tag);
-		u32 AssetArraySize = Header.AssetCount * sizeof(hha_asset);
-		u32 AssetTypeArraySize = Header.AssetTypeCount * sizeof(hha_asset_type);
+        u32 TagArraySize = Header.TagCount * sizeof(hha_tag);
+        u32 AssetArraySize = Header.AssetCount * sizeof(hha_asset);
+        u32 AssetTypeArraySize = Header.AssetTypeCount * sizeof(hha_asset_type);
         
-		Header.Tags = sizeof(Header);
-		Header.AssetTypes = Header.Tags + TagArraySize;
-		Header.Assets = Header.AssetTypes + AssetTypeArraySize;
+        Header.Tags = sizeof(Header);
+        Header.AssetTypes = Header.Tags + TagArraySize;
+        Header.Assets = Header.AssetTypes + AssetTypeArraySize;
         
-		
-		fwrite(&Header, sizeof(Header), 1, Out);
-		fwrite(Assets->Tags, TagArraySize, 1, Out);
-		fwrite(Assets->AssetTypes, AssetTypeArraySize, 1, Out);
+        
+        fwrite(&Header, sizeof(Header), 1, Out);
+        fwrite(Assets->Tags, TagArraySize, 1, Out);
+        fwrite(Assets->AssetTypes, AssetTypeArraySize, 1, Out);
         fseek(Out, AssetArraySize, SEEK_CUR);
         for (u32 AssetIndex = 1; AssetIndex < Header.AssetCount; ++AssetIndex) {
             asset_source* Source = Assets->AssetSources + AssetIndex;
@@ -635,11 +637,11 @@ PackHero() {
         }
         fseek(Out, (u32)Header.Assets, SEEK_SET);
         fwrite(Assets->Assets, AssetArraySize, 1, Out);
-		fclose(Out);
-	}
-	else {
-		printf("Err: Could not open file\n");
-	}
+        fclose(Out);
+    }
+    else {
+        printf("Err: Could not open file\n");
+    }
 }
 
 internal void
@@ -943,10 +945,10 @@ PackMusic() {
 
 
 int main(int ArgCount, char **Args) {
-	PackMusic();
+    PackMusic();
     PackOtherAsset();
     PackHero();
-	printf("hello world");
+    printf("hello world");
     PackFont();
-	return(0);
+    return(0);
 } 
