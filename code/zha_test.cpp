@@ -385,7 +385,7 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
         Result.Height = Height;
         Result.Memory = malloc(Result.Pitch * Height);
         Result.Free = Result.Memory;
-        Asset->Bitmap.AlignPercentage[0] = XOffset / (r32)Width;
+        Asset->Bitmap.AlignPercentage[0] = -XOffset / (r32)Width;
         Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Font->Scale * Ascent) / Height);
         
         u8* Source = MonoBitmap;
@@ -776,6 +776,7 @@ PackFont() {
     for(u32 Character = '!'; Character <= '~'; ++Character) {
         DebugFont->BitmapIDs[Character] = AddCharacterAsset(Assets, DebugFont, Character);
     }
+    DebugFont->BitmapIDs[' '] = AddCharacterAsset(Assets, DebugFont, ' ');
     
     EndAssetType(Assets);
     
