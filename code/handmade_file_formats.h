@@ -1,5 +1,6 @@
 #pragma once
 
+#define ONE_PAST_MAX_FONT_CODEPOINT (0x10FFFF + 1)
 enum asset_type_id {
 	Asset_none,
 	Asset_Shadow,
@@ -82,16 +83,24 @@ struct hha_sound {
     u32 ChannelCount;
 	u32 SampleCount;
     u32 Chain;
+    
     // s16 Channels[ChannelCount][SampleCount]
 };
 
+struct hha_font_glyph {
+    u32 UnicodeCodePoint;
+    bitmap_id BitmapID;
+};
+
 struct hha_font {
-    u32 CodePointCount;
+    u32 GlyphCount;
     r32 Ascent;
     r32 Descent;
     r32 ExternalLeading;
-    //bitmap_id CodePoints[CodePointCount];
-    //r32 HorizontalAdvance[CodePointCount];
+    u32 OnePastHighestCodePoint;
+    
+    //hha_font_glyph FontGlyphs[GlyphCount];
+    //r32 HorizontalAdvance[GlyphCount][GlyphCount];
     
 };
 

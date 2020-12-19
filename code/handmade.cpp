@@ -477,6 +477,24 @@ DEBUGReset(game_assets *Assets, u32 Width, u32 Height) {
     AtY = Height - (Info->Ascent + Info->Descent);
 }
 
+inline b32
+IsHex(char Char) {
+    b32 Result = (((Char >= '0') && (Char <= '9')) || ((Char >= 'A')&& (Char <= 'F')));
+    return(Result);
+}
+
+inline u32
+GetHex(char Char) {
+    u32 Result = 0;
+    if (Char >= '0' && Char <= '9') {
+        Result = Char - '0';
+    } else if (Char >= 'A' && Char <= 'F') {
+        Result = 0xA + (Char - 'A');
+    }
+    return(Result);
+}
+
+
 internal void
 DEBUGTextLine(char *String) {
     if (DEBUGRenderGroup) {
@@ -493,8 +511,14 @@ DEBUGTextLine(char *String) {
             for(char* At = String;
                 *At;
                 ++At) {
+                
                 u32 CodePoint = *At;
                 r32 AdvancedX = 0;
+                
+                if (At[0] == '\\' && IsHex(At[1]) && IsHex(At[2]) && IsHex(At[3]) && IsHex(At[4])) {
+                    CodePoint = ((GetHex(At[1]) << 12) | (GetHex(At[2]) << 8) | (GetHex(At[3]) << 4) | (GetHex(At[4]) << 0));
+                    At += 4;
+                }
                 if(PrevCodePoint) {
                     AdvancedX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
                 }
@@ -510,7 +534,6 @@ DEBUGTextLine(char *String) {
                 // advance here
                 
                 PrevCodePoint = CodePoint;
-                
             }
             AtY -= GetLineAdvancedFor(Info) * CharScale;
         } else {
@@ -532,6 +555,7 @@ OverlayCycleCounters(game_memory* Memory) {
     };
     DEBUGTextLine("AVA WA aTa");
     DEBUGTextLine("$7$7$");
+    DEBUGTextLine("\\6024\\7363");
 	
 	for (int CounterIndex = 0; CounterIndex < ArrayCount(Memory->Counters); ++CounterIndex) {
 		debug_cycle_counter* Counter = Memory->Counters + CounterIndex;

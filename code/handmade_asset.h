@@ -40,10 +40,11 @@ enum asset_state {
 };
 
 struct loaded_font {
-    bitmap_id *CodePoints;
+    hha_font_glyph *Glyphs;
     r32 *HorizontalAdvance;
     
     s32 BitmapIDOffset;
+    u16 *UnicodeMap;
 };
 
 struct asset_memory_header {

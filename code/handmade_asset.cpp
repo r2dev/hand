@@ -1,5 +1,10 @@
 #include "handmade_asset.h"
 
+enum finalize_asset_operation {
+    FinalizeAsset_None,
+    FinalizeAsset_Font,
+};
+
 struct load_asset_work {
     task_with_memory* Task;
     asset* Asset;
@@ -9,12 +14,31 @@ struct load_asset_work {
     u64 Offset;
     void* Destination;
     u32 FinalState;
+    finalize_asset_operation FinalizeOperation;
 };
+
 internal void
 LoadAssetWorkDirectly(load_asset_work* Work) {
     
     Platform.ReadDataFromFile(Work->Handle, Work->Offset, Work->Size, Work->Destination);
-    _WriteBarrier();
+    if (PlatformNoFileErrors(Work->Handle)) {
+        switch(Work->FinalizeOperation) {
+            case FinalizeAsset_None: {
+            } break;
+            case FinalizeAsset_Font: {
+                loaded_font *Font = &Work->Asset->Header->Font;
+                hha_font *Info = &Work->Asset->HHA.Font;
+                for(u32 GlyphIndex = 1; GlyphIndex < Info->GlyphCount; ++GlyphIndex) {
+                    hha_font_glyph *Glyph = Font->Glyphs + GlyphIndex;
+                    Assert(Glyph->UnicodeCodePoint < Info->OnePastHighestCodePoint);
+                    Assert((u32)(u16)GlyphIndex == GlyphIndex);
+                    Font->UnicodeMap[Glyph->UnicodeCodePoint] = (u16)GlyphIndex;
+                }
+                
+            } break;
+        }
+    }
+    CompletePreviousWritesBeforeFutureWrites;
     if (!PlatformNoFileErrors(Work->Handle)) {
         ZeroSize(Work->Size, Work->Destination);
     }
@@ -230,6 +254,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
                 Work.Size = Size.Data;
                 Work.Offset = Asset->HHA.DataOffset;
                 Work.Task = Task;
+                Work.FinalizeOperation = FinalizeAsset_None;
                 
                 Work.Destination = Bitmap->Memory;
                 Work.FinalState = (AssetState_Loaded);
@@ -268,20 +293,21 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
                 
                 hha_font* Info = &Asset->HHA.Font;
                 
-                u32 HorizontalAdvanceSize = Info->CodePointCount * Info->CodePointCount * sizeof(r32);
-                u32 CodePointSize = Info->CodePointCount * sizeof(bitmap_id);
-                u32 SizeData = HorizontalAdvanceSize + CodePointSize; 
-                u32 SizeTotal = SizeData + sizeof(asset_memory_header);
+                u32 GlyphSize = Info->GlyphCount * sizeof(hha_font_glyph);
+                u32 HorizontalAdvanceSize = Info->GlyphCount * Info->GlyphCount * sizeof(r32);
+                u32 SizeData = HorizontalAdvanceSize + GlyphSize;
+                
+                u32 UnicodeMapSize = sizeof(u16) * Info->OnePastHighestCodePoint;
+                u32 SizeTotal = SizeData + sizeof(asset_memory_header) + UnicodeMapSize;
                 
                 Asset->Header = AcquireAssetMemory(Assets, SizeTotal, ID.Value);
                 
                 loaded_font* Font = &Asset->Header->Font;
                 Font->BitmapIDOffset = GetFile(Assets, Asset->FileIndex)->FontBitmapIDOffset;
-                //Font->HorizontalAdvance = (r32* )Asset->Header + 1;
-                //Font->CodePoints = (bitmap_id*)((u8*)Font->HorizontalAdvance + HorizontalAdvanceSize);
-                
-                Font->CodePoints = (bitmap_id*)(Asset->Header + 1);
-                Font->HorizontalAdvance = (r32*)((u8*)Font->CodePoints + CodePointSize);
+                Font->Glyphs = (hha_font_glyph*)(Asset->Header + 1);
+                Font->HorizontalAdvance = (r32*)((u8*)Font->Glyphs + GlyphSize);
+                Font->UnicodeMap = (u16*)((u8*)Font->HorizontalAdvance + HorizontalAdvanceSize);
+                ZeroSize(HorizontalAdvanceSize, Font->UnicodeMap);
                 
                 load_asset_work Work;
                 Work.Asset = Asset;
@@ -289,8 +315,9 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
                 Work.Size = SizeData;
                 Work.Offset = Asset->HHA.DataOffset;
                 Work.Task = Task;
+                Work.FinalizeOperation = FinalizeAsset_Font;
                 
-                Work.Destination = Font->CodePoints;
+                Work.Destination = Font->Glyphs;
                 Work.FinalState = (AssetState_Loaded);
                 if (Task) {
                     load_asset_work* TaskWork = PushStruct(&Task->Arena, load_asset_work);
@@ -312,10 +339,8 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
     }
 }
 
-
-
-internal
-void LoadSound(game_assets* Assets, sound_id ID) {
+internal void
+LoadSound(game_assets* Assets, sound_id ID) {
     
     asset *Asset = Assets->Assets + ID.Value;
     if (ID.Value &&
@@ -352,6 +377,7 @@ void LoadSound(game_assets* Assets, sound_id ID) {
             Work->Offset = Asset->HHA.DataOffset;
             Work->Size = Size.Data;
             Work->Task = Task;
+            Work->FinalizeOperation = FinalizeAsset_None;
             Work->Destination = Asset->Header + 1;
             
             //Work->Asset->Sound = Sound;
@@ -617,27 +643,29 @@ GetRandomBitmapFrom(game_assets* Assets, asset_type_id ID, random_series* Series
 }
 
 inline u32
-GetClampedCodePoint(hha_font* FontInfo, u32 CodePoint) {
+GetGlyphFromCodePoint(hha_font* FontInfo, loaded_font* Font, u32 CodePoint) {
     u32 Result = 0;
-    if (CodePoint < FontInfo->CodePointCount) {
-        Result = CodePoint;
+    if (CodePoint + 1 < FontInfo->OnePastHighestCodePoint) {
+        Result = Font->UnicodeMap[CodePoint];
+        Assert(Result < FontInfo->GlyphCount);
     }
     return(Result);
 }
 
 internal r32 
 GetHorizontalAdvanceForPair(hha_font* FontInfo, loaded_font* Font, u32 DesiredPrevCodePoint, u32 DesiredCodePoint) {
-    u32 PrevCodePoint = GetClampedCodePoint(FontInfo, DesiredPrevCodePoint);
-    u32 CodePoint = GetClampedCodePoint(FontInfo, DesiredCodePoint);
-    r32 Result = Font->HorizontalAdvance[PrevCodePoint * FontInfo->CodePointCount + CodePoint];
+    u32 Glyph0 = GetGlyphFromCodePoint(FontInfo, Font, DesiredPrevCodePoint);
+    u32 Glyph1 = GetGlyphFromCodePoint(FontInfo, Font, DesiredCodePoint);
+    
+    r32 Result = Font->HorizontalAdvance[Glyph0 * FontInfo->GlyphCount + Glyph1];
     return(Result);
 }
 
 internal bitmap_id
 GetBitmapForGlyph(game_assets *Assets, hha_font* FontInfo, loaded_font* Font, u32 DesiredCodePoint) {
-    u32 CodePoint = GetClampedCodePoint(FontInfo, DesiredCodePoint);
+    u32 Glyph = GetGlyphFromCodePoint(FontInfo, Font, DesiredCodePoint);
     bitmap_id Result = {};
-    Result.Value = Font->CodePoints[CodePoint].Value + Font->BitmapIDOffset;
+    Result.Value = Font->Glyphs[Glyph].BitmapID.Value + Font->BitmapIDOffset;
     return(Result);
 }
 

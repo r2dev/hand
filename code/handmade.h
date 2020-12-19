@@ -107,8 +107,8 @@ CheckArena(memory_arena* Arena) {
 	Assert(Arena->TempCount == 0);
 }
 
-
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
+#define ZeroArray(Count, Pointer) ZeroSize(Count * sizeof((Pointer)[0]), Pointer)
 inline void
 ZeroSize(memory_index Size, void* Ptr) {
 	uint8* Byte = (uint8 *)Ptr;
