@@ -341,7 +341,6 @@ InitFont(char* FileName) {
         Font->Descent = -Font->Scale * Descent;
         Font->ExternalLeading = Font->Scale * Linegap;
         
-        
         Font->GlyphCount = 0;
         Font->MaxGlyphCount = 5000;
         Font->MaxCodePoint = INT_MAX;
@@ -361,24 +360,28 @@ InitFont(char* FileName) {
         Font->GlyphIndexFromCodePoint = (u32*)malloc(GlyphIndexFromCodePointSize);
         memset(Font->GlyphIndexFromCodePoint, 0, GlyphIndexFromCodePointSize);
         
-        int KerningTableLength = stbtt_GetKerningTableLength(&Font->Font);
-        stbtt_kerningentry *Entries = (stbtt_kerningentry *)malloc(sizeof(stbtt_kerningentry) * KerningTableLength);
-        stbtt_GetKerningTable(&Font->Font, Entries, KerningTableLength);
-        
-        for (int KerningTableIndex = 0; KerningTableIndex < KerningTableLength; ++KerningTableIndex) {
-            stbtt_kerningentry *Entry = Entries + KerningTableIndex;
-            
-            
-            int glyph1 = Entry->glyph1;
-            int glyph2 = Entry->glyph2;
-            if (glyph1 > 0 && glyph2 > 0 && (u32)glyph1 < Font->MaxGlyphCount && (u32)glyph2 < Font->MaxGlyphCount) {
-                Font->HorizontalAdvance[glyph1 * Font->MaxGlyphCount + glyph2] = Font->Scale * (r32)Entry->advance;
-            }
-        }
-        free(Entries);
-        
     }
     return(Font);
+}
+
+internal void
+ApplyKerningValue(loaded_font* Font)
+{
+    int KerningTableLength = stbtt_GetKerningTableLength(&Font->Font);
+    stbtt_kerningentry *Entries = (stbtt_kerningentry *)malloc(sizeof(stbtt_kerningentry) * KerningTableLength);
+    stbtt_GetKerningTable(&Font->Font, Entries, KerningTableLength);
+    u32 CodePointOffset = '!' - stbtt_FindGlyphIndex(&Font->Font, '!');
+    for (int KerningTableIndex = 0; KerningTableIndex < KerningTableLength; ++KerningTableIndex) {
+        stbtt_kerningentry *Entry = Entries + KerningTableIndex;
+        u32 CodePoint1 = Entry->glyph1 + CodePointOffset;
+        u32 CodePoint2 = Entry->glyph2 + CodePointOffset;
+        int glyph1 = Font->GlyphIndexFromCodePoint[CodePoint1];
+        int glyph2 = Font->GlyphIndexFromCodePoint[CodePoint2];
+        if (glyph1 > 0 && glyph2 > 0 && (u32)glyph1 < Font->MaxGlyphCount && (u32)glyph2 < Font->MaxGlyphCount) {
+            Font->HorizontalAdvance[glyph1 * Font->MaxGlyphCount + glyph2] += Font->Scale * (r32)Entry->advance;
+        }
+    }
+    free(Entries);
 }
 
 internal void
@@ -435,12 +438,13 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
         
         for (u32 OtherGlyphIndex = 0; OtherGlyphIndex < Font->MaxGlyphCount; ++OtherGlyphIndex) {
             // todo
-            Font->HorizontalAdvance[GlyphIndex * Font->MaxGlyphCount + OtherGlyphIndex] += (r32)(Font->Scale * (AdvanceWidth + LeftSideBearing));
+            Font->HorizontalAdvance[GlyphIndex * Font->MaxGlyphCount + OtherGlyphIndex] += (r32)(Font->Scale * AdvanceWidth);
             if (OtherGlyphIndex != 0) {
-                Font->HorizontalAdvance[OtherGlyphIndex * Font->MaxGlyphCount + GlyphIndex] += (r32)(Font->Scale * (AdvanceWidth + LeftSideBearing));
+                Font->HorizontalAdvance[OtherGlyphIndex * Font->MaxGlyphCount + GlyphIndex] += (r32)(Font->Scale * AdvanceWidth);
             }
         }
     }
+    
     return(Result);
 }
 
@@ -861,6 +865,7 @@ PackFont() {
                 loaded_font *Font = Source->Font.Font;
                 u32 GlyphSize = Font->GlyphCount * sizeof(hha_font_glyph);
                 fwrite(Font->Glyphs, GlyphSize, 1, Out);
+                ApplyKerningValue(Font);
                 
                 u8* HorizontalAdvance = (u8*)Font->HorizontalAdvance;
                 for (u32 GlyphIndex = 0; GlyphIndex < Font->GlyphCount; ++GlyphIndex) {
