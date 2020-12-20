@@ -420,13 +420,17 @@ Win32DisplayBufferInWindow(
                       Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
 	}
 	else {
+#if 0
 		int OffsetX = 10;
 		int OffsetY = 10;
 		PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
 		PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
 		PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
 		PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
-        
+#else
+        int OffsetX = 0;
+		int OffsetY = 0;
+#endif
 		StretchDIBits(DeviceContext,
                       OffsetX, OffsetY, Buffer->Width, Buffer->Height,
                       0, 0, Buffer->Width, Buffer->Height,

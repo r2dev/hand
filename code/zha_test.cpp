@@ -365,8 +365,7 @@ InitFont(char* FileName) {
 }
 
 internal void
-ApplyKerningValue(loaded_font* Font)
-{
+ApplyKerningValue(loaded_font* Font) {
     int KerningTableLength = stbtt_GetKerningTableLength(&Font->Font);
     stbtt_kerningentry *Entries = (stbtt_kerningentry *)malloc(sizeof(stbtt_kerningentry) * KerningTableLength);
     stbtt_GetKerningTable(&Font->Font, Entries, KerningTableLength);
@@ -410,7 +409,7 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
         Result.Height = Height;
         Result.Memory = malloc(Result.Pitch * Height);
         Result.Free = Result.Memory;
-        Asset->Bitmap.AlignPercentage[0] = -XOffset / (r32)Width;
+        Asset->Bitmap.AlignPercentage[0] = 0;
         Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Font->Scale * Ascent) / Height);
         
         u8* Source = MonoBitmap;
@@ -438,9 +437,9 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
         
         for (u32 OtherGlyphIndex = 0; OtherGlyphIndex < Font->MaxGlyphCount; ++OtherGlyphIndex) {
             // todo
-            Font->HorizontalAdvance[GlyphIndex * Font->MaxGlyphCount + OtherGlyphIndex] += (r32)(Font->Scale * AdvanceWidth);
+            Font->HorizontalAdvance[GlyphIndex * Font->MaxGlyphCount + OtherGlyphIndex] += (r32)(Font->Scale * (AdvanceWidth - LeftSideBearing));
             if (OtherGlyphIndex != 0) {
-                Font->HorizontalAdvance[OtherGlyphIndex * Font->MaxGlyphCount + GlyphIndex] += (r32)(Font->Scale * AdvanceWidth);
+                Font->HorizontalAdvance[OtherGlyphIndex * Font->MaxGlyphCount + GlyphIndex] += (r32)(Font->Scale * LeftSideBearing);
             }
         }
     }
@@ -809,13 +808,15 @@ PackFont() {
     //AddCharacterAsset(Assets, "C:/Windows/Fonts/consola.ttf", Character);
     
     BeginAssetType(Assets, Asset_FontGlyph);
+    AddCharacterAsset(Assets, DebugFont, 0x5c0f);
     AddCharacterAsset(Assets, DebugFont, ' ');
     
     for(u32 Character = '!'; Character <= '~'; ++Character) {
         AddCharacterAsset(Assets, DebugFont, Character);
     }
-    AddCharacterAsset(Assets, DebugFont, 0x602A);
-    AddCharacterAsset(Assets, DebugFont, 0x7363);
+    AddCharacterAsset(Assets, DebugFont, 0x8033);
+    AddCharacterAsset(Assets, DebugFont, 0x6728);
+    AddCharacterAsset(Assets, DebugFont, 0x514e);
     EndAssetType(Assets);
     BeginAssetType(Assets, Asset_Font);
     AddFontAsset(Assets, DebugFont);
@@ -870,7 +871,7 @@ PackFont() {
                 u8* HorizontalAdvance = (u8*)Font->HorizontalAdvance;
                 for (u32 GlyphIndex = 0; GlyphIndex < Font->GlyphCount; ++GlyphIndex) {
                     u32 HorizontalAdvanceSliceSize = Font->GlyphCount * sizeof(r32);
-                    fwrite(Font->HorizontalAdvance, HorizontalAdvanceSliceSize, 1, Out);
+                    fwrite(HorizontalAdvance, HorizontalAdvanceSliceSize, 1, Out);
                     HorizontalAdvance += sizeof(r32) * Font->MaxGlyphCount;
                 }
             } else {

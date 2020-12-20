@@ -555,7 +555,7 @@ OverlayCycleCounters(game_memory* Memory) {
     };
     DEBUGTextLine("AVA WA aTa");
     DEBUGTextLine("$7$7$");
-    DEBUGTextLine("\\6024\\7363");
+    DEBUGTextLine("\\5C0F\\8033\\6728\\514E");
 	
 	for (int CounterIndex = 0; CounterIndex < ArrayCount(Memory->Counters); ++CounterIndex) {
 		debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
