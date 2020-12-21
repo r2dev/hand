@@ -114,32 +114,22 @@ extern "C" {
 #define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name( char* Filename, uint32 MemorySize, void *Memory)
     typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
     
-    
-    enum {
-        DebugCycleCounter_GameUpdateAndRender,
-        DebugCycleCounter_RenderGroupToOutput,
-        DebugCycleCounter_DrawRectangleSlowly,
-        DebugCycleCounter_FillPixel,
-        DebugCycleCounter_TestPixel,
-        
-        DebugCycleCounter_Count
-    };
-    
-    
-    typedef struct debug_cycle_counter {
-        uint64 CycleCount;
-        uint32 HitCount;
-    } debug_cycle_counter;
-    
     extern struct game_memory* DebugGlobalMemory;
     
+#if 0
 #if _MSC_VER
-#define BEGIN_TIMED_BLOCK(ID) uint64 StartCycleCount##ID = __rdtsc();
-#define END_TIMED_BLOCK(ID) DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount = __rdtsc() - StartCycleCount##ID; ++DebugGlobalMemory->Counters[DebugCycleCounter_##ID].HitCount;
+#define BEGIN_TIMED_BLOCK_(StartCycleCount) StartCycleCount = __rdtsc()
+#define BEGIN_TIMED_BLOCK(ID) u64 BEGIN_TIMED_BLOCK_(StartCycleCount##ID)
+    
+#define END_TIMED_BLOCK_(StartCycleCount, ID) DebugGlobalMemory->Counters[ID].CycleCount = __rdtsc() - StartCycleCount; ++DebugGlobalMemory->Counters[ID].HitCount;
+#define END_TIMED_BLOCK(ID) END_TIMED_BLOCK_(StartCycleCount##ID, DebugCycleCounter_##ID)
+    
+    
 #define END_TIMED_BLOCK_COUNTED(ID, COUNT) DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount = __rdtsc() - StartCycleCount##ID; DebugGlobalMemory->Counters[DebugCycleCounter_##ID].HitCount += COUNT;
 #else
 #define BEGIN_TIMED_BLOCK(ID)
 #define END_TIMED_BLOCK(ID)
+#endif
 #endif
     
 #endif
@@ -282,9 +272,6 @@ extern "C" {
         
         platform_api PlatformAPI;
         
-#if HANDMADE_INTERNAL
-        debug_cycle_counter Counters[DebugCycleCounter_Count];
-#endif
     } game_memory;
     
     

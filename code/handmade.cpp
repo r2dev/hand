@@ -543,43 +543,7 @@ DEBUGTextLine(char *String) {
 }
 
 internal void
-OverlayCycleCounters(game_memory* Memory) {
-#if HANDMADE_INTERNAL
-    
-    char* NameTable[] = {
-        "GameUpdateAndRender",
-        "RenderGroupToOutput",
-        "DrawRectangleSlowly",
-        "FillPixel",
-        "TestPixel",
-    };
-    DEBUGTextLine("AVA WA aTa");
-    DEBUGTextLine("$7$7$");
-    DEBUGTextLine("\\5C0F\\8033\\6728\\514E");
-	
-	for (int CounterIndex = 0; CounterIndex < ArrayCount(Memory->Counters); ++CounterIndex) {
-		debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
-		if (Counter->HitCount) {
-            
-#if 0
-            
-			char TextBuffer[256];
-			_snprintf_s(TextBuffer, sizeof(TextBuffer), 
-                        "  %d: %I64ucy %uh %I64ucy/h\n",
-                        CounterIndex,
-                        Counter->CycleCount,
-                        Counter->HitCount,
-                        Counter->CycleCount / Counter->HitCount);
-            
-			OutputDebugStringA(TextBuffer);
-#else
-            DEBUGTextLine(NameTable[CounterIndex]);
-#endif
-		}
-	}
-#endif
-}
-
+OverlayCycleCounters(game_memory* Memory);
 
 #if HANDMADE_INTERNAL
 game_memory* DebugGlobalMemory;
@@ -590,7 +554,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 #if HANDMADE_INTERNAL
 	DebugGlobalMemory = Memory;
 #endif
-	BEGIN_TIMED_BLOCK(GameUpdateAndRender);
+	TIMED_BLOCK();
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
     
@@ -1335,7 +1299,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     //EvictAssetsAsNecessary(TranState->Assets);
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
-    END_TIMED_BLOCK(GameUpdateAndRender);
+    
     OverlayCycleCounters(Memory);
     
     if (DEBUGRenderGroup) {
@@ -1349,4 +1313,34 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
     game_state* GameState = (game_state*)Memory->PermanentStorage;
     transient_state* TranState = (transient_state*)Memory->TransientStorage;
     OutputPlayingSounds(&GameState->AudioState, SoundBuffer, TranState->Assets, &TranState->TranArena);
+}
+
+debug_record DebugRecords_Main[__COUNTER__];
+
+internal void
+OverlayCycleCounters(game_memory* Memory) {
+#if HANDMADE_INTERNAL
+    
+    
+	for (int CounterIndex = 0; CounterIndex < ArrayCount(DebugRecords_Main); ++CounterIndex) {
+		debug_record* Record = DebugRecords_Main + CounterIndex;
+		if (Record->HitCount) {
+            
+#if 0
+            
+			char TextBuffer[256];
+			_snprintf_s(TextBuffer, sizeof(TextBuffer), 
+                        "  %d: %I64ucy %uh %I64ucy/h\n",
+                        CounterIndex,
+                        Counter->CycleCount,
+                        Counter->HitCount,
+                        Counter->CycleCount / Counter->HitCount);
+            
+			OutputDebugStringA(TextBuffer);
+#else
+            DEBUGTextLine(Record->FunctionName);
+#endif
+		}
+	}
+#endif
 }

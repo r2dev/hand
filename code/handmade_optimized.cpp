@@ -3,6 +3,7 @@
 
 void
 DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, real32 PixelsToMeters, rectangle2i ClipRect, bool32 Even) {
+    TIMED_BLOCK();
     
 	Assert(Texture->Memory);
 	// premultiply alpha
@@ -115,7 +116,7 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
         
 		uint8* Row = ((uint8*)Buffer->Memory + FillRect.MinX * BITMAP_BYTE_PER_PIXEL + FillRect.MinY * Buffer->Pitch);
         
-		BEGIN_TIMED_BLOCK(FillPixel);
+		TIMED_BLOCK(GetClampedRectArea(FillRect) / 2);
 		for (int32 Y = FillRect.MinY; Y < FillRect.MaxY; Y += 2) {
 			__m128 Y_x4 = _mm_set_ps1((real32)Y);
 			__m128 Dy = _mm_sub_ps(Y_x4, OriginY_x4);
@@ -317,6 +318,7 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 			}
 			Row += RowAdvance;
 		}
-		END_TIMED_BLOCK(FillPixel);
 	}
 }
+
+debug_record DebugRecords_Optimized[__COUNTER__];

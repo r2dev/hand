@@ -243,6 +243,7 @@ EndRender(render_group* Group) {
 internal void
 DrawBitmap(loaded_bitmap* Buffer, loaded_bitmap* Bitmap,
            real32 RealX, real32 RealY, real32 CAlpha = 1.0f) {
+    TIMED_BLOCK();
 	int32 MinX = RoundReal32ToInt32(RealX);
 	int32 MinY = RoundReal32ToInt32(RealY);
 	int32 MaxX = MinX + Bitmap->Width;
@@ -626,8 +627,8 @@ DrawRectangle(loaded_bitmap* Buffer,
 
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rectangle2i ClipRect, bool32 Even) {
-	BEGIN_TIMED_BLOCK(RenderGroupToOutput);
-	v2 ScreenDim = { (real32)OutputTarget->Width, (real32)OutputTarget->Height };
+	TIMED_BLOCK();
+    v2 ScreenDim = { (real32)OutputTarget->Width, (real32)OutputTarget->Height };
 	for (uint32 BaseAddress = 0; BaseAddress < RenderGroup->PushBufferSize;) {
 		render_group_entry_header* Header = (render_group_entry_header*)(RenderGroup->PushBufferBase + BaseAddress);
 		BaseAddress += sizeof(*Header);
@@ -683,7 +684,6 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 			InvalidDefaultCase;
 		}
 	}
-	END_TIMED_BLOCK(RenderGroupToOutput);
 }
 
 struct tile_render_work {
@@ -746,6 +746,7 @@ TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, 
 	RenderGroupToOutput(RenderGroup, OutputTarget, Cilp, false);
 #endif
 }
+
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
     Assert(RenderGroup->InsideRender);

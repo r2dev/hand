@@ -769,5 +769,15 @@ Linear1ToSRGB(v4 C) {
 	return(Result);
 }
 
+inline s32
+GetClampedRectArea(rectangle2i A) {
+    s32 Width = (A.MaxX - A.MinX);
+    s32 Height = (A.MaxY - A.MinY);
+    s32 Result = 0;
+    if (Width > 0 && Height > 0) {
+        Result = Width * Height;
+    }
+    return(Result);
+}
 
 #endif
