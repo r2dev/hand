@@ -34,6 +34,8 @@ struct win32_game_code {
 	FILETIME DLLLastWriteTime;
 	game_update_and_render* UpdateAndRender;
 	game_get_sound_samples* GetSoundSamples;
+    
+    debug_game_frame_end* DEBUGFrameEnd;
 	
 	bool32 IsValid;
 };
@@ -53,15 +55,15 @@ struct win32_replay_buffer {
 struct win32_state {
 	HANDLE RecordingHandle;
 	int InputRecordingIndex;
-
+    
 	HANDLE PlaybackHandle;
 	int InputPlayingIndex;
-
+    
 	void* GameMemoryBlock;
 	uint64 TotalSize;
-
+    
 	win32_replay_buffer ReplayBuffers[4];
-
+    
 	char EXEFileName[WIN32_STATE_FILE_NAME_COUNT];
 	char* OnePastLastEXEFileNameSlash;
 };

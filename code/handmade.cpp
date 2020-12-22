@@ -276,6 +276,7 @@ struct fill_ground_chunk_work {
 };
 
 PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
+    TIMED_BLOCK();
 	fill_ground_chunk_work* Work = (fill_ground_chunk_work*)Data;
     loaded_bitmap* Buffer = &Work->GroundBuffer->Bitmap;
     Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
@@ -464,17 +465,19 @@ global_variable r32 FontScale;
 global_variable font_id FontID;
 internal void
 DEBUGReset(game_assets *Assets, u32 Width, u32 Height) {
+    TIMED_BLOCK();
     asset_vector MatchVector = {};
     asset_vector WeightVector = {};
-    
+    WeightVector.E[Tag_FontType] = 1.0f;
+    MatchVector.E[Tag_FontType] = (r32)FontType_Debug;
     FontID = GetBestMatchFontFrom(Assets, Asset_Font, &MatchVector, &WeightVector);
     
-    FontScale = 80.0f / 255.0f;
+    FontScale = 1.0f;
     Orthographic(DEBUGRenderGroup, Width, Height, 1.0f);
     LeftEdge = -0.5f * (r32)Width;
     
     hha_font *Info = GetFontInfo(Assets, FontID);
-    AtY = Height - (Info->Ascent + Info->Descent);
+    AtY = 0.5f * Height - (Info->Ascent + Info->Descent);
 }
 
 inline b32
@@ -542,8 +545,33 @@ DEBUGTextLine(char *String) {
     }
 }
 
+#include <stdio.h>
+
 internal void
-OverlayCycleCounters(game_memory* Memory);
+OverlayCycleCounters(game_memory* Memory) {
+    debug_state *DebugState = (debug_state* )Memory->DebugStorage;
+    if (DebugState) {
+        for (u32 CounterIndex = 0; CounterIndex < DebugState->CounterCount; ++CounterIndex) {
+            debug_counter_state* Counter = DebugState->CounterStates + CounterIndex;
+            u32 HitCount = Counter->Snapshots[0].HitCount;
+            u32 CycleCount = Counter->Snapshots[0].CycleCount;
+            Counter->Snapshots[0].HitCount = 0;
+            Counter->Snapshots[0].CycleCount = 0;
+            
+            if (HitCount) {
+                char TextBuffer[256];
+                _snprintf_s(TextBuffer, sizeof(TextBuffer), 
+                            "%32s(%4d): %10ucy %8uh %10ucy/h",
+                            Counter->FunctionName,
+                            Counter->LineNumber,
+                            CycleCount,
+                            HitCount,
+                            CycleCount / HitCount);
+                DEBUGTextLine(TextBuffer);
+            }
+        }
+    }
+}
 
 #if HANDMADE_INTERNAL
 game_memory* DebugGlobalMemory;
@@ -1305,7 +1333,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     if (DEBUGRenderGroup) {
         TiledRenderGroupToOutput(TranState->HighPriorityQueue, DEBUGRenderGroup, DrawBuffer);
         EndRender(DEBUGRenderGroup);
-        
     }
 }
 
@@ -1317,30 +1344,33 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
 
 debug_record DebugRecords_Main[__COUNTER__];
 
+extern u32 const DebugRecords_Optimized_Count;
+debug_record DebugRecords_Optimized[];
+
+
 internal void
-OverlayCycleCounters(game_memory* Memory) {
-#if HANDMADE_INTERNAL
+UpdateDebugRecord(debug_state* DebugState, u32 CounterCount, debug_record* Counters) {
     
-    
-	for (int CounterIndex = 0; CounterIndex < ArrayCount(DebugRecords_Main); ++CounterIndex) {
-		debug_record* Record = DebugRecords_Main + CounterIndex;
-		if (Record->HitCount) {
-            
-#if 0
-            
-			char TextBuffer[256];
-			_snprintf_s(TextBuffer, sizeof(TextBuffer), 
-                        "  %d: %I64ucy %uh %I64ucy/h\n",
-                        CounterIndex,
-                        Counter->CycleCount,
-                        Counter->HitCount,
-                        Counter->CycleCount / Counter->HitCount);
-            
-			OutputDebugStringA(TextBuffer);
-#else
-            DEBUGTextLine(Record->FunctionName);
-#endif
-		}
+    for (u32 CounterIndex = 0; CounterIndex < CounterCount; ++CounterIndex) {
+        
+        debug_record* Src = Counters + CounterIndex;
+        debug_counter_state* Dest = DebugState->CounterStates + CounterIndex;
+        
+        Src->HitCount_CycleCount = AtomicExchangeU64(&Src->HitCount_CycleCount, 0);
+        Dest->Snapshots[0].HitCount = Src->HitCount_CycleCount >> 32;
+        Dest->Snapshots[0].CycleCount = Src->HitCount_CycleCount & 0xFFFFFFF;
+        Dest->FileName = Src->FileName;
+        Dest->LineNumber = Src->LineNumber;
+        Dest->FunctionName = Src->FunctionName;
 	}
-#endif
+}
+
+extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
+    debug_state *DebugState = (debug_state* )Memory->DebugStorage;
+    if (DebugState) {
+        DebugState->CounterCount = 0;
+        
+        UpdateDebugRecord(DebugState, DebugRecords_Optimized_Count, DebugRecords_Optimized);
+        UpdateDebugRecord(DebugState, ArrayCount(DebugRecords_Main), DebugRecords_Main);
+    }
 }

@@ -40,6 +40,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 
 inline void*
 PushRenderElement_(render_group* Group, uint32 Size, render_group_entry_type Type) {
+    TIMED_BLOCK();
     Assert(Group->InsideRender);
 	void* Result = 0;
 	Size += sizeof(render_group_entry_header);
@@ -135,6 +136,7 @@ PushRectOutline(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
 
 inline void
 Clear(render_group* Group, v4 Color) {
+    
 	render_entry_clear* Piece = PushRenderElement(Group, render_entry_clear);
 	if (Piece) {
 		Piece->Color = Color;
@@ -243,6 +245,7 @@ EndRender(render_group* Group) {
 internal void
 DrawBitmap(loaded_bitmap* Buffer, loaded_bitmap* Bitmap,
            real32 RealX, real32 RealY, real32 CAlpha = 1.0f) {
+    TIMED_BLOCK();
     TIMED_BLOCK();
 	int32 MinX = RoundReal32ToInt32(RealX);
 	int32 MinY = RoundReal32ToInt32(RealY);
@@ -419,6 +422,7 @@ SampleEnvironmentMap(v2 ScreenUV, v3 SampleDirection, real32 Roughness, environm
 internal void
 DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, loaded_bitmap* NormalMap,
                environment_map* Top, environment_map* Middle, environment_map* Bottom, real32 PixelsToMeters) {
+    TIMED_BLOCK();
 #if 0
 	uint32 Color32 = (uint32)(RoundReal32ToUInt32(Color.r * 255) << 16 |
                               RoundReal32ToUInt32(Color.g * 255) << 8 |
@@ -588,7 +592,7 @@ internal void
 DrawRectangle(loaded_bitmap* Buffer,
               v2 vMin, v2 vMax,
               v4 Color, rectangle2i ClipRect, bool32 Even) {
-    
+    TIMED_BLOCK();
 	real32 R = Color.r;
 	real32 G = Color.g;
 	real32 B = Color.b;
@@ -627,7 +631,7 @@ DrawRectangle(loaded_bitmap* Buffer,
 
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rectangle2i ClipRect, bool32 Even) {
-	TIMED_BLOCK();
+    TIMED_BLOCK();
     v2 ScreenDim = { (real32)OutputTarget->Width, (real32)OutputTarget->Height };
 	for (uint32 BaseAddress = 0; BaseAddress < RenderGroup->PushBufferSize;) {
 		render_group_entry_header* Header = (render_group_entry_header*)(RenderGroup->PushBufferBase + BaseAddress);
@@ -702,6 +706,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(DoTileRenderWork) {
 
 internal void 
 TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+    TIMED_BLOCK();
     Assert(RenderGroup->InsideRender);
 	uint32 const TileCountX = 4;
 	uint32 const TileCountY = 4;
@@ -749,6 +754,7 @@ TiledRenderGroupToOutput(platform_work_queue* Queue, render_group* RenderGroup, 
 
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+    TIMED_BLOCK();
     Assert(RenderGroup->InsideRender);
 	rectangle2i ClipRect;
 	ClipRect.MinX = 0;

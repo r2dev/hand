@@ -19,7 +19,7 @@ struct load_asset_work {
 
 internal void
 LoadAssetWorkDirectly(load_asset_work* Work) {
-    
+    TIMED_BLOCK();
     Platform.ReadDataFromFile(Work->Handle, Work->Offset, Work->Size, Work->Destination);
     if (PlatformNoFileErrors(Work->Handle)) {
         switch(Work->FinalizeOperation) {
@@ -157,6 +157,7 @@ GenerationHasCompleted(game_assets* Assets, u32 CheckID) {
 
 internal asset_memory_header*
 AcquireAssetMemory(game_assets *Assets, u32 Size, u32 AssetIndex) {
+    TIMED_BLOCK();
     asset_memory_header* Result = 0;
     BeginAssetLock(Assets);
     asset_memory_block *Block = FindBlockForSize(Assets, Size);
@@ -217,7 +218,7 @@ AcquireAssetMemory(game_assets *Assets, u32 Size, u32 AssetIndex) {
 
 internal void
 LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
-    
+    TIMED_BLOCK();
     asset *Asset = Assets->Assets + ID.Value;
     if (ID.Value) {
         if (AtomicCompareExchangeUInt32((uint32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
@@ -341,7 +342,7 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
 
 internal void
 LoadSound(game_assets* Assets, sound_id ID) {
-    
+    TIMED_BLOCK();
     asset *Asset = Assets->Assets + ID.Value;
     if (ID.Value &&
         _InterlockedCompareExchange((long volatile*)&Asset->State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
@@ -439,6 +440,7 @@ GetNextSoundInChain(game_assets* Assets, sound_id ID) {
 
 internal u32
 BestMatchAsset(game_assets* Assets, asset_type_id TypeID, asset_vector* MatchVector, asset_vector* WeightVector) {
+    TIMED_BLOCK();
     uint32 Result = 0;
     asset_type* Type = Assets->AssetTypes + TypeID;
     real32 BestDiff = Real32Maximum;
@@ -482,6 +484,7 @@ GetBestMatchFontFrom(game_assets* Assets, asset_type_id ID, asset_vector *Match,
 
 internal game_assets*
 AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* TranState) {
+    TIMED_BLOCK();
     game_assets* Assets = PushStruct(Arena, game_assets);
     
     Assets->NextGenerationID = 0;
@@ -680,6 +683,4 @@ GetStartingBaselineY(hha_font* FontInfo) {
     r32 Result = FontInfo->Ascent;
     return(Result);
 }
-
-
 

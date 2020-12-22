@@ -260,12 +260,17 @@ extern "C" {
         
     } platform_api;
     
+    
+    
     typedef struct game_memory {
         uint64 PermanentStorageSize;
         void* PermanentStorage;
         
         uint64 TransientStorageSize;
         void* TransientStorage;
+        
+        u64 DebugStorageSize;
+        void* DebugStorage;
         
         platform_work_queue* HighPriorityQueue;
         platform_work_queue* LowPriorityQueue;
@@ -280,6 +285,18 @@ extern "C" {
     
 #define GAME_GET_SOUND_SAMPLES(name) void name(game_memory* Memory, game_sound_output_buffer* SoundBuffer)
     typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
+    
+    struct debug_frame_end_info {
+        r32 EndOfFrame;
+        r32 FramerateWaitComplete;
+        r32 AudioUpdated;
+        r32 InputProcessed;
+        r32 GameUpdated;
+        r32 ExecutableReady;
+    };
+    
+#define DEBUG_FRAME_END(name) void name(game_memory* Memory, debug_frame_end_info* Info)
+    typedef DEBUG_FRAME_END(debug_game_frame_end);
     
     inline game_controller_input* GetController(game_input* Input, int unsigned ControllerIndex) {
         Assert(ControllerIndex < ArrayCount(Input->Controllers));

@@ -25,12 +25,18 @@ enum asset_type_id {
 	Asset_Count
 };
 
+enum asset_font_type {
+    FontType_Default = 0,
+    FontType_Debug = 10,
+};
+
 enum asset_tag_id {
 	Tag_Smoothness,
 	Tag_Flagness,
 	Tag_FaceDirection,
     
     Tag_UnicodeCodepoint,
+    Tag_FontType,
     
     
 	Tag_Count
