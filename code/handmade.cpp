@@ -547,26 +547,83 @@ DEBUGTextLine(char *String) {
 
 #include <stdio.h>
 
+struct debug_statistic {
+    u32 Count;
+    r64 Min;
+    r64 Max;
+    r64 Avg;
+};
+
+inline void
+BeginDebugStatistic(debug_statistic* Stat) {
+    Stat->Min = Real32Maximum;
+    Stat->Max = -Real32Maximum;
+    Stat->Avg = 0;
+    Stat->Count = 0;
+}
+
+inline void
+UpdateDebugStatistic(debug_statistic* Stat, r64 Value) {
+    Stat->Count++;
+    if (Value < Stat->Min) {
+        Stat->Min = Value;
+    }
+    if (Value > Stat->Max) {
+        Stat->Max = Value;
+    }
+    Stat->Avg += Value;
+    
+}
+
+inline void
+EndDebugStatistic(debug_statistic* Stat) {
+    if (Stat->Count != 0) {
+        Stat->Avg /= (r64)Stat->Count;
+        
+    } else {
+        Stat->Min = 0;
+        Stat->Max = 0;
+    }
+}
+
 internal void
 OverlayCycleCounters(game_memory* Memory) {
     debug_state *DebugState = (debug_state* )Memory->DebugStorage;
     if (DebugState) {
         for (u32 CounterIndex = 0; CounterIndex < DebugState->CounterCount; ++CounterIndex) {
             debug_counter_state* Counter = DebugState->CounterStates + CounterIndex;
-            u32 HitCount = Counter->Snapshots[0].HitCount;
-            u32 CycleCount = Counter->Snapshots[0].CycleCount;
-            Counter->Snapshots[0].HitCount = 0;
-            Counter->Snapshots[0].CycleCount = 0;
             
-            if (HitCount) {
+            debug_statistic HitCount, CycleCount, CycleOverHit;
+            BeginDebugStatistic(&HitCount);
+            BeginDebugStatistic(&CycleCount);
+            BeginDebugStatistic(&CycleOverHit);
+            
+            
+            for (u32 SnapIndex = 0; SnapIndex < DEBUG_SNAPSHOT_COUNT; ++SnapIndex) {
+                UpdateDebugStatistic(&HitCount, Counter->Snapshots[SnapIndex].HitCount);
+                UpdateDebugStatistic(&CycleCount, Counter->Snapshots[SnapIndex].CycleCount);
+                
+                r64 HOC = 0.0f;
+                if (Counter->Snapshots[SnapIndex].HitCount) {
+                    HOC = (r64)Counter->Snapshots[SnapIndex].CycleCount / (r64)Counter->Snapshots[SnapIndex].HitCount;
+                }
+                UpdateDebugStatistic(&CycleOverHit, HOC);
+            }
+            
+            EndDebugStatistic(&HitCount);
+            EndDebugStatistic(&CycleCount);
+            EndDebugStatistic(&CycleOverHit);
+            
+            
+            if (HitCount.Max > 0) {
                 char TextBuffer[256];
                 _snprintf_s(TextBuffer, sizeof(TextBuffer), 
                             "%32s(%4d): %10ucy %8uh %10ucy/h",
                             Counter->FunctionName,
                             Counter->LineNumber,
-                            CycleCount,
-                            HitCount,
-                            CycleCount / HitCount);
+                            (u32)CycleCount.Avg,
+                            (u32)HitCount.Avg,
+                            (u32)CycleOverHit.Avg);
                 DEBUGTextLine(TextBuffer);
             }
         }
@@ -1357,8 +1414,9 @@ UpdateDebugRecord(debug_state* DebugState, u32 CounterCount, debug_record* Count
         debug_counter_state* Dest = DebugState->CounterStates + DebugState->CounterCount++;
         
         u64 HitCount_CycleCount = AtomicExchangeU64(&Src->HitCount_CycleCount, 0);
-        Dest->Snapshots[0].HitCount = HitCount_CycleCount >> 32;
-        Dest->Snapshots[0].CycleCount = HitCount_CycleCount & 0xFFFFFFF;
+        
+        Dest->Snapshots[DebugState->SnapIndex].HitCount = HitCount_CycleCount >> 32;
+        Dest->Snapshots[DebugState->SnapIndex].CycleCount = HitCount_CycleCount & 0xFFFFFFF;
         Dest->FileName = Src->FileName;
         Dest->LineNumber = Src->LineNumber;
         Dest->FunctionName = Src->FunctionName;
@@ -1372,5 +1430,10 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
         
         UpdateDebugRecord(DebugState, DebugRecords_Optimized_Count, DebugRecords_Optimized);
         UpdateDebugRecord(DebugState, ArrayCount(DebugRecords_Main), DebugRecords_Main);
+        
+        ++DebugState->SnapIndex;
+        if (DebugState->SnapIndex >= DEBUG_SNAPSHOT_COUNT) {
+            DebugState->SnapIndex = 0;
+        }
     }
 }

@@ -45,15 +45,17 @@ struct debug_counter_snapshot {
     u32 CycleCount;
 };
 
+#define DEBUG_SNAPSHOT_COUNT 120
 struct debug_counter_state {
     char* FileName;
     char* FunctionName;
     
     u32 LineNumber;
-    debug_counter_snapshot Snapshots[120];
+    debug_counter_snapshot Snapshots[DEBUG_SNAPSHOT_COUNT];
 };
 
 struct debug_state {
+    u32 SnapIndex;
     u32 CounterCount;
     debug_counter_state CounterStates[512];
 };
