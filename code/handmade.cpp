@@ -1354,11 +1354,11 @@ UpdateDebugRecord(debug_state* DebugState, u32 CounterCount, debug_record* Count
     for (u32 CounterIndex = 0; CounterIndex < CounterCount; ++CounterIndex) {
         
         debug_record* Src = Counters + CounterIndex;
-        debug_counter_state* Dest = DebugState->CounterStates + CounterIndex;
+        debug_counter_state* Dest = DebugState->CounterStates + DebugState->CounterCount++;
         
-        Src->HitCount_CycleCount = AtomicExchangeU64(&Src->HitCount_CycleCount, 0);
-        Dest->Snapshots[0].HitCount = Src->HitCount_CycleCount >> 32;
-        Dest->Snapshots[0].CycleCount = Src->HitCount_CycleCount & 0xFFFFFFF;
+        u64 HitCount_CycleCount = AtomicExchangeU64(&Src->HitCount_CycleCount, 0);
+        Dest->Snapshots[0].HitCount = HitCount_CycleCount >> 32;
+        Dest->Snapshots[0].CycleCount = HitCount_CycleCount & 0xFFFFFFF;
         Dest->FileName = Src->FileName;
         Dest->LineNumber = Src->LineNumber;
         Dest->FunctionName = Src->FunctionName;
