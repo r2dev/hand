@@ -504,6 +504,8 @@ MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, rea
 			}
 		}
 	}
+    
+    // note it was Ground += Entity->P.z - GetEntityGroundPoint(Entity).z; i dont know why
 	Ground += Entity->P.z - GetEntityGroundPoint(Entity).z;
     
 	if ((Entity->P.z <= Ground) || ((IsSet(Entity, EntityFlag_ZSupported) && (Entity->dP.z == 0.0f)))) {

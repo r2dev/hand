@@ -1,4 +1,5 @@
 #include "handmade.h"
+
 #include "handmade_world.cpp"
 #include "handmade_sim_region.cpp"
 
@@ -456,178 +457,6 @@ inline rectangle2
 GetCameraRectAtTarget(render_group* RenderGroup) {
 	rectangle2 Result = GetCameraRectAtDistance(RenderGroup, RenderGroup->Transform.DistanceAboveTarget);
 	return(Result);
-}
-
-global_variable render_group *DEBUGRenderGroup;
-global_variable r32 AtY;
-global_variable r32 LeftEdge;
-global_variable r32 FontScale;
-global_variable font_id FontID;
-internal void
-DEBUGReset(game_assets *Assets, u32 Width, u32 Height) {
-    TIMED_BLOCK();
-    asset_vector MatchVector = {};
-    asset_vector WeightVector = {};
-    WeightVector.E[Tag_FontType] = 1.0f;
-    MatchVector.E[Tag_FontType] = (r32)FontType_Debug;
-    FontID = GetBestMatchFontFrom(Assets, Asset_Font, &MatchVector, &WeightVector);
-    
-    FontScale = 1.0f;
-    Orthographic(DEBUGRenderGroup, Width, Height, 1.0f);
-    LeftEdge = -0.5f * (r32)Width;
-    
-    hha_font *Info = GetFontInfo(Assets, FontID);
-    AtY = 0.5f * Height - (Info->Ascent + Info->Descent);
-}
-
-inline b32
-IsHex(char Char) {
-    b32 Result = (((Char >= '0') && (Char <= '9')) || ((Char >= 'A')&& (Char <= 'F')));
-    return(Result);
-}
-
-inline u32
-GetHex(char Char) {
-    u32 Result = 0;
-    if (Char >= '0' && Char <= '9') {
-        Result = Char - '0';
-    } else if (Char >= 'A' && Char <= 'F') {
-        Result = 0xA + (Char - 'A');
-    }
-    return(Result);
-}
-
-
-internal void
-DEBUGTextLine(char *String) {
-    if (DEBUGRenderGroup) {
-        render_group* RenderGroup = DEBUGRenderGroup;
-        
-        loaded_font* Font = PushFont(RenderGroup, FontID);
-        if (Font) {
-            hha_font *Info = GetFontInfo(RenderGroup->Assets, FontID);
-            u32 PrevCodePoint = 0;
-            
-            r32 AtX = LeftEdge;
-            r32 CharScale = FontScale;
-            
-            for(char* At = String;
-                *At;
-                ++At) {
-                
-                u32 CodePoint = *At;
-                r32 AdvancedX = 0;
-                
-                if (At[0] == '\\' && IsHex(At[1]) && IsHex(At[2]) && IsHex(At[3]) && IsHex(At[4])) {
-                    CodePoint = ((GetHex(At[1]) << 12) | (GetHex(At[2]) << 8) | (GetHex(At[3]) << 4) | (GetHex(At[4]) << 0));
-                    At += 4;
-                }
-                if(PrevCodePoint) {
-                    AdvancedX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
-                }
-                AtX += AdvancedX;
-                
-                if (CodePoint != ' ') {
-                    // proportional mode
-                    // AdvancedX = CharScale * (r32)(Info->Dim[0] + 2);
-                    bitmap_id BitmapID = GetBitmapForGlyph(RenderGroup->Assets, Info, Font, CodePoint);
-                    hha_bitmap* BitmapInfo = GetBitmapInfo(RenderGroup->Assets, BitmapID);
-                    PushBitmap(RenderGroup, BitmapID, CharScale * (r32)BitmapInfo->Dim[1], v3{AtX, AtY, 0}, v4{1.0f, 1.0f, 1.0f, 1});
-                }
-                // advance here
-                
-                PrevCodePoint = CodePoint;
-            }
-            AtY -= GetLineAdvancedFor(Info) * CharScale;
-        } else {
-            
-        }
-    }
-}
-
-#include <stdio.h>
-
-struct debug_statistic {
-    u32 Count;
-    r64 Min;
-    r64 Max;
-    r64 Avg;
-};
-
-inline void
-BeginDebugStatistic(debug_statistic* Stat) {
-    Stat->Min = Real32Maximum;
-    Stat->Max = -Real32Maximum;
-    Stat->Avg = 0;
-    Stat->Count = 0;
-}
-
-inline void
-UpdateDebugStatistic(debug_statistic* Stat, r64 Value) {
-    Stat->Count++;
-    if (Value < Stat->Min) {
-        Stat->Min = Value;
-    }
-    if (Value > Stat->Max) {
-        Stat->Max = Value;
-    }
-    Stat->Avg += Value;
-    
-}
-
-inline void
-EndDebugStatistic(debug_statistic* Stat) {
-    if (Stat->Count != 0) {
-        Stat->Avg /= (r64)Stat->Count;
-        
-    } else {
-        Stat->Min = 0;
-        Stat->Max = 0;
-    }
-}
-
-internal void
-OverlayCycleCounters(game_memory* Memory) {
-    debug_state *DebugState = (debug_state* )Memory->DebugStorage;
-    if (DebugState) {
-        for (u32 CounterIndex = 0; CounterIndex < DebugState->CounterCount; ++CounterIndex) {
-            debug_counter_state* Counter = DebugState->CounterStates + CounterIndex;
-            
-            debug_statistic HitCount, CycleCount, CycleOverHit;
-            BeginDebugStatistic(&HitCount);
-            BeginDebugStatistic(&CycleCount);
-            BeginDebugStatistic(&CycleOverHit);
-            
-            
-            for (u32 SnapIndex = 0; SnapIndex < DEBUG_SNAPSHOT_COUNT; ++SnapIndex) {
-                UpdateDebugStatistic(&HitCount, Counter->Snapshots[SnapIndex].HitCount);
-                UpdateDebugStatistic(&CycleCount, Counter->Snapshots[SnapIndex].CycleCount);
-                
-                r64 HOC = 0.0f;
-                if (Counter->Snapshots[SnapIndex].HitCount) {
-                    HOC = (r64)Counter->Snapshots[SnapIndex].CycleCount / (r64)Counter->Snapshots[SnapIndex].HitCount;
-                }
-                UpdateDebugStatistic(&CycleOverHit, HOC);
-            }
-            
-            EndDebugStatistic(&HitCount);
-            EndDebugStatistic(&CycleCount);
-            EndDebugStatistic(&CycleOverHit);
-            
-            
-            if (HitCount.Max > 0) {
-                char TextBuffer[256];
-                _snprintf_s(TextBuffer, sizeof(TextBuffer), 
-                            "%32s(%4d): %10ucy %8uh %10ucy/h",
-                            Counter->FunctionName,
-                            Counter->LineNumber,
-                            (u32)CycleCount.Avg,
-                            (u32)HitCount.Avg,
-                            (u32)CycleOverHit.Avg);
-                DEBUGTextLine(TextBuffer);
-            }
-        }
-    }
 }
 
 #if HANDMADE_INTERNAL
@@ -1385,9 +1214,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
     
-    OverlayCycleCounters(Memory);
-    
     if (DEBUGRenderGroup) {
+        DEBUGOverlay(Memory);
         TiledRenderGroupToOutput(TranState->HighPriorityQueue, DEBUGRenderGroup, DrawBuffer);
         EndRender(DEBUGRenderGroup);
     }
@@ -1399,41 +1227,4 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
     OutputPlayingSounds(&GameState->AudioState, SoundBuffer, TranState->Assets, &TranState->TranArena);
 }
 
-debug_record DebugRecords_Main[__COUNTER__];
-
-extern u32 const DebugRecords_Optimized_Count;
-debug_record DebugRecords_Optimized[];
-
-
-internal void
-UpdateDebugRecord(debug_state* DebugState, u32 CounterCount, debug_record* Counters) {
-    
-    for (u32 CounterIndex = 0; CounterIndex < CounterCount; ++CounterIndex) {
-        
-        debug_record* Src = Counters + CounterIndex;
-        debug_counter_state* Dest = DebugState->CounterStates + DebugState->CounterCount++;
-        
-        u64 HitCount_CycleCount = AtomicExchangeU64(&Src->HitCount_CycleCount, 0);
-        
-        Dest->Snapshots[DebugState->SnapIndex].HitCount = HitCount_CycleCount >> 32;
-        Dest->Snapshots[DebugState->SnapIndex].CycleCount = HitCount_CycleCount & 0xFFFFFFF;
-        Dest->FileName = Src->FileName;
-        Dest->LineNumber = Src->LineNumber;
-        Dest->FunctionName = Src->FunctionName;
-	}
-}
-
-extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
-    debug_state *DebugState = (debug_state* )Memory->DebugStorage;
-    if (DebugState) {
-        DebugState->CounterCount = 0;
-        
-        UpdateDebugRecord(DebugState, DebugRecords_Optimized_Count, DebugRecords_Optimized);
-        UpdateDebugRecord(DebugState, ArrayCount(DebugRecords_Main), DebugRecords_Main);
-        
-        ++DebugState->SnapIndex;
-        if (DebugState->SnapIndex >= DEBUG_SNAPSHOT_COUNT) {
-            DebugState->SnapIndex = 0;
-        }
-    }
-}
+#include "handmade_debug.cpp"

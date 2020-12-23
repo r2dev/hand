@@ -410,7 +410,7 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
         Result.Memory = malloc(Result.Pitch * Height);
         Result.Free = Result.Memory;
         Asset->Bitmap.AlignPercentage[0] = 0;
-        Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset - Font->Scale * Ascent) / Height);
+        Asset->Bitmap.AlignPercentage[1] = 1.0f - ((-YOffset) / (r32)Result.Height);
         
         u8* Source = MonoBitmap;
         u8 *DestRow = (u8*)Result.Memory + (Height - 1) * Result.Pitch;
@@ -765,6 +765,7 @@ PackFont()
     loaded_font* Fonts[] = {
         InitFont("C:/Windows/Fonts/arial.ttf", 128),
         InitFont("C:/Windows/Fonts/consola.ttf", 24),
+        //InitFont("C:/Windows/Fonts/Roboto-Regular.ttf", 24),
     };
     
     BeginAssetType(Assets, Asset_FontGlyph);

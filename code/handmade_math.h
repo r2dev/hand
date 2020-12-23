@@ -131,6 +131,14 @@ V4(real32 X, real32 Y, real32 Z, real32 W) {
 }
 
 inline v4
+V4(v3 XYZ, real32 W) {
+	v4 Result;
+	Result.xyz = XYZ;
+	Result.w = W;
+	return Result;
+}
+
+inline v4
 operator-(v4 A) {
 	v4 Result;
 	Result.x = -A.x;
