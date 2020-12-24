@@ -286,6 +286,44 @@ extern "C" {
 #define GAME_GET_SOUND_SAMPLES(name) void name(game_memory* Memory, game_sound_output_buffer* SoundBuffer)
     typedef GAME_GET_SOUND_SAMPLES(game_get_sound_samples);
     
+#if COMPILER_MSVC
+#define CompletePreviousReadsBeforeFutureReads _ReadBarrier()
+#define CompletePreviousWritesBeforeFutureWrites _WriteBarrier()
+    inline u32 AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expect) {
+        u32 Result = _InterlockedCompareExchange((long *)Value, New, Expect);
+        return(Result);
+    }
+    
+    inline u64 AtomicExchangeU64(u64 volatile* Value, u64 New) {
+        u64 Result = _InterlockedExchange64((__int64 *)Value, New);
+        return(Result);
+        
+    }
+    
+    inline u32 AtomicAddU32(u32 volatile* Value, u32 Addend) {
+        u32 Result = _InterlockedExchangeAdd((long *)Value, Addend);
+        return(Result);
+    }
+    
+    inline u64 AtomicAddU64(u64 volatile* Value, u64 Addend) {
+        u64 Result = _InterlockedExchangeAdd64((__int64 *)Value, Addend);
+        return(Result);
+    }
+    
+    inline u32 GetThreadID() {
+        u8* gs = (u8*)__readgsqword(0x30);
+        u32 Result = *((u32*)(gs + 0x48));
+        return(Result);
+    }
+    
+#define AtomicIncrement(u);
+#else
+#define CompletePreviousReadsBeforeFutureReads
+#define CompletePreviousWritesBeforeFutureWrites
+#endif
+    
+    
+    
     struct debug_frame_timestamp {
         char *Name;
         r32 Seconds;
@@ -328,7 +366,84 @@ extern "C" {
         s16 Result = (s16)Value;
         return(Result);
     }
+    
+    struct debug_record
+    {
+        char* FileName;
+        char* FunctionName;
+        
+        u32 Reserved;
+        u32 LineNumber;
+        
+        // u64 HitCount_CycleCount;
+    };
+    
+    enum debug_event_type {
+        DebugEvent_BeginBlock,
+        DebugEvent_EndBlock
+    };
+    
+    struct debug_event {
+        u64 Clock;
+        u16 CoreIndex;
+        u16 ThreadIndex;
+        u16 DebugRecordIndex;
+        u8 TranslationUnit;
+        u8 Type;
+    };
 	
+#define MAX_DEBUG_EVENT_COUNT (16 * 65536)
+#define MAX_DEBUG_RECORD_COUNT (65536)
+#define MAX_DEBUG_TRANSLATION_UNIT 3
+    
+    struct debug_table {
+        u64 CurrentEventArrayIndex;
+        u64 volatile EventArrayIndex_EventIndex;
+        debug_event Events[2][MAX_DEBUG_EVENT_COUNT];
+        debug_record Records[MAX_DEBUG_TRANSLATION_UNIT][MAX_DEBUG_RECORD_COUNT];
+    };
+    
+    extern debug_table GlobalDebugTable;
+    
+    inline void
+        RecordDebugEvent(int RecordIndex, debug_event_type EventType) {
+        u64 ArrayIndex_EventIndex = AtomicAddU64(&GlobalDebugTable.EventArrayIndex_EventIndex, 1);
+        u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF);
+        Assert(EventIndex < MAX_DEBUG_EVENT_COUNT);
+        debug_event *Event = GlobalDebugTable.Events[ArrayIndex_EventIndex >> 32] + (ArrayIndex_EventIndex & 0xFFFFFFFF);
+        Event->Clock = __rdtsc();
+        Event->ThreadIndex = (u16)GetThreadID();
+        Event->CoreIndex = 0;
+        Event->DebugRecordIndex = (u16)RecordIndex;
+        Event->TranslationUnit = TRANSLATION_UNIT_INDEX;
+        Event->Type = (u8)EventType;
+    }
+    
+    struct timed_block
+    {
+        
+        
+        int Counter;
+        timed_block(int CounterInit, char *FileName, int LineNumber, char* FunctionName, int HitCountInit = 1)
+        {
+            // todo
+            Counter = CounterInit;
+            
+            debug_record* Record = GlobalDebugTable.Records[TRANSLATION_UNIT_INDEX] + Counter;
+            Record->FileName = FileName;
+            Record->FunctionName = FunctionName;
+            Record->LineNumber = LineNumber;
+            
+            RecordDebugEvent(Counter, DebugEvent_BeginBlock);
+        }
+        
+        ~timed_block()
+        {
+            RecordDebugEvent(Counter, DebugEvent_EndBlock);
+        }
+    };
+    
+    
 #ifdef __cplusplus
 }
 #endif

@@ -5,9 +5,6 @@ global_variable r32 LeftEdge;
 global_variable r32 FontScale;
 global_variable font_id FontID;
 
-debug_event GlobalDebugEventArray[2][MAX_DEBUG_EVENT_COUNT];
-u64 Global_DebugEventArrayIndex_DebugEventIndex;
-
 internal void
 DEBUGReset(game_assets *Assets, u32 Width, u32 Height) {
     TIMED_BLOCK();
@@ -242,14 +239,11 @@ DEBUGOverlay(game_memory* Memory) {
     }
 }
 
-debug_record DebugRecords_Main[__COUNTER__];
+#define DebugRecords_Main_Count __COUNTER__
+extern u32 DebugRecords_Optimized_Count;
+debug_table GlobalDebugTable;
 
-extern u32 const DebugRecords_Optimized_Count;
-debug_record DebugRecords_Optimized[];
-
-extern u64 GlobalCurrentEventArrayIndex = 0;
-
-
+#if 0
 internal void
 UpdateDebugRecord(debug_state* DebugState, u32 CounterCount, debug_record* Counters) {
     
@@ -267,11 +261,13 @@ UpdateDebugRecord(debug_state* DebugState, u32 CounterCount, debug_record* Count
         Dest->FunctionName = Src->FunctionName;
 	}
 }
+#endif
 
 internal void
 CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *Events) {
     
-    DebugState->CounterCount = DebugRecords_Optimized_Count + ArrayCount(DebugRecords_Main);
+#define DebugRecords_Platform_Count 0
+    DebugState->CounterCount = DebugRecords_Optimized_Count + DebugRecords_Main_Count + DebugRecords_Platform_Count;
     
     for (u32 CounterIndex = 0; CounterIndex < DebugState->CounterCount; ++CounterIndex) {
         debug_counter_state* Dest = DebugState->CounterStates + CounterIndex;
@@ -280,20 +276,16 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *Events
         Dest->Snapshots[DebugState->SnapIndex].CycleCount = 0;
 	}
     
-    debug_counter_state *CounterArray[2] = {
+    debug_counter_state *CounterArray[3] = {
         DebugState->CounterStates,
-        DebugState->CounterStates + ArrayCount(DebugRecords_Main)
-    };
-    
-    debug_record* DebugRecords[2] = {
-        DebugRecords_Main,
-        DebugRecords_Optimized,
+        DebugState->CounterStates + DebugRecords_Main_Count,
+        (DebugState->CounterStates + DebugRecords_Main_Count + DebugRecords_Optimized_Count),
     };
     
     for (u32 EventIndex = 0; EventIndex < EventCount; ++EventIndex) {
         debug_event *Event = Events + EventIndex;
-        debug_counter_state *Dest = CounterArray[Event->DebugRecordArrayIndex] + Event->DebugRecordIndex;
-        debug_record* Src = DebugRecords[Event->DebugRecordArrayIndex] + Event->DebugRecordIndex;
+        debug_counter_state *Dest = CounterArray[Event->TranslationUnit] + Event->DebugRecordIndex;
+        debug_record* Src = GlobalDebugTable.Records[TRANSLATION_UNIT_INDEX] + Event->DebugRecordIndex;
         Dest->FileName = Src->FileName;
         Dest->LineNumber = Src->LineNumber;
         Dest->FunctionName = Src->FunctionName;
@@ -311,9 +303,9 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *Events
 
 
 extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
-    GlobalCurrentEventArrayIndex = !GlobalCurrentEventArrayIndex;
+    GlobalDebugTable.CurrentEventArrayIndex = !GlobalDebugTable.CurrentEventArrayIndex;
     // flip value
-    u64 ArrayIndex_EventIndex = AtomicExchangeU64(&Global_DebugEventArrayIndex_DebugEventIndex, (u64)GlobalCurrentEventArrayIndex << 32);
+    u64 ArrayIndex_EventIndex = AtomicExchangeU64(&GlobalDebugTable.EventArrayIndex_EventIndex, (u64)GlobalDebugTable.CurrentEventArrayIndex << 32);
     u32 EventArrayIndex = ArrayIndex_EventIndex >> 32;
     u32 EventCount = ArrayIndex_EventIndex & 0xFFFFFFFF;
     
@@ -324,7 +316,7 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
         UpdateDebugRecord(DebugState, DebugRecords_Optimized_Count, DebugRecords_Optimized);
         UpdateDebugRecord(DebugState, ArrayCount(DebugRecords_Main), DebugRecords_Main);
 #else
-        CollateDebugRecords(DebugState, EventCount, GlobalDebugEventArray[EventArrayIndex]);
+        CollateDebugRecords(DebugState, EventCount, GlobalDebugTable.Events[EventArrayIndex]);
 #endif
         DebugState->FrameEndInfos[DebugState->SnapIndex] = *Info;
         ++DebugState->SnapIndex;
