@@ -277,7 +277,7 @@ struct fill_ground_chunk_work {
 };
 
 PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	fill_ground_chunk_work* Work = (fill_ground_chunk_work*)Data;
     loaded_bitmap* Buffer = &Work->GroundBuffer->Bitmap;
     Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
@@ -468,7 +468,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 #if HANDMADE_INTERNAL
 	DebugGlobalMemory = Memory;
 #endif
-	TIMED_BLOCK();
+	TIMED_FUNCTION();
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state* GameState = (game_state*)Memory->PermanentStorage;
     

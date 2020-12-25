@@ -940,14 +940,8 @@ PLATFORM_DEALLOCATE_MEMORY(Win32DeallocateMemory) {
     }
 }
 
-inline void
-RecordTimestamp(debug_frame_end_info* Info, char* Name, r32 Seconds) {
-    Assert(Info->TimestampCount < ArrayCount(Info->Timestamps));
-    debug_frame_timestamp *Timestamp = Info->Timestamps + Info->TimestampCount++;
-    Timestamp->Name = Name;
-    Timestamp->Seconds = Seconds;
-}
-
+global_variable debug_table GlobalDebugTable_;
+debug_table* GlobalDebugTable = &GlobalDebugTable_;
 
 int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int showCode) {
     
@@ -1095,7 +1089,15 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning) {
-                    debug_frame_end_info FrameEndInfo = {};
+                    TIMED_BLOCK(Win32Loop);
+                    
+                    
+                    
+                    ///
+                    ///
+                    ///
+                    BEGIN_BLOCK(ExecutableRefresh);
+                    
                     NewInput->dtForFrame = TargetSecondsPerFrame;
                     NewInput->ExecutableReloaded = false;
                     FILETIME NewDLLWriteTime = Win32GetLastWriteTime(SourceGameCodeDLLFullPath);
@@ -1104,12 +1106,19 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         Win32CompleteAllWork(&HighPriorityQueue);
                         Win32CompleteAllWork(&LowPriorityQueue);
                         Win32UnloadGameCode(&Game);
+                        GlobalDebugTable = &GlobalDebugTable_;
+                        
                         Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
                         NewInput->ExecutableReloaded = true;
                     }
-                    RecordTimestamp(&FrameEndInfo, "ExecutableReady", Win32GetSecondsElapsed(LastCounter, Win32GetWallClock()));
+                    END_BLOCK(ExecutableRefresh);
                     
                     
+                    
+                    ///
+                    ///
+                    ///
+                    BEGIN_BLOCK(ProcessInput);
                     game_controller_input* OldKeyboardController = GetController(OldInput, 0);
                     game_controller_input* NewKeyboardController = GetController(NewInput, 0);
                     *NewKeyboardController = {};
@@ -1213,8 +1222,12 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         }
                     }
                     
-                    RecordTimestamp(&FrameEndInfo, "InputProcessed", Win32GetSecondsElapsed(LastCounter, Win32GetWallClock()));
+                    END_BLOCK(ProcessInput);
                     
+                    ///
+                    ///
+                    ///
+                    BEGIN_BLOCK(GameUpdate);
                     if (!GlobalPause) {
                         game_offscreen_buffer Buffer = {};
                         Buffer.Memory = GlobalBackbuffer.Memory;
@@ -1235,8 +1248,13 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         }
                         
                     }
-                    RecordTimestamp(&FrameEndInfo, "GameUpdated", Win32GetSecondsElapsed(LastCounter, Win32GetWallClock()));
+                    END_BLOCK(GameUpdate);
                     
+                    
+                    ///
+                    ///
+                    ///
+                    BEGIN_BLOCK(UpdateAudio);
                     if (!GlobalPause)
                     {
                         LARGE_INTEGER AudioWallClock = Win32GetWallClock();
@@ -1303,8 +1321,12 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         }
                         
                     }
+                    END_BLOCK(UpdateAudio);
                     
-                    RecordTimestamp(&FrameEndInfo, "AudioUpdated", Win32GetSecondsElapsed(LastCounter, Win32GetWallClock()));
+                    ///
+                    ///
+                    ///
+                    BEGIN_BLOCK(WaitFrameComplete);
                     if (!GlobalPause) {
                         LARGE_INTEGER WorkCounter = Win32GetWallClock();
                         real32 WorkSecondsElapsed = Win32GetSecondsElapsed(LastCounter, WorkCounter);
@@ -1333,8 +1355,11 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         }
                         
                     }
+                    END_BLOCK(WaitFrameComplete);
                     
-                    RecordTimestamp(&FrameEndInfo, "FramerateWaitComplete", Win32GetSecondsElapsed(LastCounter, Win32GetWallClock()));
+                    ///
+                    
+                    BEGIN_BLOCK(EndOfFrame);
                     
                     win32_window_dimension Dimension = Win32GetWindowDimension(Window);
                     
@@ -1351,16 +1376,16 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     
                     LARGE_INTEGER EndCounter = Win32GetWallClock();
                     LastCounter = EndCounter;
-                    
+                    END_BLOCK(EndOfFrame);
 #if HANDMADE_INTERNAL
-                    RecordTimestamp(&FrameEndInfo, "EndOfFrame", Win32GetSecondsElapsed(LastCounter, EndCounter));
                     u64 EndCycleCount = __rdtsc();
                     u64 CyclesElapsed = EndCycleCount - LastCycleCount;
                     LastCycleCount = EndCycleCount;
-                    
                     if (Game.DEBUGFrameEnd) {
-                        Game.DEBUGFrameEnd(&GameMemory, &FrameEndInfo);
+                        GlobalDebugTable = Game.DEBUGFrameEnd(&GameMemory);
+                        GlobalDebugTable->RecordCounts[TRANSLATION_UNIT_INDEX] = __COUNTER__;
                     }
+                    GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
 #endif
                 }
             }

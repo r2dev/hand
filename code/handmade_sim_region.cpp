@@ -93,7 +93,7 @@ AddEntityRaw(game_state* GameState, sim_region* SimRegion, uint32 StorageIndex, 
 }
 internal bool32
 EntitiesOverlap(sim_entity* Entity, sim_entity* TestEntity, v3 Epsilon = v3{ 0, 0, 0 }) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	bool32 Result = false;
 	for (uint32 VolumeIndex = 0; !Result && VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
 		sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
@@ -145,7 +145,7 @@ struct test_wall {
 
 internal sim_region*
 BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_position Origin, rectangle3 Bounds, real32 dt) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	sim_region* SimRegion = PushStruct(SimArena, sim_region);
 	ZeroStruct(SimRegion->Hash);
 	SimRegion->MaxEntityRadius = 5.0f;
@@ -189,7 +189,7 @@ BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_posi
 
 internal void
 EndSim(sim_region* Region, game_state* GameState) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	sim_entity* Entity = Region->Entities;
 	for (uint32 EntityIndex = 0; EntityIndex < Region->EntityCount; ++EntityIndex, ++Entity) {
 		low_entity* Stored = GameState->LowEntities + Entity->StorageIndex;
@@ -305,7 +305,7 @@ HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region, real
 
 internal bool32
 SpeculativeCollide(sim_entity* Mover, sim_entity* Region, v3 TestP) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	bool32 Result = true;
 	if (Region->Type == EntityType_Stairwell) {
 		v3 MoverGroundPoint = GetEntityGroundPoint(Mover, TestP);
@@ -321,7 +321,7 @@ SpeculativeCollide(sim_entity* Mover, sim_entity* Region, v3 TestP) {
 internal void
 MoveEntity(game_state* GameState, sim_region* SimRegion, sim_entity* Entity, real32 dt, move_spec* MoveSpec,
            v3 ddP) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	Assert(!IsSet(Entity, EntityFlag_Nonspatial));
 	world* World = SimRegion->World;
     

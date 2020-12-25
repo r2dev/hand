@@ -71,7 +71,7 @@ CenteredChunkPoint(world_chunk * Chunk) {
 
 inline world_chunk*
 GetWorldChunk(world* World, int32 ChunkX, int32 ChunkY, int32 ChunkZ, memory_arena* Arena = 0) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	Assert(ChunkX > -TILE_CHUNK_SAFE_MARGIN);
 	Assert(ChunkY > -TILE_CHUNK_SAFE_MARGIN);
 	Assert(ChunkZ > -TILE_CHUNK_SAFE_MARGIN);
@@ -158,7 +158,7 @@ InitializeWorld(world* World, v3 ChunkDimInMeter) {
 inline void
 ChangeEntityLocationRaw(memory_arena* Arena, world* World, uint32 LowEntityIndex, 
                         world_position* OldP, world_position* NewP) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	Assert(!OldP || IsValid(*OldP));
 	Assert(!NewP || IsValid(*NewP));
 	if (OldP && NewP && AreInSameChunk(World, OldP, NewP)) {
@@ -222,7 +222,7 @@ internal void
 ChangeEntityLocation(memory_arena* Arena, world* World,
                      uint32 LowEntityIndex, low_entity* LowEntity,
                      world_position NewPInit) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	world_position* OldP = 0;
 	world_position* NewP = 0;
 	if (!IsSet(&LowEntity->Sim, EntityFlag_Nonspatial) && IsValid(LowEntity->P)) {

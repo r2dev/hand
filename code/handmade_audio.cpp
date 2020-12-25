@@ -2,7 +2,7 @@
 
 internal void
 ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSeconds) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
     if (PlayingSound) {
         if (ChangeInSeconds <= 0.0f) {
             PlayingSound->CurrentVolume = PlayingSound->TargetVolume = TargetVolumn;
@@ -20,7 +20,7 @@ ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, real32 ChangeInSecond
 
 internal void
 OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuffer, game_assets* Assets, memory_arena* TempArena) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	temporary_memory MixMemory = BeginTemporaryMemory(TempArena);
     u32 GenerationID = BeginGeneration(Assets);
     
@@ -238,7 +238,7 @@ InitializeAudioState(audio_state* AudioState, memory_arena* Arena) {
 
 internal playing_sound*
 PlaySound(audio_state* AudioState, sound_id ID) {
-    TIMED_BLOCK();
+    TIMED_FUNCTION();
 	if (!AudioState->FirstFreePlayingSound) {
 		AudioState->FirstFreePlayingSound = PushStruct(AudioState->PermArena, playing_sound);
 		AudioState->FirstFreePlayingSound->Next = 0;
