@@ -280,9 +280,12 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *Events
             
             ++Dest->Snapshots[DebugState->SnapIndex].HitCount;
             Dest->Snapshots[DebugState->SnapIndex].CycleCount -= Event->Clock;
-        } else {
-            Assert(Event->Type == DebugEvent_EndBlock);
+        } else if (Event->Type == DebugEvent_EndBlock) {
+            
             Dest->Snapshots[DebugState->SnapIndex].CycleCount += Event->Clock;
+        } else {
+            Assert(Event->Type == DebugEvent_FrameMarker);
+            
         }
     }
     
@@ -294,7 +297,10 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
     GlobalDebugTable->RecordCounts[0] = DebugRecords_Main_Count;
     GlobalDebugTable->RecordCounts[1] = DebugRecords_Optimized_Count;
     
-    GlobalDebugTable->CurrentEventArrayIndex = !GlobalDebugTable->CurrentEventArrayIndex;
+    GlobalDebugTable->CurrentEventArrayIndex++;
+    if (GlobalDebugTable->CurrentEventArrayIndex == ArrayCount(GlobalDebugTable->Events)) {
+        GlobalDebugTable->CurrentEventArrayIndex = 0;
+    }
     // flip value
     u64 ArrayIndex_EventIndex = AtomicExchangeU64(&GlobalDebugTable->EventArrayIndex_EventIndex, (u64)GlobalDebugTable->CurrentEventArrayIndex << 32);
     u32 EventArrayIndex = ArrayIndex_EventIndex >> 32;

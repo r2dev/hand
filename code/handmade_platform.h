@@ -355,6 +355,7 @@ extern "C" {
     enum debug_event_type {
         DebugEvent_BeginBlock,
         DebugEvent_EndBlock,
+        DebugEvent_FrameMarker,
     };
     
     struct debug_event {
@@ -373,7 +374,7 @@ extern "C" {
     struct debug_table {
         u64 CurrentEventArrayIndex;
         u64 volatile EventArrayIndex_EventIndex;
-        debug_event Events[2][MAX_DEBUG_EVENT_COUNT];
+        debug_event Events[32][MAX_DEBUG_EVENT_COUNT];
         debug_record Records[MAX_DEBUG_TRANSLATION_UNIT][MAX_DEBUG_RECORD_COUNT];
         u32 RecordCounts[MAX_DEBUG_TRANSLATION_UNIT];
     };
@@ -395,7 +396,14 @@ extern "C" {
     }
     
     
-    
+#define FRAME_MARKER() { \
+int Counter = __COUNTER__; \
+RecordDebugEvent(__COUNTER__, DebugEvent_FrameMarker); \
+debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+Record->FileName = __FILE__; \
+Record->BlockName = "FrameMarker"; \
+Record->LineNumber = __LINE__; \
+}
     
 #define TIMED_BLOCK__(BlockName, Number,  ...) timed_block TimeBlock_##Number(__COUNTER__, __FILE__, __LINE__, BlockName, ## __VA_ARGS__);
     

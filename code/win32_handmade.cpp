@@ -1089,7 +1089,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 
                 int64 LastCycleCount = __rdtsc();
                 while (GlobalRunning) {
-                    TIMED_BLOCK(Win32Loop);
+                    FRAME_MARKER();
                     
                     
                     
