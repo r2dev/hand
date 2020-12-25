@@ -353,9 +353,9 @@ extern "C" {
     };
     
     enum debug_event_type {
+        DebugEvent_FrameMarker,
         DebugEvent_BeginBlock,
         DebugEvent_EndBlock,
-        DebugEvent_FrameMarker,
     };
     
     struct debug_event {

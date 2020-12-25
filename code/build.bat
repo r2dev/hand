@@ -18,7 +18,9 @@ REM 64-bit build
 
 REM optimization build /O2 /Oi /fp:fast
 echo WAITING FOR PDB > lock.tmp
+
 cl %CommonCompillerFlags% -DTRANSLATION_UNIT_INDEX=1 -O2 -c ..\handmade\code\handmade_optimized.cpp -Fohandmade_optimized.obj -LD
+
 cl %CommonCompillerFlags% -DTRANSLATION_UNIT_INDEX=0 ..\handmade\code\handmade.cpp handmade_optimized.obj -Fmhandmade.map -LD /link -incremental:no -opt:ref -PDB:handmade_%random%.pdb -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples -EXPORT:DEBUGGameFrameEnd
 
 del lock.tmp

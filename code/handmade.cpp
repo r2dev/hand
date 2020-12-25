@@ -1215,6 +1215,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     CheckArena(&GameState->WorldArena);
     
     if (DEBUGRenderGroup) {
+        TIMED_BLOCK(DEBUGRenderGroup);
         DEBUGOverlay(Memory);
         TiledRenderGroupToOutput(TranState->HighPriorityQueue, DEBUGRenderGroup, DrawBuffer);
         EndRender(DEBUGRenderGroup);

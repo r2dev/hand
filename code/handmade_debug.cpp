@@ -248,11 +248,9 @@ debug_table* GlobalDebugTable = &GlobalDebugTable_;
 
 internal void
 CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *Events) {
-    u32 TotalRecordCount = 0;
-    
     debug_counter_state *CounterArray[MAX_DEBUG_TRANSLATION_UNIT];
     debug_counter_state *CurrentCounter = DebugState->CounterStates;
-    
+    u32 TotalRecordCount = 0;
     for (u32 UnitIndex = 0; UnitIndex < MAX_DEBUG_TRANSLATION_UNIT; ++UnitIndex) {
         CounterArray[UnitIndex] = CurrentCounter;
         TotalRecordCount += GlobalDebugTable->RecordCounts[UnitIndex];
@@ -271,21 +269,16 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *Events
     for (u32 EventIndex = 0; EventIndex < EventCount; ++EventIndex) {
         debug_event *Event = Events + EventIndex;
         debug_counter_state *Dest = CounterArray[Event->TranslationUnit] + Event->DebugRecordIndex;
-        debug_record* Src = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Event->DebugRecordIndex;
+        debug_record* Src = GlobalDebugTable->Records[Event->TranslationUnit] + Event->DebugRecordIndex;
         
         Dest->FileName = Src->FileName;
         Dest->LineNumber = Src->LineNumber;
         Dest->BlockName = Src->BlockName;
         if (Event->Type == DebugEvent_BeginBlock) {
-            
             ++Dest->Snapshots[DebugState->SnapIndex].HitCount;
             Dest->Snapshots[DebugState->SnapIndex].CycleCount -= Event->Clock;
         } else if (Event->Type == DebugEvent_EndBlock) {
-            
             Dest->Snapshots[DebugState->SnapIndex].CycleCount += Event->Clock;
-        } else {
-            Assert(Event->Type == DebugEvent_FrameMarker);
-            
         }
     }
     
@@ -297,8 +290,8 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
     GlobalDebugTable->RecordCounts[0] = DebugRecords_Main_Count;
     GlobalDebugTable->RecordCounts[1] = DebugRecords_Optimized_Count;
     
-    GlobalDebugTable->CurrentEventArrayIndex++;
-    if (GlobalDebugTable->CurrentEventArrayIndex == ArrayCount(GlobalDebugTable->Events)) {
+    ++GlobalDebugTable->CurrentEventArrayIndex;
+    if (GlobalDebugTable->CurrentEventArrayIndex >= ArrayCount(GlobalDebugTable->Events)) {
         GlobalDebugTable->CurrentEventArrayIndex = 0;
     }
     // flip value
