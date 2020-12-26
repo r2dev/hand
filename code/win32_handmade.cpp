@@ -1092,7 +1092,6 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     FRAME_MARKER();
                     
                     
-                    
                     ///
                     ///
                     ///

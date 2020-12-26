@@ -398,7 +398,7 @@ extern "C" {
     
 #define FRAME_MARKER() { \
 int Counter = __COUNTER__; \
-RecordDebugEvent(__COUNTER__, DebugEvent_FrameMarker); \
+RecordDebugEvent(Counter, DebugEvent_FrameMarker); \
 debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
 Record->FileName = __FILE__; \
 Record->BlockName = "FrameMarker"; \

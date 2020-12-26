@@ -268,12 +268,14 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *Events
     
     for (u32 EventIndex = 0; EventIndex < EventCount; ++EventIndex) {
         debug_event *Event = Events + EventIndex;
+        
         debug_counter_state *Dest = CounterArray[Event->TranslationUnit] + Event->DebugRecordIndex;
         debug_record* Src = GlobalDebugTable->Records[Event->TranslationUnit] + Event->DebugRecordIndex;
         
         Dest->FileName = Src->FileName;
         Dest->LineNumber = Src->LineNumber;
         Dest->BlockName = Src->BlockName;
+        
         if (Event->Type == DebugEvent_BeginBlock) {
             ++Dest->Snapshots[DebugState->SnapIndex].HitCount;
             Dest->Snapshots[DebugState->SnapIndex].CycleCount -= Event->Clock;
