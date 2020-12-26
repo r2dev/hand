@@ -243,6 +243,7 @@ DEBUGOverlay(game_memory* Memory) {
 
 #define DebugRecords_Main_Count __COUNTER__
 extern u32 DebugRecords_Optimized_Count;
+
 global_variable debug_table GlobalDebugTable_;
 debug_table* GlobalDebugTable = &GlobalDebugTable_;
 

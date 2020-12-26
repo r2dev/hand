@@ -372,11 +372,13 @@ extern "C" {
 #define MAX_DEBUG_TRANSLATION_UNIT 3
     
     struct debug_table {
-        u64 CurrentEventArrayIndex;
+        u32 CurrentEventArrayIndex;
         u64 volatile EventArrayIndex_EventIndex;
         debug_event Events[32][MAX_DEBUG_EVENT_COUNT];
-        debug_record Records[MAX_DEBUG_TRANSLATION_UNIT][MAX_DEBUG_RECORD_COUNT];
+        
         u32 RecordCounts[MAX_DEBUG_TRANSLATION_UNIT];
+        debug_record Records[MAX_DEBUG_TRANSLATION_UNIT][MAX_DEBUG_RECORD_COUNT];
+        
     };
     
     extern debug_table *GlobalDebugTable;

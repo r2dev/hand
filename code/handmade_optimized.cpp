@@ -4,8 +4,7 @@
 void
 DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, real32 PixelsToMeters, rectangle2i ClipRect, bool32 Even) {
     TIMED_FUNCTION();
-    
-	Assert(Texture->Memory);
+    Assert(Texture->Memory);
 	// premultiply alpha
 	Color.rgb *= Color.a;
     
