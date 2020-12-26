@@ -383,19 +383,18 @@ extern "C" {
     
     extern debug_table *GlobalDebugTable;
     
-    inline void
-        RecordDebugEvent(int RecordIndex, debug_event_type EventType) {
-        u64 ArrayIndex_EventIndex = AtomicAddU64(&GlobalDebugTable->EventArrayIndex_EventIndex, 1);
-        u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF);
-        Assert(EventIndex < MAX_DEBUG_EVENT_COUNT);
-        debug_event *Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (ArrayIndex_EventIndex & 0xFFFFFFFF);
-        Event->Clock = __rdtsc();
-        Event->ThreadIndex = (u16)GetThreadID();
-        Event->CoreIndex = 0;
-        Event->DebugRecordIndex = (u16)RecordIndex;
-        Event->TranslationUnit = TRANSLATION_UNIT_INDEX;
-        Event->Type = (u8)EventType;
-    }
+#define RecordDebugEvent(RecordIndex, EventType) { \
+u64 ArrayIndex_EventIndex = AtomicAddU64(&GlobalDebugTable->EventArrayIndex_EventIndex, 1); \
+u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF); \
+Assert(EventIndex < MAX_DEBUG_EVENT_COUNT); \
+debug_event *Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (ArrayIndex_EventIndex & 0xFFFFFFFF); \
+Event->Clock = __rdtsc(); \
+Event->ThreadIndex = (u16)GetThreadID(); \
+Event->CoreIndex = 0; \
+Event->DebugRecordIndex = (u16)RecordIndex; \
+Event->TranslationUnit = TRANSLATION_UNIT_INDEX; \
+Event->Type = (u8)EventType; \
+}
     
     
 #define FRAME_MARKER() { \
