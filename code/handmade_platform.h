@@ -361,7 +361,7 @@ extern "C" {
     struct debug_event {
         u64 Clock;
         u16 CoreIndex;
-        u16 ThreadIndex;
+        u16 ThreadID;
         u16 DebugRecordIndex;
         u8 TranslationUnit;
         u8 Type;
@@ -370,11 +370,14 @@ extern "C" {
 #define MAX_DEBUG_EVENT_COUNT (16 * 65536)
 #define MAX_DEBUG_RECORD_COUNT (65536)
 #define MAX_DEBUG_TRANSLATION_UNIT 3
+#define MAX_DEBUG_EVENT_ARRAY_COUNT 64
+#define MAX_DEBUG_THREAD_COUNT 256
     
     struct debug_table {
         u32 CurrentEventArrayIndex;
         u64 volatile EventArrayIndex_EventIndex;
-        debug_event Events[32][MAX_DEBUG_EVENT_COUNT];
+        u32 EventCounts[MAX_DEBUG_EVENT_ARRAY_COUNT];
+        debug_event Events[MAX_DEBUG_EVENT_ARRAY_COUNT][MAX_DEBUG_EVENT_COUNT];
         
         u32 RecordCounts[MAX_DEBUG_TRANSLATION_UNIT];
         debug_record Records[MAX_DEBUG_TRANSLATION_UNIT][MAX_DEBUG_RECORD_COUNT];
@@ -389,13 +392,12 @@ u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF); \
 Assert(EventIndex < MAX_DEBUG_EVENT_COUNT); \
 debug_event *Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (ArrayIndex_EventIndex & 0xFFFFFFFF); \
 Event->Clock = __rdtsc(); \
-Event->ThreadIndex = (u16)GetThreadID(); \
+Event->ThreadID = (u16)GetThreadID(); \
 Event->CoreIndex = 0; \
 Event->DebugRecordIndex = (u16)RecordIndex; \
 Event->TranslationUnit = TRANSLATION_UNIT_INDEX; \
 Event->Type = (u8)EventType; \
 }
-    
     
 #define FRAME_MARKER() { \
 int Counter = __COUNTER__; \
