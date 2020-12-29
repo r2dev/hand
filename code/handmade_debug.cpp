@@ -331,7 +331,7 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
             } 
             else if (CurrentFrame) {
                 u32 FrameIndex = DebugState->FrameCount - 1;
-                debug_thread *Thread = GetDebugThread(DebugState, Event->ThreadID);
+                debug_thread *Thread = GetDebugThread(DebugState, Event->TC.ThreadID);
                 u64 RelativeClock = Event->Clock - CurrentFrame->BeginClock;
                 if (Event->Type == DebugEvent_BeginBlock) {
                     open_debug_block *DebugBlock = DebugState->FirstFreeBlock;
@@ -349,15 +349,21 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                     if (Thread->FirstOpenBlock) {
                         open_debug_block* MatchingBlock = Thread->FirstOpenBlock;
                         debug_event* OpeningEvent = MatchingBlock->Event;
-                        if (OpeningEvent->ThreadID == Event->ThreadID &&
+                        if (OpeningEvent->TC.ThreadID == Event->TC.ThreadID &&
                             OpeningEvent->DebugRecordIndex == Event->DebugRecordIndex &&
                             OpeningEvent->TranslationUnit == Event->TranslationUnit) {
                             if (MatchingBlock->StartingFrameIndex == FrameIndex) {
                                 if (Thread->FirstOpenBlock->Parent == 0) {
-                                    debug_frame_region *Region = AddRegion(DebugState, CurrentFrame);
-                                    Region->LaneIndex = Thread->LaneIndex;
-                                    Region->MinT = (r32)(OpeningEvent->Clock - CurrentFrame->BeginClock);
-                                    Region->MaxT = (r32)(Event->Clock - CurrentFrame->BeginClock);
+                                    r32 MinT = (r32)(OpeningEvent->Clock - CurrentFrame->BeginClock);
+                                    r32 MaxT = (r32)(Event->Clock - CurrentFrame->BeginClock);
+                                    r32 ThresholdT = 0.01f;
+                                    if (MaxT - MinT > ThresholdT) {
+                                        debug_frame_region *Region = AddRegion(DebugState, CurrentFrame);
+                                        
+                                        Region->LaneIndex = Thread->LaneIndex;
+                                        Region->MinT = MinT;
+                                        Region->MaxT = MaxT;
+                                    }
                                 }
                             } else {
                                 

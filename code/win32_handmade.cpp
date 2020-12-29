@@ -1088,10 +1088,8 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
                 
                 int64 LastCycleCount = __rdtsc();
+                LARGE_INTEGER FrameMarkerClock = {};
                 while (GlobalRunning) {
-                    FRAME_MARKER();
-                    
-                    
                     ///
                     ///
                     ///
@@ -1373,8 +1371,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     NewInput = OldInput;
                     OldInput = Temp;
                     
-                    LARGE_INTEGER EndCounter = Win32GetWallClock();
-                    LastCounter = EndCounter;
+                    
                     END_BLOCK(EndOfFrame);
 #if HANDMADE_INTERNAL
                     u64 EndCycleCount = __rdtsc();
@@ -1386,6 +1383,12 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     }
                     GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
 #endif
+                    
+                    LARGE_INTEGER EndCounter = Win32GetWallClock();
+                    FRAME_MARKER(Win32GetSecondsElapsed(LastCounter, EndCounter));
+                    LastCounter = EndCounter;
+                    
+                    
                 }
             }
             else {

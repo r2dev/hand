@@ -358,10 +358,17 @@ extern "C" {
         DebugEvent_EndBlock,
     };
     
-    struct debug_event {
-        u64 Clock;
+    struct threadid_coreindex {
         u16 CoreIndex;
         u16 ThreadID;
+    };
+    
+    struct debug_event {
+        u64 Clock;
+        union {
+            r32 SecondsElapsed;
+            threadid_coreindex TC;
+        };
         u16 DebugRecordIndex;
         u8 TranslationUnit;
         u8 Type;
@@ -385,31 +392,34 @@ extern "C" {
     };
     
     extern debug_table *GlobalDebugTable;
-    
-#define RecordDebugEvent(RecordIndex, EventType) { \
+#define RecordDebugEventCommon(RecordIndex, EventType) \
 u64 ArrayIndex_EventIndex = AtomicAddU64(&GlobalDebugTable->EventArrayIndex_EventIndex, 1); \
 u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF); \
 Assert(EventIndex < MAX_DEBUG_EVENT_COUNT); \
 debug_event *Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (ArrayIndex_EventIndex & 0xFFFFFFFF); \
 Event->Clock = __rdtsc(); \
-u32 ThreadID = GetThreadID(); \
-Event->ThreadID = (u16)ThreadID; \
-Assert(Event->ThreadID == ThreadID); \
-Event->CoreIndex = 0; \
 Event->DebugRecordIndex = (u16)RecordIndex; \
 Event->TranslationUnit = TRANSLATION_UNIT_INDEX; \
 Event->Type = (u8)EventType; \
+    
+    
+#define RecordDebugEvent(RecordIndex, EventType) { \
+RecordDebugEventCommon(RecordIndex, EventType); \
+Event->TC.CoreIndex = 0; \
+Event->TC.ThreadID = (u16)GetThreadID(); \
 }
     
-#define FRAME_MARKER() { \
+#define FRAME_MARKER(SecondsElapsedInit) { \
 int Counter = __COUNTER__; \
-RecordDebugEvent(Counter, DebugEvent_FrameMarker); \
+RecordDebugEventCommon(Counter, DebugEvent_FrameMarker); \
+Event->SecondsElapsed = SecondsElapsedInit; \
 debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
 Record->FileName = __FILE__; \
 Record->BlockName = "FrameMarker"; \
 Record->LineNumber = __LINE__; \
 }
     
+#if HANDMADE_PROFILE
 #define TIMED_BLOCK__(BlockName, Number,  ...) timed_block TimeBlock_##Number(__COUNTER__, __FILE__, __LINE__, BlockName, ## __VA_ARGS__);
     
 #define TIMED_BLOCK_(BlockName, Number, ...) TIMED_BLOCK__(BlockName, Number, ## __VA_ARGS__)
@@ -448,7 +458,19 @@ BEGIN_BLOCK_(Counter_##Name, __FILE__, __LINE__, #Name); \
         }
     };
     
+#else
+#define TIMED_BLOCK__(BlockName, Number,  ...)
+#define TIMED_BLOCK_(BlockName, Number, ...)
+#define TIMED_BLOCK(BlockName, ...)
+#define TIMED_FUNCTION(...)
+#define BEGIN_BLOCK_(Counter, FileNameInit, LineNumberInit, BlockNameInit)
+#define BEGIN_BLOCK(Name)
+#define END_BLOCK_(Counter) 
+#define END_BLOCK(Name)
     
+    
+    
+#endif
 #ifdef __cplusplus
 }
 #endif
