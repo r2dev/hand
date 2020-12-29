@@ -16,7 +16,7 @@ struct debug_counter_state {
     u32 LineNumber;
 };
 // can be improve with chaining
-#define MAX_REGIONS_PER_FRAME 256
+#define MAX_REGIONS_PER_FRAME 1024
 struct debug_frame_region {
     r32 MinT;
     r32 MaxT;
@@ -26,6 +26,7 @@ struct debug_frame_region {
 struct debug_frame {
     u64 BeginClock;
     u64 EndClock;
+    
     u32 RegionCount;
     debug_frame_region *Regions;
 };
@@ -49,11 +50,12 @@ struct debug_state {
     b32 IsInitialized;
     memory_arena CollateArena;
     temporary_memory CollateTemp;
-    debug_frame *Frames;
+    
     u32 FrameCount;
     u32 FrameBarLaneCount;
     r32 FrameBarScale;
     
+    debug_frame *Frames;
     debug_thread *FirstThread;
     open_debug_block *FirstFreeBlock;
 };

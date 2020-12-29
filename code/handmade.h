@@ -19,7 +19,15 @@ struct temporary_memory {
 #include "handmade_debug.h"
 #define Minimum(A, B) ((A < B)? (A): (B))
 #define Maximum(A, B) ((A > B)? (A): (B))
-
+inline b32
+StringsAreEqual(char* A, char* B) {
+    
+    while (*A && *B &&  *A++ == *B++) {
+        
+    }
+    b32 Result = (*A == 0 && *B == 0);
+    return(Result);
+}
 
 inline void
 InitializeArena(memory_arena* Arena, memory_index Size, void* Storage) {

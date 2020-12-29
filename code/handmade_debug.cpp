@@ -312,6 +312,8 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                 if (CurrentFrame) {
                     CurrentFrame->EndClock = Event->Clock;
                     r32 ClockRange = (r32)CurrentFrame->EndClock - (r32)CurrentFrame->BeginClock;
+                    
+#if 0                    
                     if (ClockRange > 0.0f) {
                         // todo
                         r32 FrameBarScale = 1.0f / ClockRange;
@@ -319,6 +321,7 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                             DebugState->FrameBarScale = FrameBarScale;
                         }
                     }
+#endif
                 }
                 CurrentFrame = DebugState->Frames + DebugState->FrameCount++;
                 CurrentFrame->BeginClock = Event->Clock;
@@ -359,7 +362,7 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                             } else {
                                 
                             }
-                            Thread->FirstOpenBlock->NextFree = DebugState->FirstFreeBlock;
+                            MatchingBlock->NextFree = DebugState->FirstFreeBlock;
                             DebugState->FirstFreeBlock = Thread->FirstOpenBlock;
                             Thread->FirstOpenBlock = MatchingBlock->Parent;
                         } else {

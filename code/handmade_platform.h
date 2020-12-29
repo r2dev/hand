@@ -371,7 +371,7 @@ extern "C" {
 #define MAX_DEBUG_RECORD_COUNT (65536)
 #define MAX_DEBUG_TRANSLATION_UNIT 3
 #define MAX_DEBUG_EVENT_ARRAY_COUNT 64
-#define MAX_DEBUG_THREAD_COUNT 256
+#define MAX_DEBUG_THREAD_COUNT 512
     
     struct debug_table {
         u32 CurrentEventArrayIndex;
@@ -392,7 +392,9 @@ u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF); \
 Assert(EventIndex < MAX_DEBUG_EVENT_COUNT); \
 debug_event *Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (ArrayIndex_EventIndex & 0xFFFFFFFF); \
 Event->Clock = __rdtsc(); \
-Event->ThreadID = (u16)GetThreadID(); \
+u32 ThreadID = GetThreadID(); \
+Event->ThreadID = (u16)ThreadID; \
+Assert(Event->ThreadID == ThreadID); \
 Event->CoreIndex = 0; \
 Event->DebugRecordIndex = (u16)RecordIndex; \
 Event->TranslationUnit = TRANSLATION_UNIT_INDEX; \
