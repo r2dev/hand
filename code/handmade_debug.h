@@ -20,8 +20,10 @@ struct debug_counter_state {
 struct debug_frame_region {
     r32 MinT;
     r32 MaxT;
-    u32 LaneIndex;
+    u16 LaneIndex;
+    u16 ColorIndex;
     debug_record* Record;
+    
     u64 CycleCount;
 };
 
@@ -39,6 +41,7 @@ struct open_debug_block {
     debug_event *Event;
     open_debug_block *Parent;
     open_debug_block *NextFree;
+    debug_record* Source;
 };
 
 struct debug_thread {
@@ -65,6 +68,8 @@ struct debug_state {
     b32 Paused;
     u32 CollationArrayIndex;
     debug_frame* CollationFrame;
+    
+    debug_record* RecordToScope;
 };
 
 struct render_group;
@@ -74,5 +79,5 @@ global_variable render_group *DEBUGRenderGroup;
 
 internal void DEBUGReset(game_assets *Assets, u32 Width, u32 Height);
 internal void DEBUGOverlay(game_memory* Memory, game_input* Inputi);
-
+internal void RefreshCollation(debug_state* DebugState);
 #endif //HANDMADE_DEBUG_H
