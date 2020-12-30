@@ -226,7 +226,7 @@ DEBUGOverlay(game_memory* Memory, game_input* Input) {
             r32 ChartLeft = LeftEdge + 10.0f;
             r32 ChartTop = 0.5f * GlobalHeight - 10.0f;
             
-            r32 Scale = ChartHeight * DebugState->FrameBarScale;
+            r32 Scale = ChartWidth * DebugState->FrameBarScale;
             v3 Colors[] = {
                 {1, 0, 0},
                 {0, 1, 0},
@@ -454,7 +454,7 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
         }
         
         if (!DebugState->Paused) {
-            if (DebugState->FrameCount >= MAX_DEBUG_EVENT_ARRAY_COUNT) {
+            if (DebugState->FrameCount >= MAX_DEBUG_EVENT_ARRAY_COUNT * 4) {
                 RestartCollation(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
             }
             
