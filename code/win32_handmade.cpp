@@ -1329,6 +1329,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     ///
                     ///
                     ///
+#if 0
                     BEGIN_BLOCK(WaitFrameComplete);
                     if (!GlobalPause) {
                         LARGE_INTEGER WorkCounter = Win32GetWallClock();
@@ -1359,6 +1360,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         
                     }
                     END_BLOCK(WaitFrameComplete);
+#endif
                     
                     ///
                     

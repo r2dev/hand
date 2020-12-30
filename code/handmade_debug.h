@@ -63,6 +63,8 @@ struct debug_state {
     open_debug_block *FirstFreeBlock;
     
     b32 Paused;
+    u32 CollationArrayIndex;
+    debug_frame* CollationFrame;
 };
 
 struct render_group;
