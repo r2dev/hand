@@ -85,7 +85,6 @@ EndDebugStatistic(debug_statistic* Stat) {
     }
 }
 
-
 internal void
 DEBUGTextLine(char *String) {
     if (DEBUGRenderGroup) {
@@ -242,8 +241,14 @@ DEBUGOverlay(game_memory* Memory, game_input* Input) {
                 {0.5f, 0, 1},
             };
             
-            for (u32 FrameIndex = 0; FrameIndex < DebugState->FrameCount; ++FrameIndex) {
-                debug_frame * Frame = DebugState->Frames + FrameIndex;
+            u32 MaxFrame = DebugState->FrameCount;
+            if (MaxFrame > 10) {
+                MaxFrame = 10;
+            }
+            
+            
+            for (u32 FrameIndex = 0; FrameIndex < MaxFrame; ++FrameIndex) {
+                debug_frame * Frame = DebugState->Frames + DebugState->FrameCount - (FrameIndex + 1);
                 
                 r32 StackX = ChartLeft;
                 r32 StackY = ChartTop - (r32)FrameIndex * BarSpacing;
