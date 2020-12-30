@@ -682,7 +682,7 @@ IsInRectangle(rectangle2 Rectangle, v2 Test) {
 	bool32 Result = ((Test.x >= Rectangle.Min.x)
                      && (Test.y >= Rectangle.Min.y)
                      && (Test.x < Rectangle.Max.x)
-                     && (Test.x < Rectangle.Max.y));
+                     && (Test.y < Rectangle.Max.y));
 	return(Result);
 }
 

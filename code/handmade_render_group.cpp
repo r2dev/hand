@@ -123,6 +123,11 @@ PushRect(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
 }
 
 inline void
+PushRect(render_group* Group, rectangle2 Rect, r32 Z, v4 Color) {
+	PushRect(Group, V3(GetCenter(Rect), Z), GetDim(Rect), Color);
+}
+
+inline void
 PushRectOutline(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
     
 	real32 Thickness = 0.1f;

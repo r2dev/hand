@@ -1087,8 +1087,6 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 
                 win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
                 
-                int64 LastCycleCount = __rdtsc();
-                LARGE_INTEGER FrameMarkerClock = {};
                 while (GlobalRunning) {
                     ///
                     ///
@@ -1130,14 +1128,22 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         POINT MouseP;
                         GetCursorPos(&MouseP);
                         ScreenToClient(Window, &MouseP);
-                        NewInput->MouseX = MouseP.x;
-                        NewInput->MouseY = MouseP.y;
+                        NewInput->MouseX = (-0.5f * GlobalBackbuffer.Width + 0.5f) + (r32)MouseP.x ;
+                        NewInput->MouseY = (0.5f * GlobalBackbuffer.Height - 0.5f) - (r32)MouseP.y;
                         NewInput->MouseZ = 0;
-                        Win32ProcessKeyboardMessage(&NewInput->MouseBottons[0], GetKeyState(VK_LBUTTON) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseBottons[1], GetKeyState(VK_MBUTTON) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseBottons[2], GetKeyState(VK_RBUTTON) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseBottons[3], GetKeyState(VK_XBUTTON1) & (1 << 15));
-                        Win32ProcessKeyboardMessage(&NewInput->MouseBottons[4], GetKeyState(VK_XBUTTON2) & (1 << 15));
+                        
+                        DWORD Win32BottomID[PlatformMouseButton_Count] = {
+                            VK_LBUTTON,
+                            VK_MBUTTON,
+                            VK_RBUTTON,
+                            VK_XBUTTON1,
+                            VK_XBUTTON2
+                        };
+                        for (u32 MouseButtonIndex = 0; MouseButtonIndex < PlatformMouseButton_Count; ++MouseButtonIndex) {
+                            NewInput->MouseBottons[MouseButtonIndex] = OldInput->MouseBottons[MouseButtonIndex];
+                            NewInput->MouseBottons[MouseButtonIndex].HalfTransitionCount = 0;
+                            Win32ProcessKeyboardMessage(&NewInput->MouseBottons[MouseButtonIndex], GetKeyState(Win32BottomID[MouseButtonIndex]) & (1 << 15));
+                        }
                         
                         DWORD MaxControllerCount = XUSER_MAX_COUNT;
                         if (MaxControllerCount > (ArrayCount(NewInput->Controllers) - 1)) {
@@ -1374,14 +1380,13 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     
                     END_BLOCK(EndOfFrame);
 #if HANDMADE_INTERNAL
-                    u64 EndCycleCount = __rdtsc();
-                    u64 CyclesElapsed = EndCycleCount - LastCycleCount;
-                    LastCycleCount = EndCycleCount;
+                    BEGIN_BLOCK(DebugCollation);
                     if (Game.DEBUGFrameEnd) {
                         GlobalDebugTable = Game.DEBUGFrameEnd(&GameMemory);
                         GlobalDebugTable->RecordCounts[TRANSLATION_UNIT_INDEX] = __COUNTER__;
                     }
                     GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
+                    END_BLOCK(DebugCollation);
 #endif
                     
                     LARGE_INTEGER EndCounter = Win32GetWallClock();

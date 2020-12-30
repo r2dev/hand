@@ -169,14 +169,29 @@ extern "C" {
         
     };
     
+    enum game_input_mouse_button {
+        PlatformMouseButton_Left,
+        PlatformMouseButton_Middle,
+        PlatformMouseButton_Right,
+        PlatformMouseButton_Extended0,
+        PlatformMouseButton_Extended1,
+        PlatformMouseButton_Count,
+    };
+    
     struct game_input {
-        game_button_state MouseBottons[5];
-        int32 MouseX, MouseY, MouseZ;
+        game_button_state MouseBottons[PlatformMouseButton_Count];
+        r32 MouseX, MouseY, MouseZ;
         game_controller_input Controllers[5];
         
-        bool32 ExecutableReloaded;
-        real32 dtForFrame;
+        b32 ExecutableReloaded;
+        r32 dtForFrame;
     };
+    
+    inline b32 WasPress(game_button_state *State) {
+        b32 Result = ((State->HalfTransitionCount > 1) ||
+                      (State->HalfTransitionCount == 1 && State->EndedDown));
+        return(Result);
+    }
     
     
     typedef struct platform_file_handle {
@@ -377,7 +392,7 @@ extern "C" {
 #define MAX_DEBUG_EVENT_COUNT (16 * 65536)
 #define MAX_DEBUG_RECORD_COUNT (65536)
 #define MAX_DEBUG_TRANSLATION_UNIT 3
-#define MAX_DEBUG_EVENT_ARRAY_COUNT 64
+#define MAX_DEBUG_EVENT_ARRAY_COUNT 8
 #define MAX_DEBUG_THREAD_COUNT 512
     
     struct debug_table {
@@ -427,7 +442,6 @@ Record->LineNumber = __LINE__; \
 #define TIMED_BLOCK(BlockName, ...) TIMED_BLOCK_(#BlockName, __LINE__, ## __VA_ARGS__)
     
 #define TIMED_FUNCTION(...) TIMED_BLOCK_(__FUNCTION__, ## __VA_ARGS__)
-    
     
 #define BEGIN_BLOCK_(Counter, FileNameInit, LineNumberInit, BlockNameInit) \
 {debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \

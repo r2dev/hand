@@ -21,14 +21,17 @@ struct debug_frame_region {
     r32 MinT;
     r32 MaxT;
     u32 LaneIndex;
+    debug_record* Record;
+    u64 CycleCount;
 };
 
 struct debug_frame {
     u64 BeginClock;
     u64 EndClock;
-    
+    r32 WallSecondsElapsed;
     u32 RegionCount;
     debug_frame_region *Regions;
+    
 };
 
 struct open_debug_block {
@@ -58,6 +61,8 @@ struct debug_state {
     debug_frame *Frames;
     debug_thread *FirstThread;
     open_debug_block *FirstFreeBlock;
+    
+    b32 Paused;
 };
 
 struct render_group;
@@ -66,6 +71,6 @@ struct game_assets;
 global_variable render_group *DEBUGRenderGroup;
 
 internal void DEBUGReset(game_assets *Assets, u32 Width, u32 Height);
-internal void DEBUGOverlay(game_memory* Memory);
+internal void DEBUGOverlay(game_memory* Memory, game_input* Inputi);
 
 #endif //HANDMADE_DEBUG_H
