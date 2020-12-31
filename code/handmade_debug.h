@@ -51,9 +51,14 @@ struct debug_thread {
     debug_thread *Next;
 };
 
+struct render_group;
+struct game_assets;
+struct loaded_bitmap;
 
 struct debug_state {
     b32 IsInitialized;
+    platform_work_queue* HighPriorityQueue;
+    memory_arena DebugArena;
     memory_arena CollateArena;
     temporary_memory CollateTemp;
     
@@ -70,14 +75,19 @@ struct debug_state {
     debug_frame* CollationFrame;
     
     debug_record* RecordToScope;
+    
+    r32 AtY;
+    r32 LeftEdge;
+    r32 FontScale;
+    font_id FontID;
+    r32 GlobalWidth;
+    r32 GlobalHeight;
+    render_group *RenderGroup;
+    
+    rectangle2 ProfileRect;
 };
 
-struct render_group;
-struct game_assets;
-
-global_variable render_group *DEBUGRenderGroup;
-
-internal void DEBUGReset(game_assets *Assets, u32 Width, u32 Height);
-internal void DEBUGOverlay(game_memory* Memory, game_input* Inputi);
+internal void DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer);
+internal void DEBUGStart(game_assets *Assets, u32 Width, u32 Height);
 internal void RefreshCollation(debug_state* DebugState);
 #endif //HANDMADE_DEBUG_H

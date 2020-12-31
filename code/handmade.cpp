@@ -659,7 +659,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		TranState->LowPriorityQueue = Memory->LowPriorityQueue;
         
 		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(4), TranState);
-        DEBUGRenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, Megabytes(16), false);
 		
 		TranState->GroundBufferCount = 256;
 		TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);
@@ -697,10 +696,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         
 		TranState->IsInitialized = true;
 	}
-    if (DEBUGRenderGroup) {
-        BeginRender(DEBUGRenderGroup);
-        DEBUGReset(DEBUGRenderGroup->Assets, Buffer->Width, Buffer->Height);
-    }
+    
+    DEBUGStart(TranState->Assets, Buffer->Width, Buffer->Height);
     
 	world* World = GameState->World;
     
@@ -1214,12 +1211,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
     
-    if (DEBUGRenderGroup) {
-        TIMED_BLOCK(DEBUGRenderGroup);
-        DEBUGOverlay(Memory, Input);
-        TiledRenderGroupToOutput(TranState->HighPriorityQueue, DEBUGRenderGroup, DrawBuffer);
-        EndRender(DEBUGRenderGroup);
-    }
+    DEBUGEnd(Input, DrawBuffer);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {

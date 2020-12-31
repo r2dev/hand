@@ -4,6 +4,7 @@
 #include "handmade_platform.h"
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
+#include "handmade_file_formats.h"
 struct memory_arena {
 	memory_index Size;
 	uint8* Base;
@@ -136,7 +137,7 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 }
 
 
-#include "handmade_file_formats.h"
+
 #include "handmade_random.h"
 #include "handmade_asset.h"
 #include "handmade_world.h"
