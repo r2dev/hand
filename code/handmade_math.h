@@ -638,6 +638,12 @@ GetCenter(rectangle2 Rect) {
 	return(Result);
 }
 
+inline v2
+Arm2(r32 Angle) {
+    v2 Result = {Cos(Angle), Sin(Angle)};
+    return(Result);
+}
+
 inline rectangle2
 RectMinMax(v2 Min, v2 Max) {
 	rectangle2 Result = {};

@@ -177,6 +177,25 @@ DEBUGTextLine(char *String) {
     }
 }
 
+internal void
+DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup) {
+    char *MenuItems[] = {
+        "Toggle Profile",
+        "Toggle Frame rate",
+        "Mark looopp",
+        "toggle Entity Bound",
+        "toggle world chunk bound"
+    };
+    r32 MenuRadius = 200.0f;
+    r32 AngleStep = Tau32 / ArrayCount(MenuItems);
+    for (u32 MenuIndex = 0; MenuIndex < ArrayCount(MenuItems); ++MenuIndex) {
+        char* Text = MenuItems[MenuIndex];
+        r32 Angle = (r32)MenuIndex * AngleStep;
+        v2 TextP = Arm2(Angle) * MenuRadius;
+        PushRect(RenderGroup, RectCenterHalfDim(TextP, v2{1.0f, 1.0f}), 0, v4{1, 1, 1, 1});
+        DEBUGTextOutAt(TextP, Text);
+    }
+}
 
 internal void
 DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
@@ -185,6 +204,8 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
     
     if (DebugState) {
         render_group* RenderGroup = DebugState->RenderGroup;
+        
+        
         debug_record* HotRecord = 0;
         // mouse Position
         v2 MouseP = V2(Input->MouseX, Input->MouseY);
@@ -192,7 +213,7 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
         if (WasPressed(&Input->MouseBottons[PlatformMouseButton_Right])) {
             DebugState->Paused = !DebugState->Paused;
         }
-        
+        DrawDebugMainMenu(DebugState, DebugState->RenderGroup);
         loaded_font* Font = PushFont(RenderGroup, DebugState->FontID);
         if (Font) {
             hha_font *Info = GetFontInfo(RenderGroup->Assets, DebugState->FontID);
@@ -259,89 +280,92 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
                 DEBUGTextLine(TextBuffer);
             }
 #if 1
-            Orthographic(DebugState->RenderGroup, (s32)(DebugState->GlobalWidth), (s32)DebugState->GlobalHeight, 1.0f);
             
-            DebugState->ProfileRect = RectMinMax(V2(50.0, 50.0f), V2(200.0f, 200.0f));
-            PushRect(DebugState->RenderGroup, DebugState->ProfileRect, 0, V4(0, 0, 0, 0.25f));
-            
-            r32 BarSpacing = 4.0f;
-            r32 LaneHeight = 0.0f;
-            u32 LaneCount = DebugState->FrameBarLaneCount;
-            
-            u32 MaxFrame = DebugState->FrameCount;
-            if (MaxFrame > 10) {
-                MaxFrame = 10;
-            }
-            if (MaxFrame > 0 && LaneCount > 0) {
-                LaneHeight = (GetDim(DebugState->ProfileRect).y / ((r32)MaxFrame) - BarSpacing) / (r32)LaneCount;
-            }
-            
-            
-            r32 BarHeight = LaneHeight * LaneCount;
-            r32 BarAdvance = BarHeight + BarSpacing;
-            
-            r32 ChartHeight = BarAdvance * MaxFrame;
-            r32 ChartWidth = GetDim(DebugState->ProfileRect).x;
-            
-            r32 ChartLeft = DebugState->ProfileRect.Min.x;
-            r32 ChartTop = DebugState->ProfileRect.Max.y;
-            
-            r32 Scale = ChartWidth * DebugState->FrameBarScale;
-            v3 Colors[] = {
-                {1, 0, 0},
-                {0, 1, 0},
-                {0, 0, 1},
-                {1, 1, 0},
-                {0, 1, 1},
-                {1, 0, 1},
-                {1, 0.5f, 0},
-                {0, 1, 0.5f},
-                {1, 0, 0.5f},
-                {0.5f, 1, 0},
-                {0, 0.5f, 1},
-                {0.5f, 0, 1},
-            };
-            
-            for (u32 FrameIndex = 0; FrameIndex < MaxFrame; ++FrameIndex) {
-                debug_frame * Frame = DebugState->Frames + DebugState->FrameCount - (FrameIndex + 1);
+            if (DebugState->ProfileOn) {
+                Orthographic(DebugState->RenderGroup, (s32)(DebugState->GlobalWidth), (s32)DebugState->GlobalHeight, 1.0f);
                 
-                r32 StackX = ChartLeft;
-                r32 StackY = ChartTop - (r32)FrameIndex * BarAdvance;
+                DebugState->ProfileRect = RectMinMax(V2(50.0, 50.0f), V2(200.0f, 200.0f));
+                PushRect(DebugState->RenderGroup, DebugState->ProfileRect, 0, V4(0, 0, 0, 0.25f));
                 
-                for(u32 RegionIndex = 0; RegionIndex < Frame->RegionCount; ++RegionIndex) {
-                    debug_frame_region* Region = Frame->Regions + RegionIndex;
+                r32 BarSpacing = 4.0f;
+                r32 LaneHeight = 0.0f;
+                u32 LaneCount = DebugState->FrameBarLaneCount;
+                
+                u32 MaxFrame = DebugState->FrameCount;
+                if (MaxFrame > 10) {
+                    MaxFrame = 10;
+                }
+                if (MaxFrame > 0 && LaneCount > 0) {
+                    LaneHeight = (GetDim(DebugState->ProfileRect).y / ((r32)MaxFrame) - BarSpacing) / (r32)LaneCount;
+                }
+                
+                
+                r32 BarHeight = LaneHeight * LaneCount;
+                r32 BarAdvance = BarHeight + BarSpacing;
+                
+                r32 ChartHeight = BarAdvance * MaxFrame;
+                r32 ChartWidth = GetDim(DebugState->ProfileRect).x;
+                
+                r32 ChartLeft = DebugState->ProfileRect.Min.x;
+                r32 ChartTop = DebugState->ProfileRect.Max.y;
+                
+                r32 Scale = ChartWidth * DebugState->FrameBarScale;
+                v3 Colors[] = {
+                    {1, 0, 0},
+                    {0, 1, 0},
+                    {0, 0, 1},
+                    {1, 1, 0},
+                    {0, 1, 1},
+                    {1, 0, 1},
+                    {1, 0.5f, 0},
+                    {0, 1, 0.5f},
+                    {1, 0, 0.5f},
+                    {0.5f, 1, 0},
+                    {0, 0.5f, 1},
+                    {0.5f, 0, 1},
+                };
+                
+                for (u32 FrameIndex = 0; FrameIndex < MaxFrame; ++FrameIndex) {
+                    debug_frame * Frame = DebugState->Frames + DebugState->FrameCount - (FrameIndex + 1);
                     
-                    v3 Color = Colors[Region->ColorIndex % ArrayCount(Colors)];
-                    r32 ThisMinX = StackX + Scale * Region->MinT;
-                    r32 ThisMaxX = StackX + Scale * Region->MaxT;
-                    rectangle2 RegionRect = RectMinMax(v2{ThisMinX, StackY - (Region->LaneIndex + 1) * LaneHeight}, 
-                                                       v2{ThisMaxX, StackY - Region->LaneIndex * LaneHeight});
+                    r32 StackX = ChartLeft;
+                    r32 StackY = ChartTop - (r32)FrameIndex * BarAdvance;
                     
-                    PushRect(DebugState->RenderGroup, RegionRect, 0.0f, V4(Color, 1));
-                    if (IsInRectangle(RegionRect, MouseP)) {
-                        debug_record* Record = Region->Record;
-                        char TextBuffer[256];
-                        _snprintf_s(TextBuffer, sizeof(TextBuffer), 
-                                    "%s: %10I64ucy %s(%d)",
-                                    Record->BlockName,
-                                    Region->CycleCount,
-                                    Record->FileName,
-                                    Record->LineNumber
-                                    );
-                        DEBUGTextOutAt(MouseP + v2{0, 10.0f}, TextBuffer);
-                        HotRecord = Record;
+                    for(u32 RegionIndex = 0; RegionIndex < Frame->RegionCount; ++RegionIndex) {
+                        debug_frame_region* Region = Frame->Regions + RegionIndex;
+                        
+                        v3 Color = Colors[Region->ColorIndex % ArrayCount(Colors)];
+                        r32 ThisMinX = StackX + Scale * Region->MinT;
+                        r32 ThisMaxX = StackX + Scale * Region->MaxT;
+                        rectangle2 RegionRect = RectMinMax(v2{ThisMinX, StackY - (Region->LaneIndex + 1) * LaneHeight}, 
+                                                           v2{ThisMaxX, StackY - Region->LaneIndex * LaneHeight});
+                        
+                        PushRect(DebugState->RenderGroup, RegionRect, 0.0f, V4(Color, 1));
+                        if (IsInRectangle(RegionRect, MouseP)) {
+                            debug_record* Record = Region->Record;
+                            char TextBuffer[256];
+                            _snprintf_s(TextBuffer, sizeof(TextBuffer), 
+                                        "%s: %10I64ucy %s(%d)",
+                                        Record->BlockName,
+                                        Region->CycleCount,
+                                        Record->FileName,
+                                        Record->LineNumber
+                                        );
+                            DEBUGTextOutAt(MouseP + v2{0, 10.0f}, TextBuffer);
+                            HotRecord = Record;
+                        }
                     }
                 }
-            }
-            
-            if (WasPressed(&Input->MouseBottons[PlatformMouseButton_Left])) {
-                if (HotRecord) {
-                    DebugState->RecordToScope = HotRecord;
-                } else {
-                    DebugState->RecordToScope = 0;
-                }
-                RefreshCollation(DebugState);
                 
+                if (WasPressed(&Input->MouseBottons[PlatformMouseButton_Left])) {
+                    if (HotRecord) {
+                        DebugState->RecordToScope = HotRecord;
+                    } else {
+                        DebugState->RecordToScope = 0;
+                    }
+                    RefreshCollation(DebugState);
+                    
+                }
             }
             
             //PushRect(DEBUGRenderGroup, v3{ChartLeft, ChartMinY + ChartHeight, 0}, v2{ChartWidth, 1}, v4{1, 1, 1, 1});
@@ -350,6 +374,7 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
         
         TiledRenderGroupToOutput(DebugState->HighPriorityQueue, DebugState->RenderGroup, DrawBuffer);
         EndRender(DebugState->RenderGroup);
+        
     }
 }
 

@@ -65,6 +65,7 @@ struct debug_state {
     u32 FrameCount;
     u32 FrameBarLaneCount;
     r32 FrameBarScale;
+    b32 ProfileOn;
     
     debug_frame *Frames;
     debug_thread *FirstThread;
