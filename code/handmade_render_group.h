@@ -87,4 +87,17 @@ struct render_entry_coordinate_system {
 	environment_map* Bottom;
 };
 
+struct entity_basis_p_result {
+	v2 P;
+	real32 Scale;
+	bool32 Valid;
+};
+
+struct used_bitmap_dim {
+    v2 Size;
+	v2 Align;
+	v3 P;
+	entity_basis_p_result Basis;
+};
+
 void DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, real32 PixelsToMeters, rectangle2i ClipRect, bool32 Even);

@@ -19,7 +19,7 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 	real32 InvAxisXLengthSq = 1.0f / LengthSq(AxisX);
 	real32 InvAxisYLengthSq = 1.0f / LengthSq(AxisY);
     
-	rectangle2i FillRect = InvertedInfinityRectangle();
+	rectangle2i FillRect = InvertedInfinityRectangle2i();
     
 	v2 P[4] = { Origin, Origin + AxisX, Origin + AxisX + AxisY, Origin + AxisY };
     

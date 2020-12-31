@@ -56,6 +56,13 @@ struct rectangle2i {
 	int32 MaxY;
 };
 
+inline v2
+V2(v3 A) {
+	v2 Result;
+	Result.x = A.x;
+	Result.y = A.y;
+	return Result;
+}
 
 inline v3 V3(v2 XY, real32 Z) {
 	v3 Result;
@@ -645,6 +652,25 @@ Arm2(r32 Angle) {
 }
 
 inline rectangle2
+InvertedInfinityRectangle2() {
+	rectangle2 Result;
+	Result.Min.x = Result.Min.y = Real32Maximum;
+	Result.Max.x = Result.Max.y = -Real32Maximum;
+	return(Result);
+}
+
+inline rectangle2
+Union(rectangle2 A, rectangle2 B) {
+    rectangle2 Result;
+    Result.Min.x = (A.Min.x < B.Min.x)? A.Min.x: B.Min.x;
+    Result.Min.y = (A.Min.y < B.Min.y)? A.Min.y: B.Min.y;
+    
+    Result.Max.x = (A.Max.x > B.Max.x)? A.Max.x: B.Max.x;
+    Result.Max.y = (A.Max.y > B.Max.y)? A.Max.y: B.Max.y;
+    return(Result);
+}
+
+inline rectangle2
 RectMinMax(v2 Min, v2 Max) {
 	rectangle2 Result = {};
 	Result.Min = Min;
@@ -674,12 +700,21 @@ RectCenterDim(v2 Center, v2 Dim) {
 	rectangle2 Result = RectCenterHalfDim(Center, 0.5f * Dim);
 	return(Result);
 }
+
 inline rectangle2
 AddRadiusTo(rectangle2 A, v2 Radius) {
 	rectangle2 Result = {};
 	Result.Min = A.Min - Radius;
 	Result.Max = A.Max + Radius;
 	return(Result);
+}
+
+inline rectangle2
+Offset(rectangle2 A, v2 P) {
+    rectangle2 Result;
+    Result.Min = A.Min + P;
+    Result.Max = A.Max + P;
+    return(Result);
 }
 
 
@@ -736,7 +771,7 @@ ToRectangleXY(rectangle3 A) {
 }
 
 inline rectangle2i
-InvertedInfinityRectangle() {
+InvertedInfinityRectangle2i() {
 	rectangle2i Result;
 	Result.MinX = Result.MinY = INT_MAX;
 	Result.MaxX = Result.MaxY = -INT_MAX;

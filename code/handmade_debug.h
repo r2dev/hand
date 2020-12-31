@@ -3,6 +3,10 @@
 #ifndef HANDMADE_DEBUG_H
 #define HANDMADE_DEBUG_H
 
+enum debug_text_op {
+    DEBUGTextOp_DrawText,
+    DEBUGTextOp_SizeText,
+};
 
 struct debug_counter_snapshot {
     u32 HitCount;
@@ -54,6 +58,7 @@ struct debug_thread {
 struct render_group;
 struct game_assets;
 struct loaded_bitmap;
+struct loaded_font;
 
 struct debug_state {
     b32 IsInitialized;
@@ -85,7 +90,12 @@ struct debug_state {
     r32 GlobalHeight;
     render_group *RenderGroup;
     
+    loaded_font *Font;
+    hha_font *FontInfo;
+    
     rectangle2 ProfileRect;
+    u32 HotMenuIndex;
+    v2 HotMenuP;
 };
 
 internal void DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer);

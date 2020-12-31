@@ -36,6 +36,7 @@ DEBUGStart(game_assets *Assets, u32 Width, u32 Height) {
         
         
         BeginRender(DebugState->RenderGroup);
+        
         DebugState->GlobalWidth = (r32)Width;
         DebugState->GlobalHeight = (r32)Height;
         asset_vector MatchVector = {};
@@ -48,8 +49,9 @@ DEBUGStart(game_assets *Assets, u32 Width, u32 Height) {
         Orthographic(DebugState->RenderGroup, Width, Height, 1.0f);
         DebugState->LeftEdge = -0.5f * (r32)Width;
         
-        hha_font *Info = GetFontInfo(Assets, DebugState->FontID);
-        DebugState->AtY = 0.5f * Height - DebugState->FontScale * GetStartingBaselineY(Info);
+        DebugState->Font = PushFont(DebugState->RenderGroup, DebugState->FontID);
+        DebugState->FontInfo = GetFontInfo(DebugState->RenderGroup->Assets, DebugState->FontID);
+        DebugState->AtY = 0.5f * Height - DebugState->FontScale * GetStartingBaselineY(DebugState->FontInfo);
     }
 }
 
@@ -109,92 +111,126 @@ EndDebugStatistic(debug_statistic* Stat) {
     }
 }
 
+internal rectangle2
+DEBUGTextOp(debug_text_op Op, debug_state* DebugState, v2 P, char* String, v4 Color = v4{1.0f, 1.0f, 1.0f, 1.0f}) {
+    rectangle2 Result = InvertedInfinityRectangle2();
+    if (DebugState && DebugState->Font) {
+        
+        render_group *RenderGroup = DebugState->RenderGroup;
+        
+        loaded_font* Font = DebugState->Font;
+        hha_font* FontInfo = DebugState->FontInfo;
+        
+        u32 PrevCodePoint = 0;
+        r32 TextY = P.y;
+        r32 AtX = P.x;
+        r32 CharScale = DebugState->FontScale;
+        
+        for(char* At = String;
+            *At;
+            ++At) {
+            
+            u32 CodePoint = *At;
+            r32 AdvancedX = 0;
+            
+            if (At[0] == '\\' && IsHex(At[1]) && IsHex(At[2]) && IsHex(At[3]) && IsHex(At[4])) {
+                CodePoint = ((GetHex(At[1]) << 12) | (GetHex(At[2]) << 8) | (GetHex(At[3]) << 4) | (GetHex(At[4]) << 0));
+                At += 4;
+            }
+            if(PrevCodePoint) {
+                AdvancedX = CharScale * GetHorizontalAdvanceForPair(DebugState->FontInfo, DebugState->Font, PrevCodePoint, CodePoint);
+            }
+            AtX += AdvancedX;
+            
+            if (CodePoint != ' ') {
+                // proportional mode
+                // AdvancedX = CharScale * (r32)(Info->Dim[0] + 2);
+                bitmap_id BitmapID = GetBitmapForGlyph(RenderGroup->Assets, DebugState->FontInfo, DebugState->Font, CodePoint);
+                hha_bitmap* BitmapInfo = GetBitmapInfo(RenderGroup->Assets, BitmapID);
+                
+                r32 BitmapScale = CharScale * (r32)BitmapInfo->Dim[1];
+                v3 BitmapOffset = {AtX, TextY, 0};
+                
+                if (Op == DEBUGTextOp_DrawText) {
+                    PushBitmap(RenderGroup, BitmapID, BitmapScale, BitmapOffset, Color);
+                } else {
+                    Assert(Op == DEBUGTextOp_SizeText);
+                    loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, BitmapID, RenderGroup->GenerationID);
+                    if (Bitmap) {
+                        used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, BitmapOffset);
+                        rectangle2 GlyphDim = RectMinDim(Dim.P.xy, Dim.Size);
+                        Result = Union(Result, GlyphDim);
+                    }
+                }
+            }
+            // advance here
+            
+            PrevCodePoint = CodePoint;
+        }
+        //PushRect(RenderGroup, v3{LeftEdge, AtY, 0}, v2{1000.0f, 1.0f}, v4{1.0f, 0.0f, 0.0f, 1});
+        //PushRect(RenderGroup, v3{LeftEdge, AtY + Info->Ascent, 0}, v2{1000.0f, 1.0f}, v4{0.0f, 1.0f, 0.0f, 1});
+        //PushRect(RenderGroup, v3{LeftEdge, AtY - Info->Descent, 0}, v2{1000.0f, 1.0f}, v4{0.0f, 0.0f, 1.0f, 1});
+    }
+    return(Result);
+}
+
 internal void
-DEBUGTextOutAt(v2 P, char* String) {
+DEBUGTextOutAt(v2 P, char* String, v4 Color = {1, 1, 1, 1}) {
     debug_state* DebugState = DEBUGGetState();
     if (DebugState) {
-        render_group* RenderGroup = DebugState->RenderGroup;
-        
-        loaded_font* Font = PushFont(RenderGroup, DebugState->FontID);
-        if (Font) {
-            hha_font *Info = GetFontInfo(RenderGroup->Assets, DebugState->FontID);
-            u32 PrevCodePoint = 0;
-            r32 TextY = P.y;
-            r32 AtX = P.x;
-            r32 CharScale = DebugState->FontScale;
-            
-            for(char* At = String;
-                *At;
-                ++At) {
-                
-                u32 CodePoint = *At;
-                r32 AdvancedX = 0;
-                
-                if (At[0] == '\\' && IsHex(At[1]) && IsHex(At[2]) && IsHex(At[3]) && IsHex(At[4])) {
-                    CodePoint = ((GetHex(At[1]) << 12) | (GetHex(At[2]) << 8) | (GetHex(At[3]) << 4) | (GetHex(At[4]) << 0));
-                    At += 4;
-                }
-                if(PrevCodePoint) {
-                    AdvancedX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
-                }
-                AtX += AdvancedX;
-                
-                if (CodePoint != ' ') {
-                    // proportional mode
-                    // AdvancedX = CharScale * (r32)(Info->Dim[0] + 2);
-                    bitmap_id BitmapID = GetBitmapForGlyph(RenderGroup->Assets, Info, Font, CodePoint);
-                    hha_bitmap* BitmapInfo = GetBitmapInfo(RenderGroup->Assets, BitmapID);
-                    PushBitmap(RenderGroup, BitmapID, CharScale * (r32)BitmapInfo->Dim[1], v3{AtX, TextY, 0}, v4{1.0f, 1.0f, 1.0f, 1});
-                }
-                // advance here
-                
-                PrevCodePoint = CodePoint;
-            }
-            //PushRect(RenderGroup, v3{LeftEdge, AtY, 0}, v2{1000.0f, 1.0f}, v4{1.0f, 0.0f, 0.0f, 1});
-            //PushRect(RenderGroup, v3{LeftEdge, AtY + Info->Ascent, 0}, v2{1000.0f, 1.0f}, v4{0.0f, 1.0f, 0.0f, 1});
-            //PushRect(RenderGroup, v3{LeftEdge, AtY - Info->Descent, 0}, v2{1000.0f, 1.0f}, v4{0.0f, 0.0f, 1.0f, 1});
-        } else {
-            
-        }
+        DEBUGTextOp(DEBUGTextOp_DrawText, DebugState, P, String, Color);
     }
 }
 
+internal rectangle2
+DEBUGGetTextSize(debug_state *DebugState, char* String) {
+    rectangle2 Result = DEBUGTextOp(DEBUGTextOp_SizeText, DebugState, v2{ 0, 0 }, String);
+    return(Result);
+}
 
 internal void
 DEBUGTextLine(char *String) {
     debug_state* DebugState = DEBUGGetState();
     if (DebugState) {
-        render_group* RenderGroup = DebugState->RenderGroup;
-        
-        loaded_font* Font = PushFont(RenderGroup, DebugState->FontID);
-        if (Font) {
-            hha_font *Info = GetFontInfo(RenderGroup->Assets, DebugState->FontID);
-            DEBUGTextOutAt(v2{DebugState->LeftEdge, DebugState->AtY}, String);
-            DebugState->AtY -= GetLineAdvancedFor(Info) * DebugState->FontScale;
-        } else {
-            
-        }
+        DEBUGTextOutAt(v2{DebugState->LeftEdge, DebugState->AtY}, String);
+        DebugState->AtY -= GetLineAdvancedFor(DebugState->FontInfo) * DebugState->FontScale;
     }
 }
 
 internal void
-DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup) {
+DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup, v2 MouseP) {
     char *MenuItems[] = {
         "Toggle Profile",
+        "Resume/Pause Profilling",
         "Toggle Frame rate",
         "Mark looopp",
         "toggle Entity Bound",
         "toggle world chunk bound"
     };
-    r32 MenuRadius = 200.0f;
+    r32 MenuRadius = 300.0f;
     r32 AngleStep = Tau32 / ArrayCount(MenuItems);
+    u32 NewHotMenuIndex = ArrayCount(MenuItems);
+    r32 BestDistance = Real32Maximum;
+    
     for (u32 MenuIndex = 0; MenuIndex < ArrayCount(MenuItems); ++MenuIndex) {
+        v4 ItemColor = v4{1,1,1,1};
+        if (MenuIndex == DebugState->HotMenuIndex) {
+            ItemColor = v4{1,1,0,1};
+        }
         char* Text = MenuItems[MenuIndex];
         r32 Angle = (r32)MenuIndex * AngleStep;
-        v2 TextP = Arm2(Angle) * MenuRadius;
-        PushRect(RenderGroup, RectCenterHalfDim(TextP, v2{1.0f, 1.0f}), 0, v4{1, 1, 1, 1});
-        DEBUGTextOutAt(TextP, Text);
+        v2 TextP = DebugState->HotMenuP + Arm2(Angle) * MenuRadius;
+        r32 DistanceSq = LengthSq(TextP - MouseP);
+        if (BestDistance > DistanceSq) {
+            BestDistance = DistanceSq;
+            NewHotMenuIndex = MenuIndex;
+        }
+        rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
+        DEBUGTextOutAt(TextP - 0.5f * GetDim(TextBound), Text, ItemColor);
     }
+    
+    DebugState->HotMenuIndex = NewHotMenuIndex;
+    
 }
 
 internal void
@@ -210,15 +246,29 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
         // mouse Position
         v2 MouseP = V2(Input->MouseX, Input->MouseY);
         
-        if (WasPressed(&Input->MouseBottons[PlatformMouseButton_Right])) {
-            DebugState->Paused = !DebugState->Paused;
+        if (Input->MouseBottons[PlatformMouseButton_Right].EndedDown) {
+            if (Input->MouseBottons[PlatformMouseButton_Right].HalfTransitionCount) {
+                DebugState->HotMenuP = MouseP;
+            }
+            DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
+            
+        } else if (Input->MouseBottons[PlatformMouseButton_Right].HalfTransitionCount){
+            DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
+            switch(DebugState->HotMenuIndex) {
+                case 0: {
+                    DebugState->ProfileOn = !DebugState->ProfileOn;
+                } break;
+                case 1: {
+                    DebugState->Paused = !DebugState->Paused;
+                } break;
+            }
+            DebugState->HotMenuP = v2{0, 0};
+            
         }
-        DrawDebugMainMenu(DebugState, DebugState->RenderGroup);
-        loaded_font* Font = PushFont(RenderGroup, DebugState->FontID);
+        
+        loaded_font* Font = DebugState->Font;
+        hha_font *Info = DebugState->FontInfo;
         if (Font) {
-            hha_font *Info = GetFontInfo(RenderGroup->Assets, DebugState->FontID);
-            
-            
 #if 0            
             for (u32 CounterIndex = 0; CounterIndex < DebugState->CounterCount; ++CounterIndex) {
                 debug_counter_state* Counter = DebugState->CounterStates + CounterIndex;
