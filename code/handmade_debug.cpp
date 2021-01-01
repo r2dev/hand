@@ -202,10 +202,13 @@ DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup, v2 MouseP)
     char *MenuItems[] = {
         "Toggle Profile",
         "Resume/Pause Profilling",
+        "recompiling",
+        "debuggg camera",
         "Toggle Frame rate",
         "Mark looopp",
         "toggle Entity Bound",
-        "toggle world chunk bound"
+        "toggle world chunk bound",
+        
     };
     r32 MenuRadius = 300.0f;
     r32 AngleStep = Tau32 / ArrayCount(MenuItems);
@@ -233,6 +236,21 @@ DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup, v2 MouseP)
     
 }
 
+#define ZHA_CONFIG_FILE_NAME "../code/zha_config.h"
+
+internal void
+WriteZhaConfig(debug_state* DebugState, u32 UseDebugCamera) {
+    char Temp[4096];
+    int TempSize = _snprintf_s(Temp, sizeof(Temp), "#define DEBUGUI_UseDebugCamera %d //b32 \n", 
+                               UseDebugCamera);
+    Platform.DEBUGWriteEntireFile(ZHA_CONFIG_FILE_NAME, TempSize, Temp);
+    if (!DebugState->Compiling) {
+        DebugState->Compiling = true;
+        DebugState->Compiler = Platform.DEBUGExecuteSystemCommand("../code/", "c:\\windows\\system32\\cmd.exe", "/C build.bat");
+    }
+    
+}
+
 internal void
 DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
     TIMED_FUNCTION();
@@ -240,8 +258,6 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
     
     if (DebugState) {
         render_group* RenderGroup = DebugState->RenderGroup;
-        
-        
         debug_record* HotRecord = 0;
         // mouse Position
         v2 MouseP = V2(Input->MouseX, Input->MouseY);
@@ -261,6 +277,9 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
                 case 1: {
                     DebugState->Paused = !DebugState->Paused;
                 } break;
+                case 2: {
+                    WriteZhaConfig(DebugState, !DEBUGUI_UseDebugCamera);
+                } break;
             }
             DebugState->HotMenuP = v2{0, 0};
             
@@ -269,6 +288,16 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
         loaded_font* Font = DebugState->Font;
         hha_font *Info = DebugState->FontInfo;
         if (Font) {
+            if (DebugState->Compiling) {
+                debug_executing_state State = Platform.DEBUGGetProcessState(DebugState->Compiler);
+                if (State.IsRunning) {
+                    DEBUGTextLine("Compiling");
+                } else {
+                    DebugState->Compiling = false;
+                }
+            }
+            
+            
 #if 0            
             for (u32 CounterIndex = 0; CounterIndex < DebugState->CounterCount; ++CounterIndex) {
                 debug_counter_state* Counter = DebugState->CounterStates + CounterIndex;
@@ -593,6 +622,7 @@ RefreshCollation(debug_state* DebugState) {
     CollateDebugRecords(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
 }
 
+
 extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
     
     GlobalDebugTable->RecordCounts[0] = DebugRecords_Main_Count;
@@ -604,11 +634,15 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
     }
     // flip value
     u64 ArrayIndex_EventIndex = AtomicExchangeU64(&GlobalDebugTable->EventArrayIndex_EventIndex, (u64)GlobalDebugTable->CurrentEventArrayIndex << 32);
+    
     u32 EventArrayIndex = ArrayIndex_EventIndex >> 32;
     u32 EventCount = ArrayIndex_EventIndex & 0xFFFFFFFF;
     GlobalDebugTable->EventCounts[EventArrayIndex] = EventCount;
     debug_state *DebugState = DEBUGGetState(Memory);
     if (DebugState) {
+        if (Memory->ExecutableReloaded) {
+            RestartCollation(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
+        }
         if (!DebugState->Paused) {
             if (DebugState->FrameCount >= MAX_DEBUG_EVENT_ARRAY_COUNT * 4) {
                 RestartCollation(DebugState, GlobalDebugTable->CurrentEventArrayIndex);

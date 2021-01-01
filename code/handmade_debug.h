@@ -72,6 +72,9 @@ struct debug_state {
     r32 FrameBarScale;
     b32 ProfileOn;
     
+    b32 Compiling;
+    debug_executing_process Compiler;
+    
     debug_frame *Frames;
     debug_thread *FirstThread;
     open_debug_block *FirstFreeBlock;

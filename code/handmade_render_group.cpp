@@ -8,7 +8,13 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 	v3 P = V3(OriginP.xy, 0.0f) + Transform->OffsetP;
     
 	if (Transform->Orthographic == false) {
-		real32 DistancePz = Transform->DistanceAboveTarget - P.z;
+        r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
+        
+#if DEBUGUI_UseDebugCamera
+        DistanceAboveTarget += 50.0f;
+#endif
+        
+		real32 DistancePz = DistanceAboveTarget - P.z;
 		v3 RawXY = V3(P.xy, 1.0f);
 		real32 NearClipPlane = 0.2f;
         

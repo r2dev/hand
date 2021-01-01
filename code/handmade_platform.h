@@ -1,6 +1,8 @@
 #if !defined(HANDMADE_PLATFORM_H)
 #define HANDMADE_PLATFORM_H
 
+#include "zha_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -105,14 +107,30 @@ extern "C" {
         void* Contents;
     };
     
+    typedef struct debug_executing_process {
+        u64 OSHandle;
+    } debug_executing_process;
+    
+    typedef struct debug_executing_state {
+        b32 StartedSuccessfully;
+        b32 IsRunning;
+        s32 ReturnCode;
+    } debug_executing_state;
+    
 #define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
     typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
     
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(char* Filename)
     typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
     
-#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name( char* Filename, uint32 MemorySize, void *Memory)
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char* Filename, uint32 MemorySize, void *Memory)
     typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
+    
+#define DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(name) debug_executing_process name(char* Path, char* Command, char* CommandLine)
+    typedef DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(debug_platform_execute_system_command);
+    
+#define DEBUG_PLATFORM_GET_PROCESS_STATE(name) debug_executing_state name(debug_executing_process Process)
+    typedef DEBUG_PLATFORM_GET_PROCESS_STATE(debug_platform_get_process_state);
     
     extern struct game_memory* DebugGlobalMemory;
     
@@ -183,7 +201,6 @@ extern "C" {
         r32 MouseX, MouseY, MouseZ;
         game_controller_input Controllers[5];
         
-        b32 ExecutableReloaded;
         r32 dtForFrame;
     };
     
@@ -257,10 +274,9 @@ extern "C" {
         debug_platform_read_entire_file* DEBUGReadEntireFile;
         debug_platform_write_entire_file* DEBUGWriteEntireFile;
         debug_platform_free_file_memory* DEBUGFreeFileMemory;
-        
+        debug_platform_execute_system_command* DEBUGExecuteSystemCommand;
+        debug_platform_get_process_state* DEBUGGetProcessState;
     } platform_api;
-    
-    
     
     typedef struct game_memory {
         uint64 PermanentStorageSize;
@@ -276,6 +292,7 @@ extern "C" {
         platform_work_queue* LowPriorityQueue;
         
         platform_api PlatformAPI;
+        b32 ExecutableReloaded;
         
     } game_memory;
     
