@@ -425,6 +425,13 @@ SampleEnvironmentMap(v2 ScreenUV, v3 SampleDirection, real32 Roughness, environm
 	real32 fX = tX - (real32)X;
 	real32 fY = tY - (real32)Y;
     
+    Assert(X >= 0 && X < LOD->Width);
+    Assert(Y >= 0 && Y < LOD->Height);
+#if DEBUGUI_ShowLightningSampleSource
+    u8 *TexelPtr = ((u8*)LOD->Memory + Y*LOD->Pitch + X *sizeof(u32));
+    *(u32 *)TexelPtr = 0xFFFFFFFF;
+#endif
+    
 	bilinear_sample Sample = BilinearSample(LOD, X, Y);
 	v3 Result = SRGBBilinearBlend(Sample, fX, fY).xyz;
     

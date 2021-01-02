@@ -1,0 +1,22 @@
+/* date = January 1st 2021 8:47 pm */
+
+#ifndef HANDMADE_DEBUG_VARIABLES_H
+#define HANDMADE_DEBUG_VARIABLES_H
+
+#define DEBUG_VARIABLE_LISITING(name) DebugVariableType_Boolean, #name, name
+
+debug_variable DebugVariableList[] = {
+    DEBUG_VARIABLE_LISITING(DEBUGUI_UseDebugCamera),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_ParticleDemo),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_ShowGroundChunkOutlines),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_ParticleGrid),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_ShowSpaceOutline),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_ReGenGroundChunkOnReload),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_WeirdDrawBufferSize),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_FamiliarFollowsHero),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_ShowLightningSampleSource),
+    DEBUG_VARIABLE_LISITING(DEBUGUI_RoomBaseCamera),
+};
+
+
+#endif //HANDMADE_DEBUG_VARIABLES_H

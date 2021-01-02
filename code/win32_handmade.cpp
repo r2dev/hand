@@ -1176,9 +1176,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                             VK_XBUTTON2
                         };
                         for (u32 MouseButtonIndex = 0; MouseButtonIndex < PlatformMouseButton_Count; ++MouseButtonIndex) {
-                            NewInput->MouseBottons[MouseButtonIndex] = OldInput->MouseBottons[MouseButtonIndex];
-                            NewInput->MouseBottons[MouseButtonIndex].HalfTransitionCount = 0;
-                            Win32ProcessKeyboardMessage(&NewInput->MouseBottons[MouseButtonIndex], GetKeyState(Win32BottomID[MouseButtonIndex]) & (1 << 15));
+                            NewInput->MouseButtons[MouseButtonIndex] = OldInput->MouseButtons[MouseButtonIndex];
+                            NewInput->MouseButtons[MouseButtonIndex].HalfTransitionCount = 0;
+                            Win32ProcessKeyboardMessage(&NewInput->MouseButtons[MouseButtonIndex], GetKeyState(Win32BottomID[MouseButtonIndex]) & (1 << 15));
                         }
                         
                         DWORD MaxControllerCount = XUSER_MAX_COUNT;
@@ -1279,7 +1279,14 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                             Win32RecordInput(&Win32State, NewInput);
                         }
                         if (Win32State.InputPlayingIndex) {
+                            game_input Temp = *NewInput;
                             Win32PlayBackInput(&Win32State, NewInput);
+                            for (u32 MouseButtonIndex = 0; MouseButtonIndex < PlatformMouseButton_Count; ++MouseButtonIndex) {
+                                NewInput->MouseButtons[MouseButtonIndex] = Temp.MouseButtons[MouseButtonIndex];
+                            }
+                            NewInput->MouseX = Temp.MouseX;
+                            NewInput->MouseY = Temp.MouseY;
+                            NewInput->MouseZ = Temp.MouseZ;
                         }
                         if (Game.UpdateAndRender) {
                             Game.UpdateAndRender(&GameMemory, NewInput, &Buffer);

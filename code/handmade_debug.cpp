@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include "handmade_debug_variables.h"
 internal void RestartCollation(debug_state *DebugState, u32 InvalidEventArrayIndex);
 inline debug_state*
 DEBUGGetState(game_memory* Memory) {
@@ -33,8 +33,6 @@ DEBUGStart(game_assets *Assets, u32 Width, u32 Height) {
             RestartCollation(DebugState, 0);
             
         }
-        
-        
         BeginRender(DebugState->RenderGroup);
         
         DebugState->GlobalWidth = (r32)Width;
@@ -197,8 +195,30 @@ DEBUGTextLine(char *String) {
     }
 }
 
+#define ZHA_CONFIG_FILE_NAME "../code/zha_config.h"
+
 internal void
-DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup, v2 MouseP) {
+WriteZhaConfig(debug_state* DebugState, u32 UseDebugCamera) {
+    char Temp[4096];
+    char *At = Temp;
+    char* End = Temp + sizeof(Temp);
+    
+    for (u32 DebugVariableIndex = 0; DebugVariableIndex < ArrayCount(DebugVariableList); ++DebugVariableIndex) {
+        debug_variable* Var = DebugVariableList + DebugVariableIndex;
+        At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define %s %d \n", 
+                          Var->Name, Var->Value);
+        
+    }
+    Platform.DEBUGWriteEntireFile(ZHA_CONFIG_FILE_NAME, (u32)(At - Temp), Temp);
+    if (!DebugState->Compiling) {
+        DebugState->Compiling = true;
+        DebugState->Compiler = Platform.DEBUGExecuteSystemCommand("../code/", "c:\\windows\\system32\\cmd.exe", "/C build.bat");
+    }
+    
+}
+
+internal void
+DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP) {
     char *MenuItems[] = {
         "Toggle Profile",
         "Resume/Pause Profilling",
@@ -211,16 +231,18 @@ DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup, v2 MouseP)
         
     };
     r32 MenuRadius = 300.0f;
-    r32 AngleStep = Tau32 / ArrayCount(MenuItems);
-    u32 NewHotMenuIndex = ArrayCount(MenuItems);
+    r32 AngleStep = Tau32 / ArrayCount(DebugVariableList);
+    u32 NewHotMenuIndex = ArrayCount(DebugVariableList);
     r32 BestDistance = Real32Maximum;
     
-    for (u32 MenuIndex = 0; MenuIndex < ArrayCount(MenuItems); ++MenuIndex) {
-        v4 ItemColor = v4{1,1,1,1};
+    for (u32 MenuIndex = 0; MenuIndex < ArrayCount(DebugVariableList); ++MenuIndex) {
+        
+        debug_variable* Var = DebugVariableList + MenuIndex;
+        char* Text = Var->Name;
+        v4 ItemColor = Var->Value? v4{1, 1, 1, 1}: v4{0.5f, 0.5f, 0.5f, 1};
         if (MenuIndex == DebugState->HotMenuIndex) {
-            ItemColor = v4{1,1,0,1};
+            ItemColor = v4{1, 1, 0, 1};
         }
-        char* Text = MenuItems[MenuIndex];
         r32 Angle = (r32)MenuIndex * AngleStep;
         v2 TextP = DebugState->HotMenuP + Arm2(Angle) * MenuRadius;
         r32 DistanceSq = LengthSq(TextP - MouseP);
@@ -232,24 +254,14 @@ DrawDebugMainMenu(debug_state* DebugState, render_group *RenderGroup, v2 MouseP)
         DEBUGTextOutAt(TextP - 0.5f * GetDim(TextBound), Text, ItemColor);
     }
     
-    DebugState->HotMenuIndex = NewHotMenuIndex;
-    
-}
-
-#define ZHA_CONFIG_FILE_NAME "../code/zha_config.h"
-
-internal void
-WriteZhaConfig(debug_state* DebugState, u32 UseDebugCamera) {
-    char Temp[4096];
-    int TempSize = _snprintf_s(Temp, sizeof(Temp), "#define DEBUGUI_UseDebugCamera %d //b32 \n", 
-                               UseDebugCamera);
-    Platform.DEBUGWriteEntireFile(ZHA_CONFIG_FILE_NAME, TempSize, Temp);
-    if (!DebugState->Compiling) {
-        DebugState->Compiling = true;
-        DebugState->Compiler = Platform.DEBUGExecuteSystemCommand("../code/", "c:\\windows\\system32\\cmd.exe", "/C build.bat");
+    if (LengthSq(DebugState->HotMenuP - MouseP) > Square(150.0f)) {
+        DebugState->HotMenuIndex = NewHotMenuIndex;
+    } else {
+        DebugState->HotMenuIndex = ArrayCount(DebugVariableList);
     }
     
 }
+
 
 internal void
 DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
@@ -262,14 +274,22 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
         // mouse Position
         v2 MouseP = V2(Input->MouseX, Input->MouseY);
         
-        if (Input->MouseBottons[PlatformMouseButton_Right].EndedDown) {
-            if (Input->MouseBottons[PlatformMouseButton_Right].HalfTransitionCount) {
+        if (Input->MouseButtons[PlatformMouseButton_Right].EndedDown) {
+            if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount) {
                 DebugState->HotMenuP = MouseP;
             }
             DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
             
-        } else if (Input->MouseBottons[PlatformMouseButton_Right].HalfTransitionCount){
+        } else if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount){
             DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
+            
+            if (DebugState->HotMenuIndex < ArrayCount(DebugVariableList) && DebugState->HotMenuIndex >= 0 ) {
+                DebugVariableList[DebugState->HotMenuIndex].Value = !DebugVariableList[DebugState->HotMenuIndex].Value;
+                WriteZhaConfig(DebugState, !DEBUGUI_UseDebugCamera);
+            }
+            
+            
+#if 0            
             switch(DebugState->HotMenuIndex) {
                 case 0: {
                     DebugState->ProfileOn = !DebugState->ProfileOn;
@@ -281,6 +301,7 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
                     WriteZhaConfig(DebugState, !DEBUGUI_UseDebugCamera);
                 } break;
             }
+#endif
             DebugState->HotMenuP = v2{0, 0};
             
         }
@@ -436,7 +457,7 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
                     }
                 }
                 
-                if (WasPressed(&Input->MouseBottons[PlatformMouseButton_Left])) {
+                if (WasPressed(&Input->MouseButtons[PlatformMouseButton_Left])) {
                     if (HotRecord) {
                         DebugState->RecordToScope = HotRecord;
                     } else {

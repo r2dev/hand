@@ -3,6 +3,16 @@
 #ifndef HANDMADE_DEBUG_H
 #define HANDMADE_DEBUG_H
 
+enum debug_variable_type {
+    DebugVariableType_Boolean,
+};
+
+struct debug_variable {
+    debug_variable_type Type;
+    char* Name;
+    b32 Value;
+};
+
 enum debug_text_op {
     DEBUGTextOp_DrawText,
     DEBUGTextOp_SizeText,

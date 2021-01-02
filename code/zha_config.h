@@ -1,1 +1,10 @@
-#define DEBUGUI_UseDebugCamera 0 //b32 
+#define DEBUGUI_UseDebugCamera 0 
+#define DEBUGUI_ParticleDemo 1 
+#define DEBUGUI_ShowGroundChunkOutlines 0 
+#define DEBUGUI_ParticleGrid 0 
+#define DEBUGUI_ShowSpaceOutline 1 
+#define DEBUGUI_ReGenGroundChunkOnReload 0 
+#define DEBUGUI_WeirdDrawBufferSize 0 
+#define DEBUGUI_FamiliarFollowsHero 0 
+#define DEBUGUI_ShowLightningSampleSource 0 
+#define DEBUGUI_RoomBaseCamera 0 

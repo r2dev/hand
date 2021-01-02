@@ -207,18 +207,18 @@ EndSim(sim_region* Region, game_state* GameState) {
 		if (Entity->StorageIndex == GameState->CameraFollowingEntityIndex) {
 			world_position NewCameraP = GameState->CameraP;
 			NewCameraP.ChunkZ = Stored->P.ChunkZ;
-#if 0
-			if (CameraFollowingEntity.High->P.x > (9.0f * World->TileSideInMeters)) {
-				NewCameraP.AbsTileX += 17;
+#if DEBUGUI_RoomBaseCamera
+			if (Entity->P.x > (9.0f)) {
+				NewCameraP = MapIntoChunkSpace(GameState->World, NewCameraP, v3{18.0f, 0, 0});
 			}
-			if (CameraFollowingEntity.High->P.x < -(9.0f * World->TileSideInMeters)) {
-				NewCameraP.AbsTileX -= 17;
+			if (Entity->P.x < -(9.0f)) {
+                NewCameraP = MapIntoChunkSpace(GameState->World, NewCameraP, v3{-18.0f, 0, 0});
 			}
-			if (CameraFollowingEntity.High->P.y > (5.0f * World->TileSideInMeters)) {
-				NewCameraP.AbsTileY += 9;
+			if (Entity->P.y > (5.0f)) {
+				NewCameraP = MapIntoChunkSpace(GameState->World, NewCameraP, v3{0, 10.0f, 0});
 			}
-			if (CameraFollowingEntity.High->P.y < -(5.0f * World->TileSideInMeters)) {
-				NewCameraP.AbsTileY -= 9;
+			if (Entity->P.y < -(5.0f)) {
+                NewCameraP = MapIntoChunkSpace(GameState->World, NewCameraP, v3{0, -10.0f, 0});
 			}
 #else
 			//real32 CamZOffset = NewCameraP.Offset_.z;
@@ -229,10 +229,6 @@ EndSim(sim_region* Region, game_state* GameState) {
 		}
 	}
 }
-
-
-
-
 
 internal bool32
 CanCollide(game_state* GameState, sim_entity* A, sim_entity* B) {

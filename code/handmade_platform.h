@@ -197,7 +197,7 @@ extern "C" {
     };
     
     struct game_input {
-        game_button_state MouseBottons[PlatformMouseButton_Count];
+        game_button_state MouseButtons[PlatformMouseButton_Count];
         r32 MouseX, MouseY, MouseZ;
         game_controller_input Controllers[5];
         

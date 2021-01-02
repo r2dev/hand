@@ -699,6 +699,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
     DEBUGStart(TranState->Assets, Buffer->Width, Buffer->Height);
     
+#if DEBUGUI_ReGenGroundChunkOnReload
+    if (Memory->ExecutableReloaded) {
+        for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
+            ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
+            GroundBuffer->P = NullPosition();
+        }
+    }
+#endif
+    
 	world* World = GameState->World;
     
 	for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
@@ -776,6 +785,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     DrawBuffer->Pitch = SafeTruncateToUInt16(Buffer->Pitch);
 	DrawBuffer->Memory = Buffer->Memory;
     
+#if DEBUGUI_WeirdDrawBufferSize
+    DrawBuffer->Width = 1279;
+    DrawBuffer->Height = 719;
+#endif
+    
 	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
                                                     Megabytes(4), false);
     BeginRender(RenderGroup);
@@ -806,7 +820,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
 			if (Delta.z >= -1.0f && Delta.z < 1.0f) {
 				PushBitmap(RenderGroup, Bitmap, World->ChunkDimInMeters.y, Delta);
-				//PushRectOutline(RenderGroup, Delta, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 1.0f, 1.0f });
+#if DEBUGUI_ShowGroundChunkOutlines
+				PushRectOutline(RenderGroup, Delta, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 1.0f, 1.0f });
+#endif
 			}
 		}
 	}
@@ -941,7 +957,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         ClearCollisionRulesFor(GameState, Entity->StorageIndex);
                         MakeEntityNonSpatial(Entity);
                     }
-                    
                 } break;
                 case EntityType_Familiar: {
                     
@@ -949,7 +964,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     real32 ClosestHeroSq = Square(10.0f);
                     sim_entity* TestEntity = SimRegion->Entities;
                     
-#if 0
+#if DEBUGUI_FamiliarFollowsHero
                     for (uint32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
                         if (TestEntity->Type == EntityType_Hero) {
                             real32 TestDSq = LengthSq(TestEntity->P - Entity->P);
@@ -971,7 +986,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     MoveSpec.Speed = 50.0f;
                     MoveSpec.Drag = 0.2f;
                 }
-                
 			}
 			if (!IsSet(Entity, EntityFlag_Nonspatial) && IsSet(Entity, EntityFlag_Moveable)) {
 				MoveEntity(GameState, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
@@ -993,6 +1007,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
                     DrawHitPoints(Entity, RenderGroup);
                     
+#if DEBUGUI_ParticleDemo
                     
                     for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 2; ++ParticleSpawnIndex) {
                         particle *Particle = GameState->Particle + GameState->NextParticle++;
@@ -1037,6 +1052,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         Cel->Density += Density;
                         Cel->VelocityTimesDensity += Particle->dP * Density;
                     }
+#if DEBUGUI_ParticleGrid
+                    for(u32 Y = 0; Y < PARTICEL_CEL_DIM; ++Y) {
+                        for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
+                            particle_cel *Cel = &GameState->ParticleCels[Y][X];
+                            real32 Alpha = Clamp01(0.1f * Cel->Density);
+                            PushRect(RenderGroup, GridScale * v3{(r32)X, (r32)Y, 0} + GridOrigin, GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
+                        }
+                    }
+#endif
                     
                     for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
                         particle *Particle = GameState->Particle + ParticleIndex;
@@ -1096,10 +1120,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         //PushBitmap(RenderGroup, GetBestMatchFontFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
                         
                         //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Font, &GameState->EffectEntropy), 0.5f, Particle->P, Color);
-                        //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameState->EffectEntropy), 1.0f, Particle->P, Color);
+                        PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameState->EffectEntropy), 1.0f, Particle->P, Color);
                         //PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+                        
                     }
-                    
+#endif
                 } break;
                 case EntityType_Wall: {
                     
@@ -1128,7 +1153,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     //PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
                 } break;
                 case EntityType_Space: {
-#if 0
+#if DEBUGUI_ShowSpaceOutline
                     for (uint32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
                         sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
                         PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
@@ -1167,13 +1192,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         bool32 RowCheckerOn = false;
         int32 CheckerWidth = 16;
         int32 CheckerHeight = 16;
+        rectangle2i ClipRect = {0, 0, LOD->Width, LOD->Height};
         for (int32 Y = 0; Y < LOD->Height; Y += CheckerHeight) {
             bool32 CheckerOn = RowCheckerOn;
             for (int32 X = 0; X < LOD->Width; X += CheckerWidth) {
-                v4 Color = CheckerOn ? ToV4(MapColor[MapIndex], 1.0f) : v4{ 0, 0, 0, 1.0f };
+                v4 CheckColor = CheckerOn ? ToV4(MapColor[MapIndex], 1.0f) : v4{ 0, 0, 0, 1.0f };
                 v2 MinP = V2i(X, Y);
                 v2 MaxP = MinP + V2i(CheckerWidth, CheckerHeight);
-                DrawRectangle(LOD, MinP, MaxP, Color);
+                DrawRectangle(LOD, MinP, MaxP, CheckColor, ClipRect, true);
+                DrawRectangle(LOD, MinP, MaxP, CheckColor, ClipRect, false);
                 CheckerOn = !CheckerOn;
             }
             RowCheckerOn = !RowCheckerOn;
