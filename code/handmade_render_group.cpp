@@ -11,7 +11,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
         r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
         
 #if DEBUGUI_UseDebugCamera
-        DistanceAboveTarget += 50.0f;
+        DistanceAboveTarget += DEBUGUI_DebugCameraDistance;
 #endif
         
 		real32 DistancePz = DistanceAboveTarget - P.z;

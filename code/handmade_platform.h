@@ -498,10 +498,18 @@ BEGIN_BLOCK_(Counter_##Name, __FILE__, __LINE__, #Name); \
 #define BEGIN_BLOCK(Name)
 #define END_BLOCK_(Counter) 
 #define END_BLOCK(Name)
-    
-    
-    
 #endif
+    
+    //utility for platform and game
+    inline u32
+        StringLength(char* Str) {
+        u32 Count = 0;
+        while (*Str++) {
+            ++Count;
+        }
+        return(Count);
+    }
+    
 #ifdef __cplusplus
 }
 #endif

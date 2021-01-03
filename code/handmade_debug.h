@@ -4,13 +4,36 @@
 #define HANDMADE_DEBUG_H
 
 enum debug_variable_type {
-    DebugVariableType_Boolean,
+    DebugVariableType_Bool32,
+    DebugVariableType_Int32,
+    DebugVariableType_UInt32,
+    DebugVariableType_Real32,
+    DebugVariableType_V2,
+    DebugVariableType_V3,
+    DebugVariableType_V4,
+    DebugVariableType_Group,
+};
+
+struct debug_variable;
+struct debug_variable_group {
+    b32 Expanded;
+    debug_variable* FirstChild;
+    debug_variable* LastChild;
 };
 
 struct debug_variable {
     debug_variable_type Type;
     char* Name;
-    b32 Value;
+    debug_variable* Next;
+    debug_variable* Parent;
+    
+    union {
+        b32 Bool32;
+        s32 Int32;
+        u32 UInt32;
+        r32 Real32;
+        debug_variable_group Group;
+    };
 };
 
 enum debug_text_op {
@@ -77,6 +100,8 @@ struct debug_state {
     memory_arena CollateArena;
     temporary_memory CollateTemp;
     
+    debug_variable* RootGroup;
+    
     u32 FrameCount;
     u32 FrameBarLaneCount;
     r32 FrameBarScale;
@@ -107,7 +132,9 @@ struct debug_state {
     hha_font *FontInfo;
     
     rectangle2 ProfileRect;
-    u32 HotMenuIndex;
+    
+    debug_variable *HotVariable;
+    
     v2 HotMenuP;
 };
 

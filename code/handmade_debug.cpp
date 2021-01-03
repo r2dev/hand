@@ -21,6 +21,9 @@ DEBUGStart(game_assets *Assets, u32 Width, u32 Height) {
             
             InitializeArena(&DebugState->DebugArena, DebugGlobalMemory->DebugStorageSize - sizeof(debug_state), 
                             DebugState + 1);
+            
+            DEBUGCreateVariables(DebugState);
+            
             DebugState->HighPriorityQueue = DebugGlobalMemory->HighPriorityQueue;
             DebugState->RenderGroup = AllocateRenderGroup(Assets, &DebugState->DebugArena, Megabytes(16), false);
             
@@ -195,21 +198,54 @@ DEBUGTextLine(char *String) {
     }
 }
 
-#define ZHA_CONFIG_FILE_NAME "../code/zha_config.h"
-
 internal void
-WriteZhaConfig(debug_state* DebugState, u32 UseDebugCamera) {
+WriteZhaConfig(debug_state* DebugState) {
     char Temp[4096];
     char *At = Temp;
     char* End = Temp + sizeof(Temp);
     
-    for (u32 DebugVariableIndex = 0; DebugVariableIndex < ArrayCount(DebugVariableList); ++DebugVariableIndex) {
-        debug_variable* Var = DebugVariableList + DebugVariableIndex;
-        At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define %s %d \n", 
-                          Var->Name, Var->Value);
+    debug_variable* Var = DebugState->RootGroup->Group.FirstChild;
+    while (Var) {
+        switch (Var->Type) {
+            case DebugVariableType_Int32:
+            case DebugVariableType_Bool32: {
+                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define DEBUGUI_%s %d \n", 
+                                  Var->Name, Var->Bool32);
+            } break;
+            case DebugVariableType_UInt32: {
+                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define DEBUGUI_%s %u \n", 
+                                  Var->Name, Var->Int32);
+            } break;
+            case DebugVariableType_Real32: {
+                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define DEBUGUI_%s %ff \n", 
+                                  Var->Name, Var->Real32);
+            } break;
+            
+            
+            case DebugVariableType_Group: {
+                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "// %s\n", 
+                                  Var->Name);
+            } break;
+            
+            
+        }
         
+        // print out
+        if (Var->Type == DebugVariableType_Group) {
+            Var = Var->Group.FirstChild;
+        } else {
+            while (Var) {
+                if (Var->Next) {
+                    Var = Var->Next;
+                    break;
+                } else {
+                    Var = Var->Parent;
+                }
+            }
+        }
     }
-    Platform.DEBUGWriteEntireFile(ZHA_CONFIG_FILE_NAME, (u32)(At - Temp), Temp);
+    
+    Platform.DEBUGWriteEntireFile("../code/zha_config.h", (u32)(At - Temp), Temp);
     if (!DebugState->Compiling) {
         DebugState->Compiling = true;
         DebugState->Compiler = Platform.DEBUGExecuteSystemCommand("../code/", "c:\\windows\\system32\\cmd.exe", "/C build.bat");
@@ -219,6 +255,63 @@ WriteZhaConfig(debug_state* DebugState, u32 UseDebugCamera) {
 
 internal void
 DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP) {
+    DebugState->HotVariable = 0;
+    r32 AtX = DebugState->LeftEdge;
+    r32 AtY = DebugState->AtY;
+    debug_variable* Var = DebugState->RootGroup->Group.FirstChild;
+    r32 LineAdvance = GetLineAdvancedFor(DebugState->FontInfo) * DebugState->FontScale;
+    char Text[256];
+    u32 Depth = 0;
+    while (Var) {
+        
+        v4 ItemColor = Var->Bool32? v4{1, 1, 1, 1}: v4{0.5f, 0.5f, 0.5f, 1};
+        switch(Var->Type) {
+            case DebugVariableType_Bool32:{
+                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %s", Var->Name, Var->Bool32? "True": "False");
+            } break;
+            case DebugVariableType_Int32: {
+                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %i", Var->Name, Var->Int32);
+            } break;
+            case DebugVariableType_UInt32: {
+                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %u", Var->Name, Var->UInt32);
+            } break;
+            case DebugVariableType_Real32: {
+                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %ff", Var->Name, Var->Real32);
+            } break;
+            case DebugVariableType_Group: {
+                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%cGroup: %s", Var->Group.Expanded? '-': '+', Var->Name);
+            } break;
+            InvalidDefaultCase;
+        }
+        
+        v2 TextP = {AtX + Depth * LineAdvance * 2.0f, AtY};
+        
+        rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
+        if (IsInRectangle(Offset(AddRadiusTo(TextBound, v2{5.0f, 5.0f}), TextP), MouseP)) {
+            ItemColor = v4{1, 1, 0, 1};
+            DebugState->HotVariable = Var;
+        }
+        DEBUGTextOutAt(TextP, Text, ItemColor);
+        AtY -= LineAdvance;
+        if (Var->Type == DebugVariableType_Group && Var->Group.Expanded) {
+            Var = Var->Group.FirstChild;
+            Depth++;
+        } else {
+            while (Var) {
+                if (Var->Next) {
+                    Var = Var->Next;
+                    break;
+                } else {
+                    Var = Var->Parent;
+                    Depth--;
+                }
+            }
+        }
+    }
+    
+    
+    
+#if 0    
     char *MenuItems[] = {
         "Toggle Profile",
         "Resume/Pause Profilling",
@@ -259,7 +352,8 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
     } else {
         DebugState->HotMenuIndex = ArrayCount(DebugVariableList);
     }
-    
+#endif
+    DebugState->AtY = AtY;
 }
 
 
@@ -273,23 +367,41 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
         debug_record* HotRecord = 0;
         // mouse Position
         v2 MouseP = V2(Input->MouseX, Input->MouseY);
+        DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
         
+#if 0        
         if (Input->MouseButtons[PlatformMouseButton_Right].EndedDown) {
             if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount) {
                 DebugState->HotMenuP = MouseP;
             }
-            DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
             
-        } else if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount){
-            DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
             
-            if (DebugState->HotMenuIndex < ArrayCount(DebugVariableList) && DebugState->HotMenuIndex >= 0 ) {
-                DebugVariableList[DebugState->HotMenuIndex].Value = !DebugVariableList[DebugState->HotMenuIndex].Value;
-                WriteZhaConfig(DebugState, !DEBUGUI_UseDebugCamera);
+        } else if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount) {
+        }
+#else
+        if (WasPressed(&Input->MouseButtons[PlatformMouseButton_Right])) {
+#endif
+            if (DebugState->HotVariable) {
+                debug_variable *Var = DebugState->HotVariable;
+                switch (Var->Type) {
+                    case DebugVariableType_Bool32: {
+                        Var->Bool32 = !Var->Bool32;
+                    } break; 
+                    case DebugVariableType_Group: {
+                        Var->Group.Expanded = !Var->Group.Expanded;
+                    } break;
+                    InvalidDefaultCase;
+                }
+                WriteZhaConfig(DebugState);
             }
             
-            
-#if 0            
+            /**
+            if (DebugState->HotMenuIndex < ArrayCount(DebugVariableList) && DebugState->HotMenuIndex >= 0 ) {
+                DebugVariableList[DebugState->HotMenuIndex].Value = !DebugVariableList[DebugState->HotMenuIndex].Value;
+                WriteZhaConfig(DebugState);
+            }
+*/
+#if 0
             switch(DebugState->HotMenuIndex) {
                 case 0: {
                     DebugState->ProfileOn = !DebugState->ProfileOn;
@@ -302,7 +414,7 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
                 } break;
             }
 #endif
-            DebugState->HotMenuP = v2{0, 0};
+            
             
         }
         

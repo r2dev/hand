@@ -22,7 +22,6 @@ struct temporary_memory {
 #define Maximum(A, B) ((A > B)? (A): (B))
 inline b32
 StringsAreEqual(char* A, char* B) {
-    
     while (*A && *B &&  *A++ == *B++) {
         
     }
@@ -46,7 +45,7 @@ GetAlignmentOffset(memory_arena* Arena, memory_index Alignment = 4) {
 		Offset = Alignment - (ResultPointer & AlignmentMask);
 	}
 	return(Offset);
-    ;}
+}
 
 
 inline memory_index
@@ -59,6 +58,7 @@ GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment = 4) {
 #define PushStruct(Arena, type, ...) (type*) _PushSize(Arena, sizeof(type), ## __VA_ARGS__)
 #define PushArray(Arena, Count, type, ...) (type*) _PushSize(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
 #define PushSize(Arena, Size, ...) _PushSize(Arena, Size, ## __VA_ARGS__)
+#define PushCopy(Arena, Size, Source, ...) Copy(Size, Source, _PushSize(Arena, Size, ## __VA_ARGS__))
 inline void*
 _PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
     
@@ -129,11 +129,12 @@ ZeroSize(memory_index Size, void* Ptr) {
 	}
 }
 
-inline void
+inline void*
 Copy(memory_index Size, void* SourceInit, void* DestInit) {
     u8* Source = (u8 *)SourceInit;
     u8* Dest = (u8 *)DestInit;
     while (Size--) {*Dest++ = *Source++;}
+    return(DestInit);
 }
 
 
