@@ -20,6 +20,10 @@ struct debug_variable_group {
     debug_variable* FirstChild;
     debug_variable* LastChild;
 };
+struct debug_variable_hierarchy {
+    debug_variable* Group;
+    v2 UIP;
+};
 
 struct debug_variable {
     debug_variable_type Type;
@@ -96,14 +100,20 @@ struct game_assets;
 struct loaded_bitmap;
 struct loaded_font;
 
+enum debug_interaction {
+    DebugInteraction_None,
+    DebugInteraction_NOP,
+    DebugInteraction_DragValue,
+    DebugInteraction_ToggleValue,
+    DebugInteraction_TearValue,
+};
+
 struct debug_state {
     b32 IsInitialized;
     platform_work_queue* HighPriorityQueue;
     memory_arena DebugArena;
     memory_arena CollateArena;
     temporary_memory CollateTemp;
-    
-    debug_variable* RootGroup;
     
     u32 FrameCount;
     u32 FrameBarLaneCount;
@@ -136,7 +146,13 @@ struct debug_state {
     
     rectangle2 ProfileRect;
     
-    debug_variable *HotVariable;
+    debug_variable *Hot;
+    debug_variable *InteractingWith;
+    debug_variable *NextHot;
+    debug_interaction Interaction;
+    debug_variable_hierarchy Hierarchy;
+    debug_variable *RootGroup;
+    v2 LastMouseP;
     
     v2 HotMenuP;
 };

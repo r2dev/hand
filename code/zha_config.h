@@ -10,7 +10,7 @@
 //#define DEBUGUI_Camera 
 #define DEBUGUI_UseDebugCamera 0
 #define DEBUGUI_RoomBaseCamera 0
-#define DEBUGUI_DebugCameraDistance 50.000000f
+#define DEBUGUI_DebugCameraDistance 46.199997f
 #define DEBUGUI_FamiliarFollowsHero 0
-#define DEBUGUI_ShowSpaceOutline 1
+#define DEBUGUI_ShowSpaceOutline 0
 #define DEBUGUI_FauxV4 V4(1.000000f, 2.000000f, 3.000000f, 4.000000f)

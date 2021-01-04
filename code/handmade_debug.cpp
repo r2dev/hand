@@ -24,6 +24,7 @@ DEBUGStart(game_assets *Assets, u32 Width, u32 Height) {
             
             DEBUGCreateVariables(DebugState);
             
+            
             DebugState->HighPriorityQueue = DebugGlobalMemory->HighPriorityQueue;
             DebugState->RenderGroup = AllocateRenderGroup(Assets, &DebugState->DebugArena, Megabytes(16), false);
             
@@ -44,15 +45,19 @@ DEBUGStart(game_assets *Assets, u32 Width, u32 Height) {
         asset_vector WeightVector = {};
         WeightVector.E[Tag_FontType] = 1.0f;
         MatchVector.E[Tag_FontType] = (r32)FontType_Debug;
-        DebugState->FontID = GetBestMatchFontFrom(Assets, Asset_Font, &MatchVector, &WeightVector);
         
-        DebugState->FontScale = 1.0f;
         Orthographic(DebugState->RenderGroup, Width, Height, 1.0f);
-        DebugState->LeftEdge = -0.5f * (r32)Width;
         
+        DebugState->FontID = GetBestMatchFontFrom(Assets, Asset_Font, &MatchVector, &WeightVector);
+        DebugState->FontScale = 1.0f;
         DebugState->Font = PushFont(DebugState->RenderGroup, DebugState->FontID);
         DebugState->FontInfo = GetFontInfo(DebugState->RenderGroup->Assets, DebugState->FontID);
+        
+        DebugState->LeftEdge = -0.5f * (r32)Width;
         DebugState->AtY = 0.5f * Height - DebugState->FontScale * GetStartingBaselineY(DebugState->FontInfo);
+        
+        DebugState->Hierarchy.Group = DebugState->RootGroup;
+        DebugState->Hierarchy.UIP = v2{DebugState->LeftEdge, DebugState->AtY};
     }
 }
 
@@ -314,10 +319,9 @@ WriteZhaConfig(debug_state* DebugState) {
 
 internal void
 DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP) {
-    DebugState->HotVariable = 0;
-    r32 AtX = DebugState->LeftEdge;
-    r32 AtY = DebugState->AtY;
-    debug_variable* Var = DebugState->RootGroup->Group.FirstChild;
+    r32 AtX = DebugState->Hierarchy.UIP.x;
+    r32 AtY = DebugState->Hierarchy.UIP.y;
+    debug_variable* Var = DebugState->Hierarchy.Group->Group.FirstChild;
     r32 LineAdvance = GetLineAdvancedFor(DebugState->FontInfo) * DebugState->FontScale;
     u32 Depth = 0;
     char Text[256];
@@ -334,8 +338,10 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
         
         rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
         if (IsInRectangle(Offset(AddRadiusTo(TextBound, v2{5.0f, 5.0f}), TextP), MouseP)) {
+            DebugState->NextHot = Var;
+        }
+        if (DebugState->Hot == Var) {
             ItemColor = v4{1, 1, 0, 1};
-            DebugState->HotVariable = Var;
         }
         DEBUGTextOutAt(TextP, Text, ItemColor);
         AtY -= LineAdvance;
@@ -402,6 +408,137 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
     DebugState->AtY = AtY;
 }
 
+internal void
+DEBUGBeginInteract(debug_state *DebugState, game_input *Input, v2 MouseP) {
+    if (DebugState->Hot) {
+        switch(DebugState->Hot->Type) {
+            case DebugVariableType_Bool32: {
+                DebugState->Interaction = DebugInteraction_ToggleValue;
+            } break;
+            
+            case DebugVariableType_Real32: {
+                DebugState->Interaction = DebugInteraction_DragValue;
+            } break;
+            
+            case DebugVariableType_Group: {
+                DebugState->Interaction = DebugInteraction_ToggleValue;
+            } break;
+        }
+        if (DebugState->Interaction) {
+            DebugState->InteractingWith = DebugState->Hot;
+        }
+    } else {
+        DebugState->Interaction = DebugInteraction_NOP;
+    }
+}
+
+internal void
+DEBUGEndInteract(debug_state *DebugState, game_input *Input, v2 MouseP) {
+    if (DebugState->Interaction != DebugInteraction_NOP) {
+        debug_variable *Var = DebugState->InteractingWith;
+        Assert(Var);
+        switch (DebugState->Interaction) {
+            case DebugInteraction_ToggleValue: {
+                switch (Var->Type) {
+                    case DebugVariableType_Bool32: {
+                        Var->Bool32 = !Var->Bool32;
+                    } break; 
+                    case DebugVariableType_Group: {
+                        Var->Group.Expanded = !Var->Group.Expanded;
+                    } break;
+                }
+            } break;
+            case DebugInteraction_TearValue: {
+                
+            }
+            
+        }
+        WriteZhaConfig(DebugState);
+    }
+    DebugState->Interaction = DebugInteraction_None;
+    DebugState->InteractingWith = 0;
+}
+
+
+internal void
+DEBUGInteract(debug_state* DebugState, game_input *Input, v2 MouseP) {
+    /**
+    if (Input->MouseButtons[PlatformMouseButton_Right].EndedDown) {
+        if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount) {
+            DebugState->HotMenuP = MouseP;
+        }
+        
+        
+    } else if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount) {
+    }
+    **/
+    
+    v2 dMouseP = MouseP - DebugState->LastMouseP;
+    
+    if (DebugState->Interaction) {
+        
+        // mouse handle
+        debug_variable* Var = DebugState->InteractingWith;
+        switch(DebugState->Interaction) {
+            case DebugInteraction_DragValue: {
+                switch(Var->Type) {
+                    case DebugVariableType_Real32: {
+                        Var->Real32 += 0.1f * dMouseP.x;
+                    } break;
+                }
+            } break;
+            case DebugInteraction_ToggleValue: {
+            } break;
+            case DebugInteraction_TearValue: {
+            } break;
+        }
+        
+        // click handle
+        for (u32 TransitionIndex = Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount;
+             TransitionIndex > 1;
+             --TransitionIndex) {
+            DEBUGEndInteract(DebugState, Input, MouseP);
+            DEBUGBeginInteract(DebugState, Input, MouseP);
+        }
+        if (!(Input->MouseButtons[PlatformMouseButton_Right].EndedDown)) {
+            DEBUGEndInteract(DebugState, Input, MouseP);
+        }
+    } else {
+        for (u32 TransitionIndex = Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount;
+             TransitionIndex > 1;
+             --TransitionIndex) {
+            DEBUGBeginInteract(DebugState, Input, MouseP);
+            DEBUGEndInteract(DebugState, Input, MouseP);
+        }
+        DebugState->Hot = DebugState->NextHot;
+        if (Input->MouseButtons[PlatformMouseButton_Right].EndedDown) {
+            DEBUGBeginInteract(DebugState, Input, MouseP);
+        }
+    }
+    
+#if 0    
+    if (WasPressed(&Input->MouseButtons[PlatformMouseButton_Right])) {
+        if (DebugState->Hot) {
+            debug_variable *Var = DebugState->HotVariable;
+            switch (Var->Type) {
+                case DebugVariableType_Bool32: {
+                    Var->Bool32 = !Var->Bool32;
+                } break; 
+                case DebugVariableType_Group: {
+                    Var->Group.Expanded = !Var->Group.Expanded;
+                } break;
+                
+                case DebugVariableType_Int32: {
+                } break;
+                InvalidDefaultCase;
+            }
+            WriteZhaConfig(DebugState);
+        }
+    }
+#endif
+    DebugState->LastMouseP = MouseP;
+}
+
 
 internal void
 DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
@@ -410,62 +547,13 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
     
     if (DebugState) {
         render_group* RenderGroup = DebugState->RenderGroup;
+        DebugState->NextHot = 0;
         debug_record* HotRecord = 0;
         // mouse Position
         v2 MouseP = V2(Input->MouseX, Input->MouseY);
         DrawDebugMainMenu(DebugState, DebugState->RenderGroup, MouseP);
+        DEBUGInteract(DebugState, Input, MouseP);
         
-#if 0        
-        if (Input->MouseButtons[PlatformMouseButton_Right].EndedDown) {
-            if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount) {
-                DebugState->HotMenuP = MouseP;
-            }
-            
-            
-        } else if (Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount) {
-        }
-#else
-        if (WasPressed(&Input->MouseButtons[PlatformMouseButton_Right])) {
-#endif
-            if (DebugState->HotVariable) {
-                debug_variable *Var = DebugState->HotVariable;
-                switch (Var->Type) {
-                    case DebugVariableType_Bool32: {
-                        Var->Bool32 = !Var->Bool32;
-                    } break; 
-                    case DebugVariableType_Group: {
-                        Var->Group.Expanded = !Var->Group.Expanded;
-                    } break;
-                    
-                    case DebugVariableType_Int32: {
-                    } break;
-                    InvalidDefaultCase;
-                }
-                WriteZhaConfig(DebugState);
-            }
-            
-            /**
-            if (DebugState->HotMenuIndex < ArrayCount(DebugVariableList) && DebugState->HotMenuIndex >= 0 ) {
-                DebugVariableList[DebugState->HotMenuIndex].Value = !DebugVariableList[DebugState->HotMenuIndex].Value;
-                WriteZhaConfig(DebugState);
-            }
-*/
-#if 0
-            switch(DebugState->HotMenuIndex) {
-                case 0: {
-                    DebugState->ProfileOn = !DebugState->ProfileOn;
-                } break;
-                case 1: {
-                    DebugState->Paused = !DebugState->Paused;
-                } break;
-                case 2: {
-                    WriteZhaConfig(DebugState, !DEBUGUI_UseDebugCamera);
-                } break;
-            }
-#endif
-            
-            
-        }
         
         loaded_font* Font = DebugState->Font;
         hha_font *Info = DebugState->FontInfo;

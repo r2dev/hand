@@ -107,7 +107,6 @@ DEBUGCreateVariables(debug_state* DebugState) {
     DEBUG_VARIABLE_LISITING(ShowSpaceOutline);
     DEBUG_VARIABLE_LISITING(FauxV4);
 #undef DEBUG_VARIABLE_LISITING
-    
     DebugState->RootGroup = Context.Group;
 }
 
