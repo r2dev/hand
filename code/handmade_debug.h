@@ -32,6 +32,9 @@ struct debug_variable {
         s32 Int32;
         u32 UInt32;
         r32 Real32;
+        v2 Vector2;
+        v3 Vector3;
+        v4 Vector4;
         debug_variable_group Group;
     };
 };

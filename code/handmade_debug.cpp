@@ -198,6 +198,81 @@ DEBUGTextLine(char *String) {
     }
 }
 
+enum debug_var_to_text_flag {
+    DebugVarToText_AddDebugUI = 0x1,
+    DebugVarToText_AddName = 0x2,
+    DebugVarToText_FloatSuffix = 0x4,
+    DebugVarToText_LineFeedEnd = 0x8,
+    DebugVarToText_NullTerminator = 0x10,
+    DebugVarToText_Colon = 0x20,
+    DebugVarToText_PrettyBools = 0x40,
+};
+
+internal memory_index
+DEBUGVariableToText(char* Buffer, char *End, debug_variable* Var, u32 Flags) {
+    
+    char *At = Buffer;
+    if (Flags & DebugVarToText_AddDebugUI) {
+        At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                          "#define DEBUGUI_");
+    } 
+    
+    if (Flags & DebugVarToText_AddName) {
+        At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "%s%s ", Var->Name, 
+                          ((Flags & DebugVarToText_Colon)? ":": ""));
+    }
+    switch (Var->Type) {
+        case DebugVariableType_Bool32:{
+            if (Flags & DebugVarToText_PrettyBools) {
+                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                                  "%s", Var->Bool32? "True": "False");
+            } else {
+                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                                  "%d", Var->Bool32);
+            }
+            
+        } break;
+        case DebugVariableType_Int32: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "%i", Var->Int32);
+        } break;
+        case DebugVariableType_UInt32: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "%u", Var->UInt32);
+        } break;
+        case DebugVariableType_Real32: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "%f", Var->Real32);
+            if (Flags & DebugVarToText_FloatSuffix) {
+                *At++ = 'f';
+            }
+        } break;
+        case DebugVariableType_V2: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "V2(%f, %f)", Var->Vector2.x, Var->Vector2.y);
+        } break;
+        case DebugVariableType_V3: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "V3(%f, %f, %f)", Var->Vector3.x, Var->Vector3.y, Var->Vector3.z);
+        } break;
+        case DebugVariableType_V4: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "V4(%ff, %ff, %ff, %ff)", Var->Vector4.x, Var->Vector4.y, Var->Vector4.z, Var->Vector4.w);
+        } break;
+        case DebugVariableType_Group: {
+        } break;
+        
+        InvalidDefaultCase;
+    }
+    if (Flags & DebugVarToText_LineFeedEnd) {
+        *At++ = '\n'; 
+    }
+    if (Flags & DebugVarToText_NullTerminator) {
+        *At++ = 0;
+    }
+    return(At - Buffer);
+}
+
 internal void
 WriteZhaConfig(debug_state* DebugState) {
     char Temp[4096];
@@ -206,34 +281,18 @@ WriteZhaConfig(debug_state* DebugState) {
     
     debug_variable* Var = DebugState->RootGroup->Group.FirstChild;
     while (Var) {
-        switch (Var->Type) {
-            case DebugVariableType_Int32:
-            case DebugVariableType_Bool32: {
-                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define DEBUGUI_%s %d \n", 
-                                  Var->Name, Var->Bool32);
-            } break;
-            case DebugVariableType_UInt32: {
-                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define DEBUGUI_%s %u \n", 
-                                  Var->Name, Var->Int32);
-            } break;
-            case DebugVariableType_Real32: {
-                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "#define DEBUGUI_%s %ff \n", 
-                                  Var->Name, Var->Real32);
-            } break;
-            
-            
-            case DebugVariableType_Group: {
-                At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), "// %s\n", 
-                                  Var->Name);
-            } break;
-            
-            
+        if (Var->Type == DebugVariableType_Group) {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "//");
         }
         
-        // print out
+        At += DEBUGVariableToText(At, End, Var,
+                                  DebugVarToText_AddDebugUI|DebugVarToText_AddName|
+                                  DebugVarToText_LineFeedEnd|DebugVarToText_FloatSuffix);
         if (Var->Type == DebugVariableType_Group) {
             Var = Var->Group.FirstChild;
         } else {
+            
             while (Var) {
                 if (Var->Next) {
                     Var = Var->Next;
@@ -260,31 +319,18 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
     r32 AtY = DebugState->AtY;
     debug_variable* Var = DebugState->RootGroup->Group.FirstChild;
     r32 LineAdvance = GetLineAdvancedFor(DebugState->FontInfo) * DebugState->FontScale;
-    char Text[256];
     u32 Depth = 0;
+    char Text[256];
+    
     while (Var) {
         
+        DEBUGVariableToText(Text, Text + sizeof(Text), Var, DebugVarToText_AddName|
+                            DebugVarToText_Colon|DebugVarToText_NullTerminator);
         v4 ItemColor = Var->Bool32? v4{1, 1, 1, 1}: v4{0.5f, 0.5f, 0.5f, 1};
-        switch(Var->Type) {
-            case DebugVariableType_Bool32:{
-                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %s", Var->Name, Var->Bool32? "True": "False");
-            } break;
-            case DebugVariableType_Int32: {
-                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %i", Var->Name, Var->Int32);
-            } break;
-            case DebugVariableType_UInt32: {
-                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %u", Var->Name, Var->UInt32);
-            } break;
-            case DebugVariableType_Real32: {
-                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%s %ff", Var->Name, Var->Real32);
-            } break;
-            case DebugVariableType_Group: {
-                _snprintf_s(Text, sizeof(Text), sizeof(Text), "%cGroup: %s", Var->Group.Expanded? '-': '+', Var->Name);
-            } break;
-            InvalidDefaultCase;
-        }
         
         v2 TextP = {AtX + Depth * LineAdvance * 2.0f, AtY};
+        DEBUGVariableToText(Text, Text + sizeof(Text), Var, DebugVarToText_AddName|DebugVarToText_FloatSuffix
+                            |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools);
         
         rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
         if (IsInRectangle(Offset(AddRadiusTo(TextBound, v2{5.0f, 5.0f}), TextP), MouseP)) {
@@ -389,6 +435,9 @@ DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer) {
                     } break; 
                     case DebugVariableType_Group: {
                         Var->Group.Expanded = !Var->Group.Expanded;
+                    } break;
+                    
+                    case DebugVariableType_Int32: {
                     } break;
                     InvalidDefaultCase;
                 }

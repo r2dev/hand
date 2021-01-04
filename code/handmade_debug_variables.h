@@ -64,6 +64,12 @@ DebugAddVariable(debug_variable_definition_context *Context, char* Name, r32 Val
 }
 
 internal void
+DebugAddVariable(debug_variable_definition_context *Context, char* Name, v4 Value) {
+    debug_variable* Var = DEBUGPushVariable(Context, Name, DebugVariableType_V4);
+    Var->Vector4 = Value;
+}
+
+internal void
 DEBUGCreateVariables(debug_state* DebugState) {
     debug_variable_definition_context Context = {};
     Context.State = DebugState;
@@ -97,10 +103,9 @@ DEBUGCreateVariables(debug_state* DebugState) {
     }
     DEBUGEndVariableGroup(&Context);
     
-    DEBUGBeginVariableGroup(&Context, "Sim");
     DEBUG_VARIABLE_LISITING(FamiliarFollowsHero);
     DEBUG_VARIABLE_LISITING(ShowSpaceOutline);
-    DEBUGEndVariableGroup(&Context);
+    DEBUG_VARIABLE_LISITING(FauxV4);
 #undef DEBUG_VARIABLE_LISITING
     
     DebugState->RootGroup = Context.Group;
