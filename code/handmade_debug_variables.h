@@ -10,20 +10,20 @@ struct debug_variable_definition_context {
 };
 
 internal debug_variable*
-DEBUGPushUnreferencedVariable(debug_variable_definition_context *Context, char* Name, debug_variable_type Type) {
-    debug_variable* Result = PushStruct(Context->Arena, debug_variable);
-    Result->Name = (char*)PushCopy(Context->Arena, StringLength(Name) + 1, Name);
+DEBUGPushUnreferencedVariable(debug_state *DebugState, char* Name, debug_variable_type Type) {
+    debug_variable* Result = PushStruct(&DebugState->DebugArena, debug_variable);
+    Result->Name = (char*)PushCopy(&DebugState->DebugArena, StringLength(Name) + 1, Name);
     Result->Type = Type;
     
     return(Result);
 }
 
 internal debug_variable_reference*
-DEBUGAddDebugVariableReference(debug_variable_definition_context *Context, debug_variable* Var) {
-    debug_variable_reference* Ref = PushStruct(Context->Arena, debug_variable_reference);
+DEBUGAddVariableReference(debug_state* State, debug_variable_reference* GroupRef, debug_variable* Var) {
+    debug_variable_reference* Ref = PushStruct(&State->DebugArena, debug_variable_reference);
     Ref->Var = Var;
     Ref->Next = 0;
-    Ref->Parent = Context->Group;
+    Ref->Parent = GroupRef;
     debug_variable *Group = 0;
     if (Ref->Parent) {
         Group = Ref->Parent->Var;
@@ -39,23 +39,41 @@ DEBUGAddDebugVariableReference(debug_variable_definition_context *Context, debug
     
     return(Ref);
 }
+internal debug_variable_reference*
+DEBUGAddVariableReference(debug_variable_definition_context *Context, debug_variable* Var) {
+    debug_variable_reference* Ref = DEBUGAddVariableReference(Context->State, Context->Group, Var);
+    return(Ref);
+}
 
 internal debug_variable_reference*
 DEBUGPushVariable(debug_variable_definition_context *Context, char* Name, debug_variable_type Type) {
-    debug_variable* Var = DEBUGPushUnreferencedVariable(Context, Name, Type);
-    debug_variable_reference* Ref = DEBUGAddDebugVariableReference(Context, Var);
+    debug_variable* Var = DEBUGPushUnreferencedVariable(Context->State, Name, Type);
+    debug_variable_reference* Ref = DEBUGAddVariableReference(Context, Var);
     
+    return(Ref);
+}
+
+internal debug_variable*
+DEBUGAddRootGroupInternal(debug_state* State, char* GroupName) {
+    debug_variable* Group = DEBUGPushUnreferencedVariable(State, GroupName, DebugVariableType_Group);
+    
+    Group->Group.FirstChild = Group->Group.LastChild = 0;
+    Group->Group.Expanded = false;
+    return(Group);
+}
+internal debug_variable_reference*
+DEBUGAddRootGroup(debug_state* State, char* GroupName) {
+    debug_variable* RootGroup = DEBUGAddRootGroupInternal(State, GroupName);
+    debug_variable_reference* Ref = DEBUGAddVariableReference(State, 0, RootGroup);
     return(Ref);
 }
 
 internal debug_variable_reference*
 DEBUGBeginVariableGroup(debug_variable_definition_context *Context, char* GroupName) {
-    debug_variable_reference* DebugGroup = DEBUGPushVariable(Context, GroupName, DebugVariableType_Group);
-    DebugGroup->Var->Group.FirstChild = DebugGroup->Var->Group.LastChild = 0;
-    DebugGroup->Var->Group.Expanded = false;
-    
-    Context->Group = DebugGroup;
-    return(DebugGroup);
+    debug_variable* DebugGroup = DEBUGAddRootGroupInternal(Context->State, GroupName);
+    debug_variable_reference *DebugGroupRef = DEBUGAddVariableReference(Context, DebugGroup);
+    Context->Group = DebugGroupRef;
+    return(DebugGroupRef);
 }
 
 internal void
@@ -131,7 +149,7 @@ DEBUGCreateVariables(debug_variable_definition_context* Context) {
     DEBUG_VARIABLE_LISITING(ShowSpaceOutline);
     DEBUG_VARIABLE_LISITING(FauxV4);
     
-    DEBUGAddDebugVariableReference(Context, UsedDebugCamRef->Var);
+    DEBUGAddVariableReference(Context, UsedDebugCamRef->Var);
     
 #undef DEBUG_VARIABLE_LISITING
 }

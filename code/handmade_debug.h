@@ -129,6 +129,7 @@ enum debug_interaction {
     DebugInteraction_ToggleValue,
     DebugInteraction_TearValue,
     DebugInteraction_ResizeProfile,
+    DebugInteraction_MoveHierarchy,
 };
 
 struct debug_state {
@@ -175,6 +176,11 @@ struct debug_state {
     debug_interaction NextHotInteraction;
     debug_variable_hierarchy HierarchySentinal;
     debug_variable_reference *RootGroup;
+    
+    debug_variable_hierarchy *DraggingHierarchy;
+    
+    debug_variable_hierarchy *NextHotHierarchy;
+    
     v2 LastMouseP;
     
     v2 HotMenuP;
