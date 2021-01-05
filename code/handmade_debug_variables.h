@@ -70,44 +70,40 @@ DebugAddVariable(debug_variable_definition_context *Context, char* Name, v4 Valu
 }
 
 internal void
-DEBUGCreateVariables(debug_state* DebugState) {
-    debug_variable_definition_context Context = {};
-    Context.State = DebugState;
-    Context.Arena = &DebugState->DebugArena;
-    DEBUGBeginVariableGroup(&Context, "Root");
+DEBUGCreateVariables(debug_variable_definition_context* Context) {
     
-#define DEBUG_VARIABLE_LISITING(Name) DebugAddVariable(&Context, #Name, DEBUGUI_##Name) // DebugVariableType_Boolean, #name, name
-    DEBUGBeginVariableGroup(&Context, "GroundChunk");
+    DEBUGBeginVariableGroup(Context, "Root");
+    
+#define DEBUG_VARIABLE_LISITING(Name) DebugAddVariable(Context, #Name, DEBUGUI_##Name) // DebugVariableType_Boolean, #name, name
+    DEBUGBeginVariableGroup(Context, "GroundChunk");
     DEBUG_VARIABLE_LISITING(ShowGroundChunkOutlines);
     DEBUG_VARIABLE_LISITING(ReGenGroundChunkOnReload);
-    DEBUGEndVariableGroup(&Context);
+    DEBUGEndVariableGroup(Context);
     
-    
-    
-    DEBUGBeginVariableGroup(&Context, "Particle");
+    DEBUGBeginVariableGroup(Context, "Particle");
     DEBUG_VARIABLE_LISITING(ParticleDemo);
     DEBUG_VARIABLE_LISITING(ParticleGrid);
-    DEBUGEndVariableGroup(&Context);
+    DEBUGEndVariableGroup(Context);
     
-    DEBUGBeginVariableGroup(&Context, "Renderer");
+    DEBUGBeginVariableGroup(Context, "Renderer");
     {
         DEBUG_VARIABLE_LISITING(WeirdDrawBufferSize);
         DEBUG_VARIABLE_LISITING(ShowLightningSampleSource);
-        DEBUGBeginVariableGroup(&Context, "Camera");
+        DEBUGBeginVariableGroup(Context, "Camera");
         {
             DEBUG_VARIABLE_LISITING(UseDebugCamera);
             DEBUG_VARIABLE_LISITING(RoomBaseCamera);
             DEBUG_VARIABLE_LISITING(DebugCameraDistance);
         }
-        DEBUGEndVariableGroup(&Context);
+        DEBUGEndVariableGroup(Context);
     }
-    DEBUGEndVariableGroup(&Context);
+    DEBUGEndVariableGroup(Context);
     
     DEBUG_VARIABLE_LISITING(FamiliarFollowsHero);
     DEBUG_VARIABLE_LISITING(ShowSpaceOutline);
     DEBUG_VARIABLE_LISITING(FauxV4);
+    
 #undef DEBUG_VARIABLE_LISITING
-    DebugState->RootGroup = Context.Group;
 }
 
 #endif //HANDMADE_DEBUG_VARIABLES_H

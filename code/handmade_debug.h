@@ -12,7 +12,16 @@ enum debug_variable_type {
     DebugVariableType_V3,
     DebugVariableType_V4,
     DebugVariableType_Group,
+    
+    DebugVariableType_CounterThreadList,
+    DebugVariableType_ProfileSetting,
 };
+
+inline b32
+DEBUGShouldBeWritten(debug_variable_type Type) {
+    b32 Result = (Type != DebugVariableType_CounterThreadList);
+    return(Result);
+}
 
 struct debug_variable;
 struct debug_variable_group {
@@ -24,7 +33,9 @@ struct debug_variable_hierarchy {
     debug_variable* Group;
     v2 UIP;
 };
-
+struct debug_profile_setting {
+    v2 Dimension;
+};
 struct debug_variable {
     debug_variable_type Type;
     char* Name;
@@ -40,6 +51,7 @@ struct debug_variable {
         v3 Vector3;
         v4 Vector4;
         debug_variable_group Group;
+        debug_profile_setting ProfileSetting;
     };
 };
 
@@ -106,6 +118,7 @@ enum debug_interaction {
     DebugInteraction_DragValue,
     DebugInteraction_ToggleValue,
     DebugInteraction_TearValue,
+    DebugInteraction_ResizeProfile,
 };
 
 struct debug_state {
@@ -118,7 +131,6 @@ struct debug_state {
     u32 FrameCount;
     u32 FrameBarLaneCount;
     r32 FrameBarScale;
-    b32 ProfileOn;
     
     b32 Compiling;
     debug_executing_process Compiler;
@@ -135,6 +147,7 @@ struct debug_state {
     
     r32 AtY;
     r32 LeftEdge;
+    r32 RightEdge;
     r32 FontScale;
     font_id FontID;
     r32 GlobalWidth;
@@ -144,12 +157,12 @@ struct debug_state {
     loaded_font *Font;
     hha_font *FontInfo;
     
-    rectangle2 ProfileRect;
-    
     debug_variable *Hot;
     debug_variable *InteractingWith;
     debug_variable *NextHot;
     debug_interaction Interaction;
+    debug_interaction HotInteraction;
+    debug_interaction NextHotInteraction;
     debug_variable_hierarchy Hierarchy;
     debug_variable *RootGroup;
     v2 LastMouseP;
