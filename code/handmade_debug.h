@@ -24,24 +24,34 @@ DEBUGShouldBeWritten(debug_variable_type Type) {
 }
 
 struct debug_variable;
+struct debug_variable_reference;
+
 struct debug_variable_group {
     b32 Expanded;
-    debug_variable* FirstChild;
-    debug_variable* LastChild;
+    debug_variable_reference* FirstChild;
+    debug_variable_reference* LastChild;
 };
+
 struct debug_variable_hierarchy {
-    debug_variable* Group;
+    debug_variable_reference* Group;
+    debug_variable_hierarchy* Next;
+    debug_variable_hierarchy* Prev;
     v2 UIP;
 };
+
 struct debug_profile_setting {
     v2 Dimension;
 };
+
+struct debug_variable_reference {
+    debug_variable *Var;
+    debug_variable_reference* Next;
+    debug_variable_reference* Parent;
+};
+
 struct debug_variable {
     debug_variable_type Type;
     char* Name;
-    debug_variable* Next;
-    debug_variable* Parent;
-    
     union {
         b32 Bool32;
         s32 Int32;
@@ -163,8 +173,8 @@ struct debug_state {
     debug_interaction Interaction;
     debug_interaction HotInteraction;
     debug_interaction NextHotInteraction;
-    debug_variable_hierarchy Hierarchy;
-    debug_variable *RootGroup;
+    debug_variable_hierarchy HierarchySentinal;
+    debug_variable_reference *RootGroup;
     v2 LastMouseP;
     
     v2 HotMenuP;
