@@ -271,11 +271,13 @@ extern "C" {
         platform_allocate_memory *AllocateMemory;
         platform_deallocate_memory *DeallocateMemory;
         
+#if HANDMADE_INTERNAL
         debug_platform_read_entire_file* DEBUGReadEntireFile;
         debug_platform_write_entire_file* DEBUGWriteEntireFile;
         debug_platform_free_file_memory* DEBUGFreeFileMemory;
         debug_platform_execute_system_command* DEBUGExecuteSystemCommand;
         debug_platform_get_process_state* DEBUGGetProcessState;
+#endif
     } platform_api;
     
     typedef struct game_memory {
@@ -340,7 +342,7 @@ extern "C" {
 #endif
     
     struct debug_table;
-#define DEBUG_FRAME_END(name) debug_table *name(game_memory* Memory)
+#define DEBUG_FRAME_END(name) debug_table *name(game_memory* Memory, game_input* Input, game_offscreen_buffer* Buffer)
     typedef DEBUG_FRAME_END(debug_game_frame_end);
     
     inline game_controller_input* GetController(game_input* Input, int unsigned ControllerIndex) {
@@ -372,7 +374,7 @@ extern "C" {
         s16 Result = (s16)Value;
         return(Result);
     }
-    
+#if HANDMADE_INTERNAL
     struct debug_record
     {
         char* FileName;
@@ -451,7 +453,6 @@ Record->BlockName = "FrameMarker"; \
 Record->LineNumber = __LINE__; \
 }
     
-#if HANDMADE_PROFILE
 #define TIMED_BLOCK__(BlockName, Number,  ...) timed_block TimeBlock_##Number(__COUNTER__, __FILE__, __LINE__, BlockName, ## __VA_ARGS__);
     
 #define TIMED_BLOCK_(BlockName, Number, ...) TIMED_BLOCK__(BlockName, Number, ## __VA_ARGS__)
@@ -498,6 +499,7 @@ BEGIN_BLOCK_(Counter_##Name, __FILE__, __LINE__, #Name); \
 #define BEGIN_BLOCK(Name)
 #define END_BLOCK_(Counter) 
 #define END_BLOCK(Name)
+#define FRAME_MARKER(SecondsElapsedInit)
 #endif
     
     //utility for platform and game

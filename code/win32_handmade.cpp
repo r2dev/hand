@@ -104,6 +104,7 @@ Win32DebugSyncDisplay(win32_offscreen_buffer* Backbuffer, size_t MarkerCount,
 	}
 }
 #endif
+#if HANDMADE_INTERNAL
 DEBUG_PLATFORM_FREE_FILE_MEMORY(DEBUGPlatformFreeFileMemory) {
 	if (Memory) {
 		VirtualFree(Memory, 0, MEM_RELEASE);
@@ -196,6 +197,7 @@ DEBUG_PLATFORM_GET_PROCESS_STATE(DEBUGPlatformGetProcessState) {
     }
     return(Result);
 }
+#endif
 
 inline FILETIME
 Win32GetLastWriteTime(char* SourceDLLName) {
@@ -964,9 +966,10 @@ PLATFORM_DEALLOCATE_MEMORY(Win32DeallocateMemory) {
         VirtualFree(Memory, 0, MEM_RELEASE);
     }
 }
-
+#if HANDMADE_INTERNAL
 global_variable debug_table GlobalDebugTable_;
 debug_table* GlobalDebugTable = &GlobalDebugTable_;
+#endif
 
 int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int showCode) {
     
@@ -1061,12 +1064,13 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             GameMemory.HighPriorityQueue = &HighPriorityQueue;
             GameMemory.LowPriorityQueue = &LowPriorityQueue;
             
-            
+#if HANDMADE_INTERNAL
             GameMemory.PlatformAPI.DEBUGReadEntireFile = DEBUGPlatformReadEntireFile;
             GameMemory.PlatformAPI.DEBUGWriteEntireFile = DEBUGPlatformWriteEntireFile;
             GameMemory.PlatformAPI.DEBUGFreeFileMemory = DEBUGPlatformFreeFileMemory;
             GameMemory.PlatformAPI.DEBUGExecuteSystemCommand = DEBUGPlatformExecuteSystemCommand;
             GameMemory.PlatformAPI.DEBUGGetProcessState = DEBUGPlatformGetProcessState;
+#endif
             
             GameMemory.PlatformAPI.AddEntry = Win32AddEntry;
             GameMemory.PlatformAPI.CompleteAllWork = Win32CompleteAllWork;
@@ -1127,8 +1131,11 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     if (CompareFileTime(&NewDLLWriteTime, &Game.DLLLastWriteTime) != 0) {
                         Win32CompleteAllWork(&HighPriorityQueue);
                         Win32CompleteAllWork(&LowPriorityQueue);
+                        
                         Win32UnloadGameCode(&Game);
+#if HANDMADE_INTERNAL
                         GlobalDebugTable = &GlobalDebugTable_;
+#endif
                         
                         Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
                         GameMemory.ExecutableReloaded = true;
@@ -1258,14 +1265,13 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     ///
                     ///
                     BEGIN_BLOCK(GameUpdate);
+                    
+                    game_offscreen_buffer Buffer = {};
+                    Buffer.Memory = GlobalBackbuffer.Memory;
+                    Buffer.Height = GlobalBackbuffer.Height;
+                    Buffer.Width = GlobalBackbuffer.Width;
+                    Buffer.Pitch = GlobalBackbuffer.Pitch;
                     if (!GlobalPause) {
-                        game_offscreen_buffer Buffer = {};
-                        Buffer.Memory = GlobalBackbuffer.Memory;
-                        Buffer.Height = GlobalBackbuffer.Height;
-                        Buffer.Width = GlobalBackbuffer.Width;
-                        Buffer.Pitch = GlobalBackbuffer.Pitch;
-                        
-                        
                         if (Win32State.InputRecordingIndex) {
                             Win32RecordInput(&Win32State, NewInput);
                         }
@@ -1362,6 +1368,15 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     
                     ///
                     ///
+                    ///debug colate
+#if HANDMADE_INTERNAL
+                    BEGIN_BLOCK(DebugCollation);
+                    if (Game.DEBUGFrameEnd) {
+                        GlobalDebugTable = Game.DEBUGFrameEnd(&GameMemory, NewInput, &Buffer);
+                    }
+                    GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
+                    END_BLOCK(DebugCollation);
+#endif
                     ///
 #if 1
                     BEGIN_BLOCK(WaitFrameComplete);
@@ -1415,20 +1430,17 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     
                     
                     END_BLOCK(EndOfFrame);
-#if HANDMADE_INTERNAL
-                    BEGIN_BLOCK(DebugCollation);
-                    if (Game.DEBUGFrameEnd) {
-                        GlobalDebugTable = Game.DEBUGFrameEnd(&GameMemory);
-                        GlobalDebugTable->RecordCounts[TRANSLATION_UNIT_INDEX] = __COUNTER__;
-                    }
-                    GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
-                    END_BLOCK(DebugCollation);
-#endif
                     
                     LARGE_INTEGER EndCounter = Win32GetWallClock();
+                    
                     FRAME_MARKER(Win32GetSecondsElapsed(LastCounter, EndCounter));
                     LastCounter = EndCounter;
                     
+#if HANDMADE_INTERNAL
+                    if (GlobalDebugTable) {
+                        GlobalDebugTable->RecordCounts[TRANSLATION_UNIT_INDEX] = __COUNTER__;
+                    }
+#endif
                     
                 }
             }

@@ -17,7 +17,7 @@ struct temporary_memory {
 	memory_arena* Arena;
 	memory_index Used;
 };
-#include "handmade_debug.h"
+
 #define Minimum(A, B) ((A < B)? (A): (B))
 #define Maximum(A, B) ((A > B)? (A): (B))
 inline b32

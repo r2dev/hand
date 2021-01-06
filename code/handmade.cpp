@@ -459,6 +459,16 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 	return(Result);
 }
 
+internal game_assets* 
+DEBUGGetGameAsset(game_memory *Memory) {
+    transient_state* TranState = (transient_state*)Memory->TransientStorage;
+    game_assets* Result = 0;
+    if (TranState && TranState->IsInitialized) {
+        Result = TranState->Assets;
+    }
+    return(Result);
+}
+
 #if HANDMADE_INTERNAL
 game_memory* DebugGlobalMemory;
 #endif
@@ -696,8 +706,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         
 		TranState->IsInitialized = true;
 	}
-    
-    DEBUGStart(TranState->Assets, Buffer->Width, Buffer->Height);
     
 #if DEBUGUI_ReGenGroundChunkOnReload
     if (Memory->ExecutableReloaded) {
@@ -1237,8 +1245,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     //EvictAssetsAsNecessary(TranState->Assets);
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
-    
-    DEBUGEnd(Input, DrawBuffer);
 }
 
 extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
@@ -1247,4 +1253,10 @@ extern "C" GAME_GET_SOUND_SAMPLES(GameGetSoundSamples) {
     OutputPlayingSounds(&GameState->AudioState, SoundBuffer, TranState->Assets, &TranState->TranArena);
 }
 
+#if HANDMADE_INTERNAL
 #include "handmade_debug.cpp"
+#else
+extern "C" extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
+    return(0);
+}
+#endif

@@ -198,7 +198,4 @@ struct debug_state {
     v2 HotMenuP;
 };
 
-internal void DEBUGEnd(game_input* Input, loaded_bitmap* DrawBuffer);
-internal void DEBUGStart(game_assets *Assets, u32 Width, u32 Height);
-internal void RefreshCollation(debug_state* DebugState);
 #endif //HANDMADE_DEBUG_H
