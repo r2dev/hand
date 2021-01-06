@@ -122,9 +122,10 @@ struct game_assets;
 struct loaded_bitmap;
 struct loaded_font;
 
-enum debug_interaction {
+enum debug_interaction_type {
     DebugInteraction_None,
     DebugInteraction_NOP,
+    DebugInteraction_AutoModifyVariable,
     DebugInteraction_DragValue,
     DebugInteraction_ToggleValue,
     DebugInteraction_TearValue,
@@ -132,6 +133,14 @@ enum debug_interaction {
     DebugInteraction_MoveHierarchy,
 };
 
+struct debug_interaction {
+    debug_interaction_type Type;
+    union {
+        void* Generic;
+        debug_variable *Var;
+        debug_variable_hierarchy *Hierarchy;
+    };
+};
 struct debug_state {
     b32 IsInitialized;
     platform_work_queue* HighPriorityQueue;
@@ -168,18 +177,12 @@ struct debug_state {
     loaded_font *Font;
     hha_font *FontInfo;
     
-    debug_variable *Hot;
-    debug_variable *InteractingWith;
-    debug_variable *NextHot;
     debug_interaction Interaction;
     debug_interaction HotInteraction;
     debug_interaction NextHotInteraction;
+    
     debug_variable_hierarchy HierarchySentinal;
     debug_variable_reference *RootGroup;
-    
-    debug_variable_hierarchy *DraggingHierarchy;
-    
-    debug_variable_hierarchy *NextHotHierarchy;
     
     v2 LastMouseP;
     
