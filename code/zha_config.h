@@ -1,7 +1,7 @@
 //#define DEBUGUI_Start Debug 
 //#define DEBUGUI_GroundChunk 
 #define DEBUGUI_ShowGroundChunkOutlines 1
-#define DEBUGUI_ReGenGroundChunkOnReload 1
+#define DEBUGUI_ReGenGroundChunkOnReload 0
 //#define DEBUGUI_Particle 
 #define DEBUGUI_ParticleDemo 0
 #define DEBUGUI_ParticleGrid 0
