@@ -15,11 +15,12 @@ enum debug_variable_type {
     
     DebugVariableType_CounterThreadList,
     DebugVariableType_ProfileSetting,
+    DebugVariableType_BitmapDiplay,
 };
 
 inline b32
 DEBUGShouldBeWritten(debug_variable_type Type) {
-    b32 Result = (Type != DebugVariableType_CounterThreadList);
+    b32 Result = (Type != DebugVariableType_CounterThreadList && Type != DebugVariableType_BitmapDiplay);
     return(Result);
 }
 
@@ -49,6 +50,12 @@ struct debug_variable_reference {
     debug_variable_reference* Parent;
 };
 
+struct debug_bitmap_display {
+    bitmap_id ID;
+    v2 Dim;
+    b32 Alpha;
+};
+
 struct debug_variable {
     debug_variable_type Type;
     char* Name;
@@ -62,6 +69,7 @@ struct debug_variable {
         v4 Vector4;
         debug_variable_group Group;
         debug_profile_setting ProfileSetting;
+        debug_bitmap_display BitmapDisplay;
     };
 };
 
@@ -129,8 +137,8 @@ enum debug_interaction_type {
     DebugInteraction_DragValue,
     DebugInteraction_ToggleValue,
     DebugInteraction_TearValue,
-    DebugInteraction_ResizeProfile,
-    DebugInteraction_MoveHierarchy,
+    DebugInteraction_Resize,
+    DebugInteraction_Move,
 };
 
 struct debug_interaction {
@@ -139,6 +147,7 @@ struct debug_interaction {
         void* Generic;
         debug_variable *Var;
         debug_variable_hierarchy *Hierarchy;
+        v2 *P;
     };
 };
 struct debug_state {

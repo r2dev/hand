@@ -110,6 +110,15 @@ DebugAddVariable(debug_variable_definition_context *Context, char* Name, v4 Valu
     return(Ref);
 }
 
+internal debug_variable_reference*
+DebugAddVariable(debug_variable_definition_context *Context, char* Name, bitmap_id Value) {
+    debug_variable_reference *Ref = DEBUGPushVariable(Context, Name, DebugVariableType_BitmapDiplay);
+    Ref->Var->BitmapDisplay.ID = Value;
+    Ref->Var->BitmapDisplay.Dim = v2{25, 25};
+    Ref->Var->BitmapDisplay.Alpha = true;
+    return(Ref);
+}
+
 internal void
 DEBUGCreateVariables(debug_variable_definition_context* Context) {
     debug_variable_reference *UsedDebugCamRef = 0;
@@ -142,6 +151,7 @@ DEBUGCreateVariables(debug_variable_definition_context* Context) {
             DEBUG_VARIABLE_LISITING(DebugCameraDistance);
         }
         DEBUGEndVariableGroup(Context);
+        
     }
     DEBUGEndVariableGroup(Context);
     

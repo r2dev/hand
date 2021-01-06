@@ -61,6 +61,15 @@ DEBUGStart(game_assets *Assets, u32 Width, u32 Height) {
                         FunctionList->Var->ProfileSetting.Dimension = v2{1024.0f, 200.0f};
                     }
                     DEBUGEndVariableGroup(&Context);
+                    
+                    asset_vector MatchVector = {};
+                    MatchVector.E[Tag_FaceDirection] = 0.0f;
+                    asset_vector WeightVector = {};
+                    WeightVector.E[Tag_FaceDirection] = 1.0f;
+                    
+                    bitmap_id ID = GetBestMatchBitmapFrom(Assets, Asset_Head, &MatchVector, &WeightVector);
+                    DebugAddVariable(&Context, "", ID);
+                    
                 }
                 DEBUGEndVariableGroup(&Context);
             }
@@ -209,7 +218,7 @@ DEBUGTextOp(debug_text_op Op, debug_state* DebugState, v2 P, char* String, v4 Co
                     Assert(Op == DEBUGTextOp_SizeText);
                     loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, BitmapID, RenderGroup->GenerationID);
                     if (Bitmap) {
-                        used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, BitmapOffset);
+                        used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, BitmapOffset, 1.0f);
                         rectangle2 GlyphDim = RectMinDim(Dim.P.xy, Dim.Size);
                         Result = Union(Result, GlyphDim);
                     }
@@ -312,7 +321,6 @@ DEBUGVariableToText(char* Buffer, char *End, debug_variable* Var, u32 Flags) {
         } break;
         case DebugVariableType_Group: {
         } break;
-        
         InvalidDefaultCase;
     }
     if (Flags & DebugVarToText_LineFeedEnd) {
@@ -501,8 +509,8 @@ DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
                     DrawProfile(DebugState, Bounds, MouseP);
                     
                     debug_interaction SizeInteraction = {};
-                    SizeInteraction.Type = DebugInteraction_ResizeProfile;
-                    SizeInteraction.Var = Var;
+                    SizeInteraction.Type = DebugInteraction_Resize;
+                    SizeInteraction.P = &Var->ProfileSetting.Dimension;
                     
                     rectangle2 HandleRect = RectCenterHalfDim(SizeP, v2{5.0f, 5.0f});
                     PushRect(DebugState->RenderGroup, HandleRect, 0.0f, 
@@ -512,6 +520,40 @@ DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
                     }
                     else if (IsInRectangle(Bounds, MouseP)) {
                         DebugState->NextHotInteraction = Interaction;
+                    }
+                    Bounds.Min.y -= SpacingY;
+                } break;
+                case DebugVariableType_BitmapDiplay: {
+                    loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, Var->BitmapDisplay.ID, RenderGroup->GenerationID);
+                    r32 BitmapScale = Var->BitmapDisplay.Dim.y;
+                    v2 MinCorner = {AtX + Depth * LineAdvance * 2.0f, AtY - Var->BitmapDisplay.Dim.y};
+                    if (Bitmap) {
+                        used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, V3(MinCorner, 0.0f), 1.0f);
+                        Var->BitmapDisplay.Dim.x = Dim.Size.x;
+                    }
+                    
+                    v2 MaxCorner = {MinCorner.x + Var->BitmapDisplay.Dim.x, AtY};
+                    v2 SizeP = {MaxCorner.x, MinCorner.y};
+                    Bounds = RectMinMax(MinCorner, MaxCorner);
+                    // 
+                    PushRect(DebugState->RenderGroup, Bounds, 0.0f, v4{0, 0, 0, 1.0f});
+                    PushBitmap(DebugState->RenderGroup, Var->BitmapDisplay.ID, BitmapScale, V3(MinCorner, 0.0f), v4{1, 1, 1, 1}, 0.0f);
+                    
+                    debug_interaction SizeInteraction = {};
+                    SizeInteraction.Type = DebugInteraction_Resize;
+                    SizeInteraction.P = &Var->BitmapDisplay.Dim;
+                    
+                    rectangle2 HandleRect = RectCenterHalfDim(SizeP, v2{5.0f, 5.0f});
+                    PushRect(DebugState->RenderGroup, HandleRect, 0.0f, 
+                             (InteractionIsHot(DebugState, SizeInteraction))? v4{1, 1, 0, 1}: v4{1, 1, 1, 1});
+                    if (IsInRectangle(HandleRect, MouseP)) {
+                        DebugState->NextHotInteraction = SizeInteraction;
+                    }
+                    else if (IsInRectangle(Bounds, MouseP)) {
+                        debug_interaction TearInteraction = {};
+                        TearInteraction.Type = DebugInteraction_TearValue;
+                        TearInteraction.Var = Var;
+                        DebugState->NextHotInteraction = TearInteraction;
                     }
                     Bounds.Min.y -= SpacingY;
                 } break;
@@ -595,8 +637,8 @@ DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
         
         {
             debug_interaction MoveInteraction = {};
-            MoveInteraction.Hierarchy = Hierarchy;
-            MoveInteraction.Type = DebugInteraction_MoveHierarchy;
+            MoveInteraction.Type = DebugInteraction_Move;
+            MoveInteraction.P = &Hierarchy->UIP;
             
             rectangle2 MoveRect = RectMinDim(Hierarchy->UIP - v2{5.0f, 5.0f}, v2{5.0f, 5.0f});
             PushRect(DebugState->RenderGroup, MoveRect, 0.0f, 
@@ -638,7 +680,10 @@ DEBUGBeginInteract(debug_state *DebugState, game_input *Input, v2 MouseP, b32 Al
             case DebugInteraction_TearValue: {
                 debug_variable_reference* TearGroupRef = DEBUGAddRootGroup(DebugState, "Tear");
                 DEBUGAddVariableReference(DebugState, TearGroupRef, DebugState->HotInteraction.Var);
-                DebugState->HotInteraction.Hierarchy = DEBUGAddHierarchy(DebugState, TearGroupRef, MouseP);
+                debug_variable_hierarchy *Hierarchy = DEBUGAddHierarchy(DebugState, TearGroupRef, MouseP);
+                Hierarchy->UIP = MouseP;
+                DebugState->HotInteraction.Type = DebugInteraction_Move;
+                DebugState->HotInteraction.P = &Hierarchy->UIP;
             }; break;
         }
         
@@ -682,6 +727,7 @@ DEBUGInteract(debug_state* DebugState, game_input *Input, v2 MouseP) {
         // mouse handle
         debug_variable* Var = DebugState->Interaction.Var;
         debug_variable_hierarchy* Hierarchy = DebugState->Interaction.Hierarchy;
+        v2* P = DebugState->Interaction.P;
         switch(DebugState->Interaction.Type) {
             case DebugInteraction_DragValue: {
                 switch(Var->Type) {
@@ -690,20 +736,20 @@ DEBUGInteract(debug_state* DebugState, game_input *Input, v2 MouseP) {
                     } break;
                 }
             } break;
-            case DebugInteraction_ResizeProfile: {
-                Var->ProfileSetting.Dimension += v2{dMouseP.x, -dMouseP.y};
-                Var->ProfileSetting.Dimension.x = Maximum(Var->ProfileSetting.Dimension.x, 10.0f);
-                Var->ProfileSetting.Dimension.y = Maximum(Var->ProfileSetting.Dimension.y, 10.0f);
+            case DebugInteraction_Resize: {
+                *P += v2{dMouseP.x, -dMouseP.y};
+                P->x = Maximum(P->x, 10.0f);
+                P->y = Maximum(P->y, 10.0f);
                 
             } break;
+            
+            case DebugInteraction_Move: {
+                *P += v2{dMouseP.x, dMouseP.y};
+            } break;
+            
             case DebugInteraction_ToggleValue: {
             } break;
-            case DebugInteraction_TearValue: {
-                Hierarchy->UIP = MouseP;
-            } break;
-            case DebugInteraction_MoveHierarchy: {
-                Hierarchy->UIP += v2{dMouseP.x, dMouseP.y};
-            } break;
+            
         }
         // click handle
         b32 AltUI = Input->MouseButtons[PlatformMouseButton_Right].EndedDown;

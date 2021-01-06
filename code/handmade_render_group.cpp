@@ -57,10 +57,10 @@ PushRenderElement_(render_group* Group, uint32 Size, render_group_entry_type Typ
 }
 
 inline used_bitmap_dim
-GetBitmapDim(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset) {
+GetBitmapDim(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset, r32 CAlign) {
     used_bitmap_dim Result;
     Result.Size = v2{ Height * Bitmap->WidthOverHeight, Height };
-	Result.Align = Hadamard(Result.Size, Bitmap->AlignPercentage);
+	Result.Align = CAlign * Hadamard(Result.Size, Bitmap->AlignPercentage);
 	Result.P = Offset - V3(Result.Align, 0);
 	Result.Basis = GetRenderEntityBasisP(&Group->Transform, Result.P);
     
@@ -68,8 +68,8 @@ GetBitmapDim(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offse
 }
 
 inline void
-PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
-	used_bitmap_dim BitmapDim = GetBitmapDim(Group, Bitmap, Height, Offset);
+PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
+	used_bitmap_dim BitmapDim = GetBitmapDim(Group, Bitmap, Height, Offset, CAlign);
 	if (BitmapDim.Basis.Valid) {
 		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap);
 		if (Entry) {
@@ -83,7 +83,7 @@ PushBitmap(render_group* Group, loaded_bitmap* Bitmap, real32 Height, v3 Offset,
 
 
 inline void
-PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }) {
+PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
 	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
     
     if (Group->RenderInBackground && !Bitmap) {
@@ -92,7 +92,7 @@ PushBitmap(render_group* Group, bitmap_id ID, real32 Height, v3 Offset, v4 Color
         
     }
 	if (Bitmap) {
-		PushBitmap(Group, Bitmap, Height, Offset, Color);
+		PushBitmap(Group, Bitmap, Height, Offset, Color, CAlign);
 	}
 	else {
         Assert(!Group->RenderInBackground);
