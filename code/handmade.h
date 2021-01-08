@@ -148,8 +148,6 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 #include "handmade_render_group.h"
 #include "handmade_audio.h"
 
-
-
 struct low_entity {
 	world_position P;
 	sim_entity Sim;

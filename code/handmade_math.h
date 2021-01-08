@@ -12,6 +12,7 @@ struct v2 {
     
 	inline v2& operator*=(real32 A);
 	inline v2& operator+=(v2 A);
+    inline v2& operator-=(v2 A);
 };
 
 inline v2
@@ -38,6 +39,7 @@ struct v3 {
 	};
 	inline v3& operator*=(real32 A);
 	inline v3& operator+=(v3 A);
+    inline v3& operator-=(v3 A);
 };
 
 struct rectangle3 {
@@ -356,6 +358,12 @@ operator-(v2 A, v2 B) {
 	return Result;
 }
 
+inline v2&
+v2::operator-=(v2 A) {
+	*this = *this - A;
+	return (*this);
+}
+
 inline v2
 operator*(real32 A, v2 B) {
 	v2 Result;
@@ -450,6 +458,12 @@ operator-(v3 A, v3 B) {
 	Result.y = A.y - B.y;
 	Result.z = A.z - B.z;
 	return Result;
+}
+
+inline v3&
+v3::operator-=(v3 A) {
+	*this = *this - A;
+	return (*this);
 }
 
 inline v3

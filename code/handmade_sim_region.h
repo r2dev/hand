@@ -8,9 +8,9 @@ struct move_spec {
 
 enum entity_type {
 	EntityType_Null,
-
+    
 	EntityType_Space,
-
+    
 	EntityType_Hero,
 	EntityType_Wall,
 	EntityType_Familiar,
@@ -56,30 +56,30 @@ struct sim_entity_collision_volume_group {
 struct sim_entity {
 	uint32 StorageIndex;
 	bool32 Updatable;
-
+    
 	entity_type Type;
 	uint32 Flags;
-
+    
 	v3 P;
 	v3 dP;
-
+    
 	real32 DistanceLimit;
 	
 	sim_entity_collision_volume_group* Collision;
-
+    
 	int32 dAbsTileZ;
-
+    
 	uint32 HitPointMax;
 	hit_point HitPoint[16];
-
+    
 	entity_reference Sword;
 	
 	real32 FacingDirection;
-
+    
 	//@todo for stairwells
 	v2 WalkableDim;
 	real32 WalkableHeight;
-
+    
 };
 
 struct sim_entity_hash {
@@ -89,10 +89,10 @@ struct sim_entity_hash {
 
 struct sim_region {
 	world* World;
-
+    
 	real32 MaxEntityRadius;
 	real32 MaxEntityVelocity;
-
+    
 	world_position Origin;
 	rectangle3 Bounds;
 	rectangle3 UpdatableBounds;

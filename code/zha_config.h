@@ -2,11 +2,12 @@
 //#define DEBUGUI_by Function 
 //#define DEBUGUI_by Thread 
 #define DEBUGUI_FauxV4 V4(1.000000f, 2.000000f, 3.000000f, 4.000000f)
+#define DEBUGUI_ShowEntityOutline 1
 #define DEBUGUI_ShowSpaceOutline 1
 #define DEBUGUI_FamiliarFollowsHero 0
 //#define DEBUGUI_Renderer 
 //#define DEBUGUI_Camera 
-#define DEBUGUI_DebugCameraDistance 29.199995f
+#define DEBUGUI_DebugCameraDistance 10.099997f
 #define DEBUGUI_RoomBaseCamera 0
 #define DEBUGUI_UseDebugCamera 0
 #define DEBUGUI_ShowLightningSampleSource 1

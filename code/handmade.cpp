@@ -797,17 +797,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     DrawBuffer->Width = 1279;
     DrawBuffer->Height = 719;
 #endif
-    
+    v2 MouseP = {Input->MouseX, Input->MouseY};
 	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
                                                     Megabytes(4), false);
     BeginRender(RenderGroup);
-	real32 FocalLength = 0.6f;
+    
+    real32 FocalLength = 0.6f;
 	real32 DistanceAboveTarget = 9.0f;
     
 	Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, FocalLength, DistanceAboveTarget);
-    
-    
-	Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 1.0f });
+    Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 1.0f });
 	
 	v2 ScreenCenter = v2{ 0.5f * DrawBuffer->Width, 0.5f * DrawBuffer->Height };
     
@@ -1171,7 +1170,34 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 default: {
                     InvalidCodePath
                 } break;
+                
             }
+#if DEBUGUI_ShowEntityOutline
+            
+#if 0
+            RenderGroup->Transform.OffsetP = V3(0, 0, 0);
+            RenderGroup->Transform.Scale = 1.0f;
+            r32 LocalZ = 3.0f;
+            v3 WorldMouseP = Unproject(RenderGroup, MouseP, LocalZ);
+            RenderGroup->Transform.OffsetP = WorldMouseP;
+            PushRect(RenderGroup, v3{0, 0, 0}, v2{1.0f, 1.0f}, v4{0.0f, 1.0f, 1.0f, 1.0f});
+#endif
+            v4 EntityOutlineColor = {1, 0.5f, 1, 1};
+            for (uint32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
+                sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
+                v2 WorldMousePoint = Unproject(RenderGroup, MouseP).xy;
+#if 0
+                PushRect(RenderGroup, V3(WorldMousePoint, 0.0f), v2{1.0f, 1.0f}, v4{1.0f, 0.0f, 1.0f, 1.0f});
+#endif
+                if ((WorldMousePoint.x > -0.5f * Volume->Dim.x && WorldMousePoint.x < 0.5f * Volume->Dim.x) &&
+                    (WorldMousePoint.y > -0.5f * Volume->Dim.y && WorldMousePoint.y < 0.5f * Volume->Dim.y)){
+                    // IsInRectangle(RectCenterHalfDim(Volume->OffsetP.xy, Volume->Dim.xy), WorldMousePoint)) {
+                    EntityOutlineColor = {1, 0, 1, 1};
+                    PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
+                }
+                
+            }
+#endif
         }
     }
     RenderGroup->GlobalAlpha = 1.0;
@@ -1234,6 +1260,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
     
 #endif
+    
+    Orthographic(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, 1.0f);
+    
+    
     rectangle2i d = {4, 4, 120, 120};
     
     TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);

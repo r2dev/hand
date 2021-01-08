@@ -134,6 +134,7 @@ DEBUGCreateVariables(debug_variable_definition_context* Context) {
     
     DEBUG_VARIABLE_LISITING(FamiliarFollowsHero);
     DEBUG_VARIABLE_LISITING(ShowSpaceOutline);
+    DEBUG_VARIABLE_LISITING(ShowEntityOutline);
     DEBUG_VARIABLE_LISITING(FauxV4);
     
     

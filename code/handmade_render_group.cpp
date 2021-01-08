@@ -136,9 +136,9 @@ PushRect(render_group* Group, rectangle2 Rect, r32 Z, v4 Color) {
 }
 
 inline void
-PushRectOutline(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
+PushRectOutline(render_group* Group, v3 Offset, v2 Dim, v4 Color, real32 Thickness = 0.1f) {
     
-	real32 Thickness = 0.1f;
+	
 	// top - bottom
 	PushRect(Group, Offset - v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
 	PushRect(Group, Offset + v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
@@ -188,6 +188,8 @@ Perspective(render_group* RenderGroup, uint32 PixelWidth, uint32 PixelHeight, re
 	};
 	RenderGroup->Transform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
 	RenderGroup->Transform.Orthographic = false;
+    RenderGroup->Transform.OffsetP = v3{0, 0, 0};
+    RenderGroup->Transform.Scale = 1.0f;
 }
 
 
@@ -203,12 +205,29 @@ Orthographic(render_group* RenderGroup, uint32 PixelWidth, uint32 PixelHeight, r
 	};
 	RenderGroup->Transform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
 	RenderGroup->Transform.Orthographic = true;
+    RenderGroup->Transform.OffsetP = v3{0, 0, 0};
+    RenderGroup->Transform.Scale = 1.0f;
 }
 
 inline bool32
 AllResoucePresent(render_group* Group) {
 	bool32 Result = (Group->MissingResourceCount == 0);
 	return(Result);
+}
+inline v3
+Unproject(render_group* Group, v2 PixelsXY) {
+    v2 UnprojectedXY = {};
+    render_transform *Transform = &Group->Transform;
+    
+    if (Transform->Orthographic) {
+        UnprojectedXY = (1.0f / Transform->MetersToPixels) * (PixelsXY - Transform->ScreenCenter);
+    } else {
+        v2 dP = (PixelsXY - Transform->ScreenCenter) * (1.0f / Transform->MetersToPixels);
+        UnprojectedXY = ((Transform->DistanceAboveTarget - Transform->OffsetP.z) / Transform->FocalLength) * dP;
+    }
+    v3 Result = V3(UnprojectedXY, Transform->OffsetP.z);
+    Result -= Transform->OffsetP;
+    return(Result);
 }
 
 render_group*
