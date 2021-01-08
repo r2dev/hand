@@ -5,6 +5,7 @@
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 #include "handmade_file_formats.h"
+#include "zha_data_structure.h"
 struct memory_arena {
 	memory_index Size;
 	uint8* Base;

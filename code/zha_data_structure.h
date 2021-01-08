@@ -1,0 +1,18 @@
+/* date = January 7th 2021 11:39 am */
+
+#ifndef ZHA_DATA_STRUCTURE_H
+#define ZHA_DATA_STRUCTURE_H
+
+
+#define DLIST_INSERT(Sentinal, Entry) \
+(Entry)->Prev = (Sentinal); \
+(Entry)->Next = (Sentinal)->Next; \
+(Entry)->Prev->Next = (Entry); \
+(Entry)->Next->Prev = (Entry);
+
+#define DLIST_INIT(Sentinal) \
+(Sentinal)->Prev = (Sentinal); \
+(Sentinal)->Next = (Sentinal);
+
+
+#endif //ZHA_DATA_STRUCTURE_H

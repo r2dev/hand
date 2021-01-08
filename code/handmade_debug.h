@@ -11,11 +11,10 @@ enum debug_variable_type {
     DebugVariableType_V2,
     DebugVariableType_V3,
     DebugVariableType_V4,
-    DebugVariableType_Group,
     
     DebugVariableType_CounterThreadList,
-    DebugVariableType_ProfileSetting,
     DebugVariableType_BitmapDiplay,
+    DebugVariableType_VarGroup,
 };
 
 inline b32
@@ -25,35 +24,63 @@ DEBUGShouldBeWritten(debug_variable_type Type) {
 }
 
 struct debug_variable;
-struct debug_variable_reference;
+struct debug_tree;
 
-struct debug_variable_group {
-    b32 Expanded;
-    debug_variable_reference* FirstChild;
-    debug_variable_reference* LastChild;
+struct debug_view_inline_block {
+    v2 Dim;
 };
 
-struct debug_variable_hierarchy {
-    debug_variable_reference* Group;
-    debug_variable_hierarchy* Next;
-    debug_variable_hierarchy* Prev;
+struct debug_view_collapsible {
+    b32 ExpandedAlways;
+    b32 ExpandedAltView;
+};
+
+enum debug_view_type {
+    DebugViewType_Unknown,
+    DebugViewType_Basic,
+    DebugViewType_InlineBlock,
+    DebugViewType_Collapsible,
+};
+
+struct debug_id {
+    void *Value[2];
+};
+
+struct debug_view {
+    debug_id ID;
+    debug_view_type Type;
+    debug_view *NextInHash;
+    union {
+        debug_view_inline_block InlineBlock;
+        debug_view_collapsible Collapsible;
+    };
+};
+
+struct debug_tree {
     v2 UIP;
+    debug_variable* Group;
+    debug_tree* Next;
+    debug_tree* Prev;
 };
+
 
 struct debug_profile_setting {
-    v2 Dimension;
-};
-
-struct debug_variable_reference {
-    debug_variable *Var;
-    debug_variable_reference* Next;
-    debug_variable_reference* Parent;
+    int PlaceHolder;
 };
 
 struct debug_bitmap_display {
     bitmap_id ID;
-    v2 Dim;
-    b32 Alpha;
+};
+
+struct debug_variable_link {
+    debug_variable_link *Next;
+    debug_variable_link *Prev;
+    debug_variable *Var;
+};
+
+struct debug_variable_array {
+    u32 Count;
+    debug_variable *Vars;
 };
 
 struct debug_variable {
@@ -67,9 +94,9 @@ struct debug_variable {
         v2 Vector2;
         v3 Vector3;
         v4 Vector4;
-        debug_variable_group Group;
         debug_profile_setting ProfileSetting;
         debug_bitmap_display BitmapDisplay;
+        debug_variable_link VarGroup;
     };
 };
 
@@ -142,11 +169,13 @@ enum debug_interaction_type {
 };
 
 struct debug_interaction {
+    debug_id ID;
     debug_interaction_type Type;
+    
     union {
         void* Generic;
         debug_variable *Var;
-        debug_variable_hierarchy *Hierarchy;
+        debug_tree *Tree;
         v2 *P;
     };
 };
@@ -190,8 +219,9 @@ struct debug_state {
     debug_interaction HotInteraction;
     debug_interaction NextHotInteraction;
     
-    debug_variable_hierarchy HierarchySentinal;
-    debug_variable_reference *RootGroup;
+    debug_tree TreeSentinal;
+    debug_variable *RootGroup;
+    debug_view* ViewHash[4096];
     
     v2 LastMouseP;
     

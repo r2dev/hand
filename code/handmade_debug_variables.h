@@ -3,126 +3,103 @@
 #ifndef HANDMADE_DEBUG_VARIABLES_H
 #define HANDMADE_DEBUG_VARIABLES_H
 
+#define DEBUG_MAX_VARIABLE_STACK_SIZE 64
 struct debug_variable_definition_context {
     debug_state* State;
     memory_arena* Arena;
-    debug_variable_reference* Group;
+    u32 GroupDepth;
+    debug_variable* GroupStack[DEBUG_MAX_VARIABLE_STACK_SIZE];
 };
 
 internal debug_variable*
-DEBUGPushUnreferencedVariable(debug_state *DebugState, char* Name, debug_variable_type Type) {
+DEBUGPushVariable(debug_state *DebugState, char* Name, debug_variable_type Type) {
     debug_variable* Result = PushStruct(&DebugState->DebugArena, debug_variable);
     Result->Name = (char*)PushCopy(&DebugState->DebugArena, StringLength(Name) + 1, Name);
     Result->Type = Type;
-    
     return(Result);
 }
 
-internal debug_variable_reference*
-DEBUGAddVariableReference(debug_state* State, debug_variable_reference* GroupRef, debug_variable* Var) {
-    debug_variable_reference* Ref = PushStruct(&State->DebugArena, debug_variable_reference);
-    Ref->Var = Var;
-    Ref->Next = 0;
-    Ref->Parent = GroupRef;
-    debug_variable *Group = 0;
-    if (Ref->Parent) {
-        Group = Ref->Parent->Var;
-    }
-    if (Group) {
-        if (Group->Group.FirstChild) {
-            Group->Group.LastChild->Next = Ref;
-            Group->Group.LastChild = Ref;
-        } else {
-            Group->Group.FirstChild = Group->Group.LastChild = Ref;
-        }
-    }
-    
-    return(Ref);
-}
-internal debug_variable_reference*
-DEBUGAddVariableReference(debug_variable_definition_context *Context, debug_variable* Var) {
-    debug_variable_reference* Ref = DEBUGAddVariableReference(Context->State, Context->Group, Var);
-    return(Ref);
+internal void
+DEBUGPushVariableToGroup(debug_state* DebugState, debug_variable *Group, debug_variable* Add) {
+    debug_variable_link *Link = PushStruct(&DebugState->DebugArena, debug_variable_link);
+    Link->Var = Add;
+    DLIST_INSERT(&Group->VarGroup, Link);
 }
 
-internal debug_variable_reference*
-DEBUGPushVariable(debug_variable_definition_context *Context, char* Name, debug_variable_type Type) {
-    debug_variable* Var = DEBUGPushUnreferencedVariable(Context->State, Name, Type);
-    debug_variable_reference* Ref = DEBUGAddVariableReference(Context, Var);
-    
-    return(Ref);
+internal void
+DEBUGPushVariableToDefaultGroup(debug_variable_definition_context* Context, debug_variable* Var) {
+    debug_variable* Parent = Context->GroupStack[Context->GroupDepth];
+    if (Parent) {
+        DEBUGPushVariableToGroup(Context->State, Parent, Var);
+    }
 }
 
 internal debug_variable*
-DEBUGAddRootGroupInternal(debug_state* State, char* GroupName) {
-    debug_variable* Group = DEBUGPushUnreferencedVariable(State, GroupName, DebugVariableType_Group);
-    
-    Group->Group.FirstChild = Group->Group.LastChild = 0;
-    Group->Group.Expanded = false;
-    return(Group);
-}
-internal debug_variable_reference*
-DEBUGAddRootGroup(debug_state* State, char* GroupName) {
-    debug_variable* RootGroup = DEBUGAddRootGroupInternal(State, GroupName);
-    debug_variable_reference* Ref = DEBUGAddVariableReference(State, 0, RootGroup);
-    return(Ref);
+DEBUGPushVariable(debug_variable_definition_context *Context, char* Name, debug_variable_type Type) {
+    debug_variable* Var = DEBUGPushVariable(Context->State, Name, Type);
+    DEBUGPushVariableToDefaultGroup(Context, Var);
+    return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
+DEBUGAddRootGroup(debug_state* DebugState, char* GroupName) {
+    debug_variable *Group = DEBUGPushVariable(DebugState, GroupName, DebugVariableType_VarGroup);
+    DLIST_INIT(&Group->VarGroup);
+    return(Group);
+}
+
+internal debug_variable*
 DEBUGBeginVariableGroup(debug_variable_definition_context *Context, char* GroupName) {
-    debug_variable* DebugGroup = DEBUGAddRootGroupInternal(Context->State, GroupName);
-    debug_variable_reference *DebugGroupRef = DEBUGAddVariableReference(Context, DebugGroup);
-    Context->Group = DebugGroupRef;
-    return(DebugGroupRef);
+    debug_variable *Group = DEBUGAddRootGroup(Context->State, GroupName);
+    DEBUGPushVariableToDefaultGroup(Context, Group);
+    Assert(Context->GroupDepth < (ArrayCount(Context->GroupStack) - 1));
+    Context->GroupStack[++Context->GroupDepth] = Group;
+    return(Group);
 }
 
 internal void
 DEBUGEndVariableGroup(debug_variable_definition_context *Context) {
-    Assert(Context->Group);
-    Context->Group = Context->Group->Parent;
+    Assert(Context->GroupDepth > 0);
+    --Context->GroupDepth;
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, b32 Value) {
-    debug_variable_reference* Ref = DEBUGPushVariable(Context, Name, DebugVariableType_Bool32);
-    Ref->Var->Bool32 = Value;
-    return(Ref);
+    debug_variable* Var = DEBUGPushVariable(Context, Name, DebugVariableType_Bool32);
+    Var->Bool32 = Value;
+    return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, u32 Value) {
-    debug_variable_reference *Ref = DEBUGPushVariable(Context, Name, DebugVariableType_UInt32);
-    Ref->Var->UInt32 = Value;
-    return(Ref);
+    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_UInt32);
+    Var->UInt32 = Value;
+    return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, r32 Value) {
-    debug_variable_reference *Ref = DEBUGPushVariable(Context, Name, DebugVariableType_Real32);
-    Ref->Var->Real32 = Value;
-    return(Ref);
+    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_Real32);
+    Var->Real32 = Value;
+    return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, v4 Value) {
-    debug_variable_reference *Ref = DEBUGPushVariable(Context, Name, DebugVariableType_V4);
-    Ref->Var->Vector4 = Value;
-    return(Ref);
+    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_V4);
+    Var->Vector4 = Value;
+    return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, bitmap_id Value) {
-    debug_variable_reference *Ref = DEBUGPushVariable(Context, Name, DebugVariableType_BitmapDiplay);
-    Ref->Var->BitmapDisplay.ID = Value;
-    Ref->Var->BitmapDisplay.Dim = v2{25, 25};
-    Ref->Var->BitmapDisplay.Alpha = true;
-    return(Ref);
+    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_BitmapDiplay);
+    Var->BitmapDisplay.ID = Value;
+    return(Var);
 }
 
 internal void
 DEBUGCreateVariables(debug_variable_definition_context* Context) {
-    debug_variable_reference *UsedDebugCamRef = 0;
-    
 #define DEBUG_VARIABLE_LISITING(Name) DebugAddVariable(Context, #Name, DEBUGUI_##Name) // DebugVariableType_Boolean, #name, name
     
     DEBUGBeginVariableGroup(Context, "GroundChunk");
@@ -146,7 +123,7 @@ DEBUGCreateVariables(debug_variable_definition_context* Context) {
         DEBUG_VARIABLE_LISITING(ShowLightningSampleSource);
         DEBUGBeginVariableGroup(Context, "Camera");
         {
-            UsedDebugCamRef = DEBUG_VARIABLE_LISITING(UseDebugCamera);
+            DEBUG_VARIABLE_LISITING(UseDebugCamera);
             DEBUG_VARIABLE_LISITING(RoomBaseCamera);
             DEBUG_VARIABLE_LISITING(DebugCameraDistance);
         }
@@ -159,7 +136,6 @@ DEBUGCreateVariables(debug_variable_definition_context* Context) {
     DEBUG_VARIABLE_LISITING(ShowSpaceOutline);
     DEBUG_VARIABLE_LISITING(FauxV4);
     
-    DEBUGAddVariableReference(Context, UsedDebugCamRef->Var);
     
 #undef DEBUG_VARIABLE_LISITING
 }
