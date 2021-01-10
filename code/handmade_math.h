@@ -42,11 +42,11 @@ struct v3 {
     inline v3& operator-=(v3 A);
 };
 
-struct rectangle3 {
+Introspect(category: "math") struct rectangle3 {
 	v3 Min;
 	v3 Max;
 };
-struct rectangle2 {
+Introspect(category: "math") struct rectangle2 {
 	v2 Min;
 	v2 Max;
 };

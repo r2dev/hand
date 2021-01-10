@@ -10,6 +10,7 @@
 #include "handmade_asset.cpp"
 #include "handmade_audio.h"
 #include "handmade_audio.cpp"
+#include "handmade_meta.cpp"
 
 inline world_position
 ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ, v3 AdditionalOffset = v3{ 0, 0, 0 }) {

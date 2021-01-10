@@ -1,7 +1,7 @@
 #ifndef HANDMADE_SIM_REGION_H
 #define HANDMADE_SIM_REGION_H
 #include "handmade.h"
-struct move_spec {
+Introspect(category: "sim") struct move_spec {
 	bool32 UnitMaxAccelVector;
 	real32 Speed;
 	real32 Drag;
@@ -21,7 +21,7 @@ enum entity_type {
 };
 
 #define HIT_POINT_SUB_COUNT 4
-struct hit_point {
+Introspect(category: "sim") struct hit_point {
 	uint8 Flag;
 	uint8 FilledAmount;
 };
@@ -37,24 +37,29 @@ enum sim_entity_flags {
 
 
 struct sim_entity;
+
+Introspect(category: "sim")
 union entity_reference {
 	sim_entity* Ptr;
 	uint32 Index;
 };
 
 
+Introspect(category: "sim")
 struct sim_entity_collision_volume {
 	v3 OffsetP;
 	v3 Dim;
 };
 
+Introspect(category: "sim")
 struct sim_entity_collision_volume_group {
 	sim_entity_collision_volume TotalVolume;
 	uint32 VolumeCount;
 	sim_entity_collision_volume* Volumes;
 };
 
-Introspect(category: "hello") struct sim_entity {
+Introspect(category: "sim")
+struct sim_entity {
 	uint32 StorageIndex;
 	bool32 Updatable;
     
@@ -88,7 +93,7 @@ struct sim_entity_hash {
 	sim_entity* Ptr;
 };
 
-struct sim_region {
+Introspect(category: "sim") struct sim_region {
 	world* World;
     
 	real32 MaxEntityRadius;
