@@ -1,4 +1,5 @@
-#pragma once
+#ifndef HANDMADE_SIM_REGION_H
+#define HANDMADE_SIM_REGION_H
 #include "handmade.h"
 struct move_spec {
 	bool32 UnitMaxAccelVector;
@@ -53,7 +54,7 @@ struct sim_entity_collision_volume_group {
 	sim_entity_collision_volume* Volumes;
 };
 
-struct sim_entity {
+Introspect(category: "hello") struct sim_entity {
 	uint32 StorageIndex;
 	bool32 Updatable;
     
@@ -101,3 +102,4 @@ struct sim_region {
 	sim_entity *Entities;
 	sim_entity_hash Hash[4096];
 };
+#endif
