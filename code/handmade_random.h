@@ -2,7 +2,7 @@
 #define MaxRandomNumber 0x05f5c21f
 #define MinRandomNumber 0x000025a0
 
-global_variable uint32 RandomNumberTable[] =
+global_variable u32 RandomNumberTable[] =
 {
     0x4f0143b, 0x3402005, 0x26f2b01, 0x22796b6, 0x57343bb, 0x2d9954e, 0x06f9425, 0x1789180,
     0x57d8fab, 0x5365d9c, 0x0e9ec55, 0x2a623e0, 0x366e05d, 0x3759f45, 0x1b4d151, 0x35a5411,
@@ -519,49 +519,49 @@ global_variable uint32 RandomNumberTable[] =
 };
 
 struct random_series {
-	uint32 Index;
+	u32 Index;
 };
 
-inline random_series RandomSeed(uint32 Value) {
+inline random_series RandomSeed(u32 Value) {
     random_series Series;
 	Series.Index = Value % ArrayCount(RandomNumberTable);
 	return(Series);
 }
 
-inline uint32 RandomNextUInt32(random_series* Series) {
-    uint32 Result = RandomNumberTable[Series->Index++];
+inline u32 RandomNextUInt32(random_series* Series) {
+    u32 Result = RandomNumberTable[Series->Index++];
     if (Series->Index >= ArrayCount(RandomNumberTable))
     {
         Series->Index = 0;
     }
-
+    
     return(Result);
 }
 
 inline 
-uint32 RandomChoice(random_series* Series, uint32 ChoiceCount) {
-    uint32 Result = (RandomNextUInt32(Series) % ChoiceCount);
+u32 RandomChoice(random_series* Series, u32 ChoiceCount) {
+    u32 Result = (RandomNextUInt32(Series) % ChoiceCount);
     return(Result);
 }
 
-inline real32 RandomUnilateral(random_series* Series) {
-    real32 Divider = 1.0f / (real32)MaxRandomNumber;
-    real32 Result = Divider * RandomNextUInt32(Series);
+inline r32 RandomUnilateral(random_series* Series) {
+    r32 Divider = 1.0f / (r32)MaxRandomNumber;
+    r32 Result = Divider * RandomNextUInt32(Series);
     return(Result);
 }
 
-inline real32 RandomBilateral(random_series* Series) {
-    real32 Result = 2.0f * RandomUnilateral(Series) - 1.0f;
+inline r32 RandomBilateral(random_series* Series) {
+    r32 Result = 2.0f * RandomUnilateral(Series) - 1.0f;
     return(Result);
 }
 
-inline real32 RandomBetween(random_series* Series, real32 Min, real32 Max) {
-    real32 Result = Lerp(Min, RandomUnilateral(Series), Max);
+inline r32 RandomBetween(random_series* Series, r32 Min, r32 Max) {
+    r32 Result = Lerp(Min, RandomUnilateral(Series), Max);
     return(Result);
-
+    
 }
 
-inline int32 RandomBetween(random_series* Series, int32 Min, int32 Max) {
-    int32 Result = Min + (int32)(RandomNextUInt32(Series) % (Max + 1 - Min));
+inline s32 RandomBetween(random_series* Series, s32 Min, s32 Max) {
+    s32 Result = Min + (s32)(RandomNextUInt32(Series) % (Max + 1 - Min));
     return(Result);
 }

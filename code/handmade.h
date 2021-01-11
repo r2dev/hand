@@ -11,10 +11,10 @@
 #include "zha_data_structure.h"
 struct memory_arena {
 	memory_index Size;
-	uint8* Base;
+	u8* Base;
 	memory_index Used;
     
-	int32 TempCount;
+	s32 TempCount;
 };
 
 struct temporary_memory {
@@ -36,7 +36,7 @@ StringsAreEqual(char* A, char* B) {
 inline void
 InitializeArena(memory_arena* Arena, memory_index Size, void* Storage) {
 	Arena->Size = Size;
-	Arena->Base = (uint8*)Storage;
+	Arena->Base = (u8*)Storage;
 	Arena->Used = 0;
 }
 
@@ -80,7 +80,7 @@ _PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
 
 inline char*
 PushString(memory_arena* Arena, char* Content) {
-	uint32 Size = 1;
+	u32 Size = 1;
 	for (char* At = Content; *At; ++At) {
 		++Size;
 	}
@@ -95,7 +95,7 @@ PushString(memory_arena* Arena, char* Content) {
 inline void 
 SubArena(memory_arena* Result, memory_arena *Arena, memory_index Size, memory_index Alignment = 4) {
 	Result->Size = Size;
-	Result->Base = (uint8*)_PushSize(Arena, Size, Alignment);
+	Result->Base = (u8*)_PushSize(Arena, Size, Alignment);
 	Result->TempCount = 0;
 	Result->Used = 0;
 }
@@ -127,7 +127,7 @@ CheckArena(memory_arena* Arena) {
 #define ZeroArray(Count, Pointer) ZeroSize(Count * sizeof((Pointer)[0]), Pointer)
 inline void
 ZeroSize(memory_index Size, void* Ptr) {
-	uint8* Byte = (uint8 *)Ptr;
+	u8* Byte = (u8 *)Ptr;
 	while(Size--) {
 		*Byte++ = 0;  // should be *Byte++ = 0
 	}
@@ -157,16 +157,16 @@ struct low_entity {
 };
 
 struct controlled_hero {
-	uint32 EntityIndex;
+	u32 EntityIndex;
 	v2 ddP;
 	v2 dSword;
-	real32 dZ;
+	r32 dZ;
 };
 
 struct pairwise_collision_rule {
-	bool32 CanCollide;
-	uint32 StorageIndexA;
-	uint32 StorageIndexB;
+	b32 CanCollide;
+	u32 StorageIndexA;
+	u32 StorageIndexB;
     
 	pairwise_collision_rule* NextHash;
 };
@@ -190,22 +190,22 @@ struct particle {
 };
 
 struct game_state;
-internal void AddCollisionRule(game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool32 ShouldCollide);
-internal void ClearCollisionRulesFor(game_state* GameState, uint32 StorageIndex);
+internal void AddCollisionRule(game_state* GameState, u32 StorageIndexA, u32 StorageIndexB, b32 ShouldCollide);
+internal void ClearCollisionRulesFor(game_state* GameState, u32 StorageIndex);
 
 struct game_state {
-	bool32 IsInitialized;
+	b32 IsInitialized;
 	memory_arena WorldArena;
 	world* World;
     
-	uint32 CameraFollowingEntityIndex;
+	u32 CameraFollowingEntityIndex;
 	world_position CameraP;
     
 	controlled_hero ControlledHeroes[ArrayCount(((game_input*)0)->Controllers)];
     
-	real32 TypicalFloorHeight = 3.0f;
+	r32 TypicalFloorHeight = 3.0f;
     
-	uint32 LowEntityCount;
+	u32 LowEntityCount;
 	low_entity LowEntities[100000];
     
 	pairwise_collision_rule* CollisionRuleHash[256];
@@ -220,7 +220,7 @@ struct game_state {
 	sim_entity_collision_volume_group* FamiliarCollision;
 	sim_entity_collision_volume_group* StandardRoomCollision;
     
-	real32 time;
+	r32 time;
     
     u32 NextParticle;
     particle Particle[256];
@@ -237,25 +237,25 @@ struct game_state {
 };
 
 struct task_with_memory {
-	bool32 BeingUsed;
+	b32 BeingUsed;
 	memory_arena Arena;
 	temporary_memory MemoryFlush;
 };
 
 
 struct transient_state {
-	bool32 IsInitialized;
+	b32 IsInitialized;
 	memory_arena TranArena;
     
 	task_with_memory Tasks[4];
-	uint32 GroundBufferCount;
+	u32 GroundBufferCount;
 	ground_buffer* GroundBuffers;
     
 	game_assets* Assets;
     
     
-	uint32 EnvMapWidth;
-	uint32 EnvMapHeight;
+	u32 EnvMapWidth;
+	u32 EnvMapHeight;
 	environment_map EnvMaps[3];
     
 	platform_work_queue* HighPriorityQueue;
@@ -263,7 +263,7 @@ struct transient_state {
 };
 
 inline low_entity*
-GetLowEntity(game_state* GameState, uint32 Index) {
+GetLowEntity(game_state* GameState, u32 Index) {
 	low_entity* Result = 0;
     
 	if ((Index > 0) && (Index < GameState->LowEntityCount)) {

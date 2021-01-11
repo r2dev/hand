@@ -221,7 +221,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
     TIMED_FUNCTION();
     asset *Asset = Assets->Assets + ID.Value;
     if (ID.Value) {
-        if (AtomicCompareExchangeUInt32((uint32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
+        if (AtomicCompareExchangeUInt32((u32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
             task_with_memory* Task = 0;
             if (!Immediate) {
                 Task = BeginTaskWithMemory(Assets->TranState);
@@ -285,7 +285,7 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
     
     asset *Asset = Assets->Assets + ID.Value;
     if (ID.Value) {
-        if (AtomicCompareExchangeUInt32((uint32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
+        if (AtomicCompareExchangeUInt32((u32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
             task_with_memory* Task = 0;
             if (!Immediate) {
                 Task = BeginTaskWithMemory(Assets->TranState);
@@ -441,18 +441,18 @@ GetNextSoundInChain(game_assets* Assets, sound_id ID) {
 internal u32
 BestMatchAsset(game_assets* Assets, asset_type_id TypeID, asset_vector* MatchVector, asset_vector* WeightVector) {
     TIMED_FUNCTION();
-    uint32 Result = 0;
+    u32 Result = 0;
     asset_type* Type = Assets->AssetTypes + TypeID;
-    real32 BestDiff = Real32Maximum;
-    for (uint32 AssetIndex = Type->FirstAssetIndex; AssetIndex < Type->OnePassLastAssetIndex; ++AssetIndex) {
+    r32 BestDiff = Real32Maximum;
+    for (u32 AssetIndex = Type->FirstAssetIndex; AssetIndex < Type->OnePassLastAssetIndex; ++AssetIndex) {
         asset* Asset = Assets->Assets + AssetIndex;
-        real32 TotalWeight = 0.0f;
-        for (uint32 TagIndex = Asset->HHA.FirstTagIndex; TagIndex < Asset->HHA.OnePassLastTagIndex; ++TagIndex) {
+        r32 TotalWeight = 0.0f;
+        for (u32 TagIndex = Asset->HHA.FirstTagIndex; TagIndex < Asset->HHA.OnePassLastTagIndex; ++TagIndex) {
             hha_tag* Tag = Assets->Tags + TagIndex;
-            real32 A = MatchVector->E[Tag->ID];
-            real32 B = Tag->Value;
-            real32 D0 = AbsoluteValue(A - B);
-            real32 D1 = AbsoluteValue(A - Assets->TagRange[Tag->ID] * SignOf(A) - B);
+            r32 A = MatchVector->E[Tag->ID];
+            r32 B = Tag->Value;
+            r32 D0 = AbsoluteValue(A - B);
+            r32 D1 = AbsoluteValue(A - Assets->TagRange[Tag->ID] * SignOf(A) - B);
             TotalWeight += Minimum(D0, D1) * WeightVector->E[Tag->ID];
         }
         
@@ -499,7 +499,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     
     Assets->TranState = TranState;
     
-    for (uint32 Tag = 0; Tag < Tag_Count; ++Tag) {
+    for (u32 Tag = 0; Tag < Tag_Count; ++Tag) {
         Assets->TagRange[Tag] = 100000.0f;
     }
     Assets->TagRange[Tag_FaceDirection] = Tau32;
@@ -606,9 +606,9 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     return(Assets);
 }
 
-internal uint32
+internal u32
 GetFirstAssetFrom(game_assets *Assets, asset_type_id ID) {
-    uint32 Result = 0;
+    u32 Result = 0;
     asset_type* Type = Assets->AssetTypes + ID;
     if (Type->FirstAssetIndex < Type->OnePassLastAssetIndex) {
         Result = Type->FirstAssetIndex;
@@ -628,12 +628,12 @@ GetFirstSoundFrom(game_assets* Asset, asset_type_id ID) {
     return(Result);
 }
 
-internal uint32
+internal u32
 RandomAssetFrom(game_assets* Assets, asset_type_id ID, random_series* Series) {
-    uint32 Result = 0;
+    u32 Result = 0;
     asset_type* Type = Assets->AssetTypes + ID;
     if (Type->FirstAssetIndex != Type->OnePassLastAssetIndex) {
-        uint32 Count = Type->OnePassLastAssetIndex - Type->FirstAssetIndex;
+        u32 Count = Type->OnePassLastAssetIndex - Type->FirstAssetIndex;
         Result = Type->FirstAssetIndex + RandomChoice(Series, Count);
     }
     return(Result);

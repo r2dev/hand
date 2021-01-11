@@ -2,34 +2,34 @@
 #include "handmade.h"
 
 void
-DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, real32 PixelsToMeters, rectangle2i ClipRect, bool32 Even) {
+DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, r32 PixelsToMeters, rectangle2i ClipRect, b32 Even) {
     TIMED_FUNCTION();
     Assert(Texture->Memory);
 	// premultiply alpha
 	Color.rgb *= Color.a;
     
-	real32 AxisXLength = Length(AxisX);
-	real32 AxisYLength = Length(AxisY);
+	r32 AxisXLength = Length(AxisX);
+	r32 AxisYLength = Length(AxisY);
     
 	v2 NxAxis = (AxisYLength / AxisXLength) * AxisX;
 	v2 NyAxis = (AxisXLength / AxisYLength) * AxisY;
     
-	real32 NzScale = 0.5f * (AxisXLength + AxisYLength);
+	r32 NzScale = 0.5f * (AxisXLength + AxisYLength);
     
-	real32 InvAxisXLengthSq = 1.0f / LengthSq(AxisX);
-	real32 InvAxisYLengthSq = 1.0f / LengthSq(AxisY);
+	r32 InvAxisXLengthSq = 1.0f / LengthSq(AxisX);
+	r32 InvAxisYLengthSq = 1.0f / LengthSq(AxisY);
     
 	rectangle2i FillRect = InvertedInfinityRectangle2i();
     
 	v2 P[4] = { Origin, Origin + AxisX, Origin + AxisX + AxisY, Origin + AxisY };
     
-	for (int32 PIndex = 0; PIndex < ArrayCount(P); ++PIndex) {
+	for (s32 PIndex = 0; PIndex < ArrayCount(P); ++PIndex) {
 		v2 TestP = P[PIndex];
-		int32 FloorX = FloorReal32ToInt32(TestP.x);
-		int32 CeilX = CeilReal32ToInt32(TestP.x) + 1;
+		s32 FloorX = FloorReal32ToInt32(TestP.x);
+		s32 CeilX = CeilReal32ToInt32(TestP.x) + 1;
         
-		int32 FloorY = FloorReal32ToInt32(TestP.y);
-		int32 CeilY = CeilReal32ToInt32(TestP.y) + 1;
+		s32 FloorY = FloorReal32ToInt32(TestP.y);
+		s32 CeilY = CeilReal32ToInt32(TestP.y) + 1;
         
 		if (FillRect.MinX > FloorX) { FillRect.MinX = FloorX; }
 		if (FillRect.MinY > FloorY) { FillRect.MinY = FloorY; }
@@ -72,13 +72,13 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
         
 		void* TextureMemory = Texture->Memory;
         
-		real32 Inv255C = 1.0f / 255.0f;
-		real32 One255C = 255.0f;
+		r32 Inv255C = 1.0f / 255.0f;
+		r32 One255C = 255.0f;
 		__m128 Inv255C_x4 = _mm_set_ps1(Inv255C);
 		__m128 One255C_x4 = _mm_set_ps1(One255C);
 		__m128 Four_x4 = _mm_set_ps1(4.0f);
 		__m128 StepFour_x4 = _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f);
-		__m128 Min_x4 = _mm_set_ps1((real32)FillRect.MinX);
+		__m128 Min_x4 = _mm_set_ps1((r32)FillRect.MinX);
 		__m128i MaskFF00FF = _mm_set1_epi32(0x00FF00FF);
 		__m128i MaskFFFF = _mm_set1_epi32(0xFFFF);
 		__m128 One = _mm_set_ps1(1.0f);
@@ -96,8 +96,8 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 		__m128 YAxisx = _mm_set_ps1(AxisY.x);
 		__m128 YAxisy = _mm_set_ps1(AxisY.y);
         
-		__m128 WidthM2 = _mm_set1_ps((real32)(Texture->Width - 2));
-		__m128 HeightM2 = _mm_set1_ps((real32)(Texture->Height - 2));
+		__m128 WidthM2 = _mm_set1_ps((r32)(Texture->Width - 2));
+		__m128 HeightM2 = _mm_set1_ps((r32)(Texture->Height - 2));
         
 		__m128 InvAxisXLengthSq_x4 = _mm_set_ps1(InvAxisXLengthSq);
 		__m128 InvAxisYLengthSq_x4 = _mm_set_ps1(InvAxisYLengthSq);
@@ -111,13 +111,13 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 		__m128 MaxColorValue = _mm_set1_ps(255.0f * 255.0f);
 		__m128i TexturePitch_x4 = _mm_set1_epi32(Texture->Pitch);
 		__m128i MaskFF = _mm_set1_epi32(0xFF);
-		int32 RowAdvance = 2 * Buffer->Pitch;
+		s32 RowAdvance = 2 * Buffer->Pitch;
         
-		uint8* Row = ((uint8*)Buffer->Memory + FillRect.MinX * BITMAP_BYTE_PER_PIXEL + FillRect.MinY * Buffer->Pitch);
+		u8* Row = ((u8*)Buffer->Memory + FillRect.MinX * BITMAP_BYTE_PER_PIXEL + FillRect.MinY * Buffer->Pitch);
         
         TIMED_BLOCK(PixelFill, GetClampedRectArea(FillRect) / 2);
-		for (int32 Y = FillRect.MinY; Y < FillRect.MaxY; Y += 2) {
-			__m128 Y_x4 = _mm_set_ps1((real32)Y);
+		for (s32 Y = FillRect.MinY; Y < FillRect.MaxY; Y += 2) {
+			__m128 Y_x4 = _mm_set_ps1((r32)Y);
 			__m128 Dy = _mm_sub_ps(Y_x4, OriginY_x4);
             
 			__m128 PynX = _mm_mul_ps(Dy, NAxisXy);
@@ -128,9 +128,9 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
             
 			__m128i ClipMask = StartClipMask;
             
-			uint32* Pixel = (uint32*)Row;
+			u32* Pixel = (u32*)Row;
             
-			for (int32 X = FillRect.MinX; X < FillRect.MaxX; X += 4) {
+			for (s32 X = FillRect.MinX; X < FillRect.MaxX; X += 4) {
 				// load
 				__m128i OriginalDest = _mm_load_si128((__m128i*)Pixel);
 				__m128 U = _mm_add_ps(_mm_mul_ps(tempPx, NAxisXx), PynX);
@@ -159,30 +159,30 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
                 
 				__m128i Fetch_4x = _mm_add_epi32(FetchX_4x, FetchY_4x);
                 
-				int32 Fetch0 = ((int32*)&(Fetch_4x))[0];
-				int32 Fetch1 = ((int32*)&(Fetch_4x))[1];
-				int32 Fetch2 = ((int32*)&(Fetch_4x))[2];
-				int32 Fetch3 = ((int32*)&(Fetch_4x))[3];
+				s32 Fetch0 = ((s32*)&(Fetch_4x))[0];
+				s32 Fetch1 = ((s32*)&(Fetch_4x))[1];
+				s32 Fetch2 = ((s32*)&(Fetch_4x))[2];
+				s32 Fetch3 = ((s32*)&(Fetch_4x))[3];
                 
-				uint8* TexelPtr0 = ((uint8*)TextureMemory) + Fetch0;
-				uint8* TexelPtr1 = ((uint8*)TextureMemory) + Fetch1;
-				uint8* TexelPtr2 = ((uint8*)TextureMemory) + Fetch2;
-				uint8* TexelPtr3 = ((uint8*)TextureMemory) + Fetch3;
+				u8* TexelPtr0 = ((u8*)TextureMemory) + Fetch0;
+				u8* TexelPtr1 = ((u8*)TextureMemory) + Fetch1;
+				u8* TexelPtr2 = ((u8*)TextureMemory) + Fetch2;
+				u8* TexelPtr3 = ((u8*)TextureMemory) + Fetch3;
                 
                 
-				__m128i SampleA = _mm_setr_epi32(*(uint32*)TexelPtr0, *(uint32*)TexelPtr1, *(uint32*)TexelPtr2, *(uint32*)TexelPtr3);
-				__m128i SampleB = _mm_setr_epi32(*(uint32*)(TexelPtr0 + sizeof(uint32)),
-                                                 *(uint32*)(TexelPtr1 + sizeof(uint32)),
-                                                 *(uint32*)(TexelPtr2 + sizeof(uint32)),
-                                                 *(uint32*)(TexelPtr3 + sizeof(uint32)));
-				__m128i SampleC = _mm_setr_epi32(*(uint32*)(TexelPtr0 + Texture->Pitch),
-                                                 *(uint32*)(TexelPtr1 + Texture->Pitch),
-                                                 *(uint32*)(TexelPtr2 + Texture->Pitch),
-                                                 *(uint32*)(TexelPtr3 + Texture->Pitch));
-				__m128i SampleD = _mm_setr_epi32(*(uint32*)(TexelPtr0 + Texture->Pitch + sizeof(uint32)),
-                                                 *(uint32*)(TexelPtr1 + Texture->Pitch + sizeof(uint32)),
-                                                 *(uint32*)(TexelPtr2 + Texture->Pitch + sizeof(uint32)),
-                                                 *(uint32*)(TexelPtr3 + Texture->Pitch + sizeof(uint32)));
+				__m128i SampleA = _mm_setr_epi32(*(u32*)TexelPtr0, *(u32*)TexelPtr1, *(u32*)TexelPtr2, *(u32*)TexelPtr3);
+				__m128i SampleB = _mm_setr_epi32(*(u32*)(TexelPtr0 + sizeof(u32)),
+                                                 *(u32*)(TexelPtr1 + sizeof(u32)),
+                                                 *(u32*)(TexelPtr2 + sizeof(u32)),
+                                                 *(u32*)(TexelPtr3 + sizeof(u32)));
+				__m128i SampleC = _mm_setr_epi32(*(u32*)(TexelPtr0 + Texture->Pitch),
+                                                 *(u32*)(TexelPtr1 + Texture->Pitch),
+                                                 *(u32*)(TexelPtr2 + Texture->Pitch),
+                                                 *(u32*)(TexelPtr3 + Texture->Pitch));
+				__m128i SampleD = _mm_setr_epi32(*(u32*)(TexelPtr0 + Texture->Pitch + sizeof(u32)),
+                                                 *(u32*)(TexelPtr1 + Texture->Pitch + sizeof(u32)),
+                                                 *(u32*)(TexelPtr2 + Texture->Pitch + sizeof(u32)),
+                                                 *(u32*)(TexelPtr3 + Texture->Pitch + sizeof(u32)));
                 
 				__m128i TexelArb = _mm_and_si128(SampleA, MaskFF00FF);
 				__m128i TexelAag = _mm_and_si128(_mm_srli_epi32(SampleA, 8), MaskFF00FF);
@@ -213,14 +213,14 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 				__m128i SampleC;
 				__m128i SampleD;
 				for (int I = 0; I < 4; ++I) {
-					int32 FetchX = ((uint32*)&(intX))[I];
-					int32 FetchY = ((uint32*)&(intY))[I];
+					s32 FetchX = ((u32*)&(intX))[I];
+					s32 FetchY = ((u32*)&(intY))[I];
                     
-					uint8* TexelPtr = ((uint8*)Texture->Memory) + Texture->Pitch * FetchY + FetchX * sizeof(uint32);
-					((uint32*)&(SampleA))[I] = *(uint32*)TexelPtr;
-					((uint32*)&(SampleB))[I] = *(uint32*)(TexelPtr + sizeof(uint32));
-					((uint32*)&(SampleC))[I] = *(uint32*)(TexelPtr + Texture->Pitch);
-					((uint32*)&(SampleD))[I] = *(uint32*)(TexelPtr + Texture->Pitch + sizeof(uint32));
+					u8* TexelPtr = ((u8*)Texture->Memory) + Texture->Pitch * FetchY + FetchX * sizeof(u32);
+					((u32*)&(SampleA))[I] = *(u32*)TexelPtr;
+					((u32*)&(SampleB))[I] = *(u32*)(TexelPtr + sizeof(u32));
+					((u32*)&(SampleC))[I] = *(u32*)(TexelPtr + Texture->Pitch);
+					((u32*)&(SampleD))[I] = *(u32*)(TexelPtr + Texture->Pitch + sizeof(u32));
 				}
 #endif
 				__m128 TexelAr = _mm_cvtepi32_ps(_mm_srli_epi32(TexelArb, 16));

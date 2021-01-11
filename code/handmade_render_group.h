@@ -14,7 +14,7 @@ struct render_group_entry_header {
 
 struct render_basis {
 	v3 P;
-	real32 Scale;
+	r32 Scale;
 };
 
 struct render_entity_basis {
@@ -23,32 +23,32 @@ struct render_entity_basis {
 };
 
 struct render_transform {
-	real32 DistanceAboveTarget;
-	real32 FocalLength;
+	r32 DistanceAboveTarget;
+	r32 FocalLength;
     
-	real32 Scale;
+	r32 Scale;
 	v3 OffsetP;
 	v2 ScreenCenter;
 	
-	real32 MetersToPixels;
+	r32 MetersToPixels;
     
-	bool32 Orthographic;
+	b32 Orthographic;
 };
 
 
 struct render_group {
-	uint32 MaxPushBufferSize;
+	u32 MaxPushBufferSize;
 	
-	uint32 PushBufferSize;
-	uint8* PushBufferBase;
+	u32 PushBufferSize;
+	u8* PushBufferBase;
 	
-	real32 GlobalAlpha;
+	r32 GlobalAlpha;
 	v2 MonitorHalfDimInMeters;
 	
 	render_transform Transform;
 	struct game_assets* Assets;
     
-	uint32 MissingResourceCount;
+	u32 MissingResourceCount;
     u32 GenerationID;
     b32 RenderInBackground;
     
@@ -89,8 +89,8 @@ struct render_entry_coordinate_system {
 
 struct entity_basis_p_result {
 	v2 P;
-	real32 Scale;
-	bool32 Valid;
+	r32 Scale;
+	b32 Valid;
 };
 
 struct used_bitmap_dim {
@@ -100,4 +100,4 @@ struct used_bitmap_dim {
 	entity_basis_p_result Basis;
 };
 
-void DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, real32 PixelsToMeters, rectangle2i ClipRect, bool32 Even);
+void DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, r32 PixelsToMeters, rectangle2i ClipRect, b32 Even);

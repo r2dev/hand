@@ -4,20 +4,16 @@
 #define HANDMADE_META_H
 
 enum meta_type {
-    MetaType_uint32,
-    MetaType_uint8,
+    MetaType_u8,
     MetaType_move_spec,
     MetaType_u32,
-    MetaType_bool32,
     MetaType_b32,
     MetaType_s32,
     MetaType_r32,
     MetaType_entity_type,
     MetaType_v3,
-    MetaType_real32,
     MetaType_sim_entity_collision_volume_group,
     MetaType_sim_entity_collision_volume,
-    MetaType_int32,
     MetaType_hit_point,
     MetaType_entity_reference,
     MetaType_v2,

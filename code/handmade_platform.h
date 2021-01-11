@@ -103,7 +103,7 @@ extern "C" {
     
 #if HANDMADE_INTERNAL
     struct debug_read_file_result {
-        uint32 ContentsSize;
+        u32 ContentsSize;
         void* Contents;
     };
     
@@ -123,7 +123,7 @@ extern "C" {
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) debug_read_file_result name(char* Filename)
     typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
     
-#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char* Filename, uint32 MemorySize, void *Memory)
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) b32 name(char* Filename, u32 MemorySize, void *Memory)
     typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
     
 #define DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(name) debug_executing_process name(char* Path, char* Command, char* CommandLine)
@@ -154,15 +154,15 @@ extern "C" {
     
     struct game_button_state {
         int HalfTransitionCount;
-        bool32 EndedDown;
+        b32 EndedDown;
     };
     
     
     struct game_controller_input {
-        bool32 IsConnected;
-        bool32 IsAnalog;
-        real32 StickAverageX;
-        real32 StickAverageY;
+        b32 IsConnected;
+        b32 IsAnalog;
+        r32 StickAverageX;
+        r32 StickAverageY;
         
         union {
             game_button_state Buttons[12];
@@ -281,7 +281,7 @@ extern "C" {
     } platform_api;
     
     typedef struct game_memory {
-        uint64 PermanentStorageSize;
+        u64 PermanentStorageSize;
         void* PermanentStorage;
         
         uint64 TransientStorageSize;
@@ -352,15 +352,15 @@ extern "C" {
     }
     
     
-    inline uint32
+    inline u32
         SafeTruncateUInt64(uint64 Value) {
         Assert(Value <= 0xFFFFFFFF);
-        uint32 Result = (uint32)Value;
+        u32 Result = (u32)Value;
         return(Result);
     }
     
     inline u16
-        SafeTruncateToUInt16(uint32 Value) {
+        SafeTruncateToUInt16(u32 Value) {
         Assert(Value <= 65535);
         Assert(Value >= 0);
         u16 Result = (u16)Value;
@@ -368,7 +368,7 @@ extern "C" {
     }
     
     inline s16
-        SafeTruncateToInt16(uint32 Value) {
+        SafeTruncateToInt16(u32 Value) {
         Assert(Value <= 32767);
         Assert(Value > 0);
         s16 Result = (s16)Value;
@@ -390,6 +390,15 @@ extern "C" {
         DebugEvent_FrameMarker,
         DebugEvent_BeginBlock,
         DebugEvent_EndBlock,
+        
+        DebugEvent_R32,
+        DebugEvent_U32,
+        DebugEvent_S32,
+        DebugEvent_V2,
+        DebugEvent_V3,
+        DebugEvent_V4,
+        DebugEvent_Rectangle2,
+        DebugEvent_Rectangle3,
     };
     
     struct threadid_coreindex {
@@ -399,13 +408,18 @@ extern "C" {
     
     struct debug_event {
         u64 Clock;
-        union {
-            r32 SecondsElapsed;
-            threadid_coreindex TC;
-        };
+        
         u16 DebugRecordIndex;
         u8 TranslationUnit;
         u8 Type;
+        
+        union {
+            r32 SecondsElapsed;
+            threadid_coreindex TC;
+            s32 VecS32[6];
+            u32 VecU32[6];
+            r32 VecR32[6];
+        };
     };
 	
 #define MAX_DEBUG_EVENT_COUNT (16 * 65536)
@@ -501,7 +515,6 @@ BEGIN_BLOCK_(Counter_##Name, __FILE__, __LINE__, #Name); \
 #define END_BLOCK(Name)
 #define FRAME_MARKER(SecondsElapsedInit)
 #endif
-    
     //utility for platform and game
     inline u32
         StringLength(char* Str) {
@@ -515,5 +528,47 @@ BEGIN_BLOCK_(Counter_##Name, __FILE__, __LINE__, #Name); \
 #ifdef __cplusplus
 }
 #endif
+
+#if defined(__cplusplus) && defined(HANDMADE_INTERNAL)
+
+
+
+inline void
+DEBUGValueSetEventData(debug_event *Event, r32 Value) {
+    Event->Type = DebugEvent_R32;
+    Event->VecR32[0] = Value;
+}
+inline void
+DEBUGValueSetEventData(debug_event *Event, s32 Value) {
+    Event->Type = DebugEvent_S32;
+    Event->VecS32[0] = Value;
+}
+
+inline void
+DEBUGValueSetEventData(debug_event *Event, u32 Value) {
+    Event->Type = DebugEvent_U32;
+    Event->VecU32[0] = Value;
+}
+
+#define DEBUG_BEGIN_HOT_ELEMENT(...)
+
+
+
+#define DEBUG_VALUE(Value) { \
+int Counter = __COUNTER__; \
+RecordDebugEventCommon(Counter, DebugEvent_R32); \
+DEBUGValueSetEventData(Event, Value); \
+}
+#define DEBUG_BEGIN_ARRAY(...)
+#define DEBUG_END_ARRAY(...)
+#define DEBUG_END_HOT_ELEMENT(...)
+#else
+#define DEBUG_BEGIN_HOT_ELEMENT(...)
+#define DEBUG_VALUE(...)
+#define DEBUG_BEGIN_ARRAY(...)
+#define DEBUG_END_ARRAY(...)
+#define DEBUG_END_HOT_ELEMENT(...)
+#endif
+
 
 #endif

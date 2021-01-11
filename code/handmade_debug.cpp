@@ -948,28 +948,24 @@ DEBUGDumpStruct(u32 MemberCount, member_definition *MemberDefs, void *StructPtr,
         if (MemberPtr) {
             
             switch(Member->Type) {
-                case MetaType_uint32:
                 case MetaType_u32: {
                     _snprintf_s(TextBuffer, TextBufferLeft, TextBufferLeft, 
                                 "%s: %u",
                                 Member->Name, *(u32 *)MemberPtr);
                     
                 } break;
-                case MetaType_b32:
-                case MetaType_bool32: {
+                case MetaType_b32: {
                     _snprintf_s(TextBuffer, TextBufferLeft, TextBufferLeft,
                                 "%s: %u",
                                 Member->Name, *(b32 *)MemberPtr);
                     
                 } break;
-                case MetaType_int32:
                 case MetaType_s32: {
                     _snprintf_s(TextBuffer, TextBufferLeft, TextBufferLeft, 
                                 "%s: %d",
                                 Member->Name, *(s32 *)MemberPtr);
                     
                 } break;
-                case MetaType_real32:
                 case MetaType_r32: {
                     _snprintf_s(TextBuffer, TextBufferLeft, TextBufferLeft,
                                 "%s: %f",
@@ -1102,27 +1098,6 @@ DEBUGEnd(debug_state* DebugState, game_input* Input, loaded_bitmap* DrawBuffer) 
     
     DEBUGDrawMainMenu(DebugState, DebugState->RenderGroup, MouseP);
     DEBUGInteract(DebugState, Input, MouseP);
-    
-    sim_entity_collision_volume TestVolume = {};
-    TestVolume.OffsetP = {44,433,23};
-    TestVolume.Dim = {1,44,11};
-    sim_entity_collision_volume_group TestCollisionVolumeGroup = {};
-    TestCollisionVolumeGroup.VolumeCount = 44;
-    TestCollisionVolumeGroup.TotalVolume.OffsetP = {1,2,3};
-    TestCollisionVolumeGroup.TotalVolume.Dim = {3, 2, 1};
-    TestCollisionVolumeGroup.Volumes = &TestVolume;
-    
-    sim_entity TestEntity = {};
-    TestEntity.StorageIndex = 10;
-    TestEntity.Updatable = false;
-    TestEntity.P = {1,2,3};
-    TestEntity.dP = {3, 2, 1};
-    TestEntity.Collision = &TestCollisionVolumeGroup;
-    sim_region TestRegion = {};
-    
-    
-    DEBUGDumpStruct(ArrayCount(MembersOf_sim_entity), MembersOf_sim_entity, &TestEntity);
-    //DEBUGDumpStruct(ArrayCount(MembersOf_sim_region), MembersOf_sim_region, &TestRegion);
     
     if (DebugState->Compiling) {
         debug_executing_state State = Platform.DEBUGGetProcessState(DebugState->Compiler);

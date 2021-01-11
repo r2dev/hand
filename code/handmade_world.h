@@ -1,23 +1,23 @@
 #pragma once
 struct tile_chunk_position {
-	int32 TileChunkX;
-	int32 TileChunkY;
-	int32 TileChunkZ;
+	s32 TileChunkX;
+	s32 TileChunkY;
+	s32 TileChunkZ;
     
-	int32 RelTileX;
-	int32 RelTileY;
+	s32 RelTileX;
+	s32 RelTileY;
 };
 
 struct world_entity_block {
-	uint32 EntityCount;
-	uint32 LowEntityIndex[16];
+	u32 EntityCount;
+	u32 LowEntityIndex[16];
 	world_entity_block* Next;
 };
 
 struct world_chunk {
-	int32 ChunkX;
-	int32 ChunkY;
-	int32 ChunkZ;
+	s32 ChunkX;
+	s32 ChunkY;
+	s32 ChunkZ;
     
 	world_entity_block FirstBlock;
     
@@ -35,9 +35,9 @@ struct world {
 
 
 Introspect(category: "world") struct world_position {
-	int32 ChunkX;
-	int32 ChunkY;
-	int32 ChunkZ;
+	s32 ChunkX;
+	s32 ChunkY;
+	s32 ChunkZ;
     
 	v3 Offset_;
 };

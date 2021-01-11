@@ -2,9 +2,9 @@
 #define HANDMADE_SIM_REGION_H
 #include "handmade.h"
 Introspect(category: "sim") struct move_spec {
-	bool32 UnitMaxAccelVector;
-	real32 Speed;
-	real32 Drag;
+	b32 UnitMaxAccelVector;
+	r32 Speed;
+	r32 Drag;
 };
 
 enum entity_type {
@@ -22,8 +22,8 @@ enum entity_type {
 
 #define HIT_POINT_SUB_COUNT 4
 Introspect(category: "sim") struct hit_point {
-	uint8 Flag;
-	uint8 FilledAmount;
+	u8 Flag;
+	u8 FilledAmount;
 };
 
 enum sim_entity_flags {
@@ -41,7 +41,7 @@ struct sim_entity;
 Introspect(category: "sim")
 union entity_reference {
 	sim_entity* Ptr;
-	uint32 Index;
+	u32 Index;
 };
 
 
@@ -54,56 +54,56 @@ struct sim_entity_collision_volume {
 Introspect(category: "sim")
 struct sim_entity_collision_volume_group {
 	sim_entity_collision_volume TotalVolume;
-	uint32 VolumeCount;
+	u32 VolumeCount;
 	sim_entity_collision_volume* Volumes;
 };
 
 Introspect(category: "sim")
 struct sim_entity {
-	uint32 StorageIndex;
-	bool32 Updatable;
+	u32 StorageIndex;
+	b32 Updatable;
     
 	entity_type Type;
-	uint32 Flags;
+	u32 Flags;
     
 	v3 P;
 	v3 dP;
     
-	real32 DistanceLimit;
+	r32 DistanceLimit;
 	
 	sim_entity_collision_volume_group* Collision;
     
-	int32 dAbsTileZ;
+	s32 dAbsTileZ;
     
-	uint32 HitPointMax;
+	u32 HitPointMax;
 	hit_point HitPoint[16];
     
 	entity_reference Sword;
 	
-	real32 FacingDirection;
+	r32 FacingDirection;
     
 	//@todo for stairwells
 	v2 WalkableDim;
-	real32 WalkableHeight;
+	r32 WalkableHeight;
     
 };
 
 struct sim_entity_hash {
-	uint32 Index;
+	u32 Index;
 	sim_entity* Ptr;
 };
 
 Introspect(category: "sim") struct sim_region {
 	world* World;
     
-	real32 MaxEntityRadius;
-	real32 MaxEntityVelocity;
+	r32 MaxEntityRadius;
+	r32 MaxEntityVelocity;
     
 	world_position Origin;
 	rectangle3 Bounds;
 	rectangle3 UpdatableBounds;
-	uint32 MaxEntityCount;
-	uint32 EntityCount;
+	u32 MaxEntityCount;
+	u32 EntityCount;
 	sim_entity *Entities;
 	sim_entity_hash Hash[4096];
 };

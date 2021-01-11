@@ -46,14 +46,14 @@ enum asset_tag_id {
 #pragma pack(push, 1)
 
 struct bitmap_id {
-	uint32 Value;
+	u32 Value;
 };
 
 struct sound_id {
-	uint32 Value;
+	u32 Value;
 };
 struct font_id {
-    uint32 Value;
+    u32 Value;
 };
 
 enum {
@@ -61,7 +61,7 @@ enum {
     HHASoundChain_loop,
     HHASoundChain_Advance
 };
-#define RIFF_CODE(a, b, c, d) (((uint32)(a) << 0) | ((uint32)(b) << 8) | ((uint32)(c) << 16) | ((uint32)(d) << 24))
+#define RIFF_CODE(a, b, c, d) (((u32)(a) << 0) | ((u32)(b) << 8) | ((u32)(c) << 16) | ((u32)(d) << 24))
 
 struct hha_header {
 #define HHA_MAGIC_VALUE RIFF_CODE('h', 'h', 'a', 'f')

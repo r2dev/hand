@@ -11,7 +11,7 @@ struct loaded_bitmap {
 };
 struct environment_map {
 	loaded_bitmap LOD[4];
-	real32 Pz;
+	r32 Pz;
 };
 
 struct loaded_sound {
@@ -29,8 +29,8 @@ struct asset_file {
 };
 
 struct asset_type {
-	uint32 FirstAssetIndex;
-	uint32 OnePassLastAssetIndex;
+	u32 FirstAssetIndex;
+	u32 OnePassLastAssetIndex;
 };
 
 enum asset_state {
@@ -69,7 +69,7 @@ struct asset {
 };
 
 struct asset_vector {
-	real32 E[Tag_Count];
+	r32 E[Tag_Count];
 };
 
 enum asset_memory_block_flag {
@@ -91,14 +91,14 @@ struct game_assets {
     u32 FileCount;
     asset_file *Files;
 	
-	uint32 AssetCount;
+	u32 AssetCount;
 	asset* Assets;
     
     asset_memory_header LoadedAssetSentinel;
     asset_memory_block MemorySentinel;
     
-	real32 TagRange[Tag_Count];
-	uint32 TagCount;
+	r32 TagRange[Tag_Count];
+	u32 TagCount;
 	hha_tag* Tags;
     
 	asset_type AssetTypes[Asset_Count];

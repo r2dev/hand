@@ -16,7 +16,7 @@ struct win32_window_dimension {
 
 struct win32_sound_output
 {
-	uint32 RunningSampleIndex;
+	u32 RunningSampleIndex;
 	int SamplesPerSecond;
 	int WavePeriod;
 	int BytesPerSample;
@@ -37,7 +37,7 @@ struct win32_game_code {
     
     debug_game_frame_end* DEBUGFrameEnd;
 	
-	bool32 IsValid;
+	b32 IsValid;
 };
 
 struct win32_recorded_input {

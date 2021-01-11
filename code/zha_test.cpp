@@ -44,35 +44,35 @@ struct loaded_font {
 
 #pragma pack(push, 1)
 struct bitmap_header {
-	uint16 FileType;
-	uint32 FileSize;
-	uint16 Reserved1;
-	uint16 Reserved2;
-	uint32 BitmapOffset;
-	uint32 Size;
-	int32 Width;
-	int32 Height;
-	uint16 Planes;
-	uint16 BitsPerPixel;
-	uint32 Compression;
-	uint32 SizeOfBitmap;
-	int32 HorzResolution;
-	int32 VertResolution;
-	uint32 ColorsUsed;
-	uint32 ColorsImportant;
-	uint32 RedMask;
-	uint32 GreenMask;
-	uint32 BlueMask;
+	s16 FileType;
+	u32 FileSize;
+	s16 Reserved1;
+	s16 Reserved2;
+	u32 BitmapOffset;
+	u32 Size;
+	s32 Width;
+	s32 Height;
+	s16 Planes;
+	s16 BitsPerPixel;
+	u32 Compression;
+	u32 SizeOfBitmap;
+	s32 HorzResolution;
+	s32 VertResolution;
+	u32 ColorsUsed;
+	u32 ColorsImportant;
+	u32 RedMask;
+	u32 GreenMask;
+	u32 BlueMask;
 };
 
 
 struct WAVE_header {
-	uint32 RIFFID;
-	uint32 Size;
-	uint32 WaveID;
+	u32 RIFFID;
+	u32 Size;
+	u32 WaveID;
 };
 
-#define RIFF_CODE(a, b, c, d) (((uint32)(a) << 0) | ((uint32)(b) << 8) | ((uint32)(c) << 16) | ((uint32)(d) << 24))
+#define RIFF_CODE(a, b, c, d) (((u32)(a) << 0) | ((u32)(b) << 8) | ((u32)(c) << 16) | ((u32)(d) << 24))
 enum {
 	WAVE_ChunkID_fmt = RIFF_CODE('f', 'm', 't', ' '),
 	WAVE_ChunkID_data = RIFF_CODE('d', 'a', 't', 'a'),
@@ -81,43 +81,43 @@ enum {
 };	
 
 struct WAVE_chunk {
-	uint32 ID;
-	uint32 Size;
+	u32 ID;
+	u32 Size;
 };
 
 struct WAVE_fmt {
-	uint16 wFormatTag;
-	uint16 nChannels;
-	uint32 nSamplesPerSec;
-	uint32 nAvgBytesPerSec;
-	uint16 nBlockAlign;
-	uint16 wBitsPerSample;
-	uint16 cbSize;
-	uint16 wValidBitsPerSample;
-	uint32 dwChannelMask;
-	uint8 SubFormat[16];
+	s16 wFormatTag;
+	s16 nChannels;
+	u32 nSamplesPerSec;
+	u32 nAvgBytesPerSec;
+	s16 nBlockAlign;
+	s16 wBitsPerSample;
+	s16 cbSize;
+	s16 wValidBitsPerSample;
+	u32 dwChannelMask;
+	u8 SubFormat[16];
     
 };
 
 #pragma pack(pop)
 
 struct riff_iterator {
-	uint8* At;
-	uint8* Stop;
+	u8* At;
+	u8* Stop;
 };
 
 inline riff_iterator
 ParseChunkAt(void* At, void* Stop) {
 	riff_iterator Iter;
-	Iter.At = (uint8*)At;
-	Iter.Stop = (uint8*)Stop;
+	Iter.At = (u8*)At;
+	Iter.Stop = (u8*)Stop;
 	return(Iter);
     
 }
 
-inline bool32
+inline b32
 IsValid(riff_iterator Iter) {
-	bool32 Result = (Iter.At < Iter.Stop);
+	b32 Result = (Iter.At < Iter.Stop);
 	return(Result);
 }
 
@@ -125,15 +125,15 @@ inline riff_iterator
 NextChunk(riff_iterator Iter) {
 	WAVE_chunk* Chunk = (WAVE_chunk*)Iter.At;
 	// padding
-	uint32 Size = (Chunk->Size + 1) & ~1;
+	u32 Size = (Chunk->Size + 1) & ~1;
 	Iter.At += sizeof(WAVE_chunk) + Size;
 	return(Iter);
 }
 
-inline uint32
+inline u32
 GetType(riff_iterator Iter) {
 	WAVE_chunk* Chunk = (WAVE_chunk*)Iter.At;
-	uint32 Result = Chunk->ID;
+	u32 Result = Chunk->ID;
 	return(Result);
 }
 
@@ -145,10 +145,10 @@ GetChunkData(riff_iterator Iter) {
 	return(Result);
 }
 
-inline uint32
+inline u32
 GetChunkDataSize(riff_iterator Iter) {
 	WAVE_chunk* Chunk = (WAVE_chunk*)Iter.At;
-	uint32 Result = Chunk->Size;
+	u32 Result = Chunk->Size;
 	return(Result);
 }
 
@@ -184,18 +184,18 @@ LoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
         Result.Free = ReadResult.Contents;
         
 		WAVE_header* Header = (WAVE_header*)ReadResult.Contents;
-		uint32 ChannelCount = 0;
-		uint32 SampleDataSize = 0;
-		int16* SampleData = 0;
+		u32 ChannelCount = 0;
+		u32 SampleDataSize = 0;
+		s16* SampleData = 0;
         
-		for (riff_iterator Iter = ParseChunkAt(Header + 1, (uint8*)(Header + 1) + Header->Size - 4);
+		for (riff_iterator Iter = ParseChunkAt(Header + 1, (u8*)(Header + 1) + Header->Size - 4);
              IsValid(Iter);
              Iter = NextChunk(Iter)
              ) {
 			switch (GetType(Iter)) {
                 
                 case WAVE_ChunkID_data: {
-                    SampleData = (int16*)GetChunkData(Iter);
+                    SampleData = (s16*)GetChunkData(Iter);
                     SampleDataSize = GetChunkDataSize(Iter);
                 } break;
                 case WAVE_ChunkID_fmt: {
@@ -211,7 +211,7 @@ LoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 		}
 		Assert(SampleData && ChannelCount);
 		Result.ChannelCount = ChannelCount;
-		u32 SampleCount = SampleDataSize / (ChannelCount * sizeof(int16));
+		u32 SampleCount = SampleDataSize / (ChannelCount * sizeof(s16));
         
 		if (ChannelCount == 1) {
 			Result.Samples[0] = SampleData;
@@ -220,8 +220,8 @@ LoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 		else if (ChannelCount == 2) {
 			Result.Samples[0] = SampleData;
 			Result.Samples[1] = SampleData + SampleCount;
-			for (uint32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex) {
-				int16 Source = SampleData[2 * SampleIndex];
+			for (u32 SampleIndex = 0; SampleIndex < SampleCount; ++SampleIndex) {
+				s16 Source = SampleData[2 * SampleIndex];
 				SampleData[2 * SampleIndex] = SampleData[SampleIndex];
 				SampleData[SampleIndex] = Source;
 			}
@@ -264,14 +264,14 @@ LoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
 	if (ReadResult.ContentsSize != 0) {
         Result.Free = ReadResult.Contents;
 		bitmap_header* Header = (bitmap_header*)ReadResult.Contents;
-		uint32* Pixels = (uint32*)((uint8*)ReadResult.Contents + Header->BitmapOffset);
+		u32* Pixels = (u32*)((u8*)ReadResult.Contents + Header->BitmapOffset);
 		Result.Height = Header->Height;
 		Result.Width = Header->Width;
 		Result.Memory = Pixels;
-		uint32 RedMask = Header->RedMask;
-		uint32 GreenMask = Header->GreenMask;
-		uint32 BlueMask = Header->BlueMask;
-		uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+		u32 RedMask = Header->RedMask;
+		u32 GreenMask = Header->GreenMask;
+		u32 BlueMask = Header->BlueMask;
+		u32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
         
 		bit_scan_result RedScan = FindLeastSignificantSetBit(RedMask);
 		bit_scan_result GreenScan = FindLeastSignificantSetBit(GreenMask);
@@ -282,42 +282,42 @@ LoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
 		Assert(BlueScan.Found);
 		Assert(AlphaScan.Found);
         
-		int32 RedShiftDown = (int32)RedScan.Index;
-		int32 GreenShiftDown = (int32)GreenScan.Index;
-		int32 BlueShiftDown = (int32)BlueScan.Index;
-		int32 AlphaShiftDown = (int32)AlphaScan.Index;
+		s32 RedShiftDown = (s32)RedScan.Index;
+		s32 GreenShiftDown = (s32)GreenScan.Index;
+		s32 BlueShiftDown = (s32)BlueScan.Index;
+		s32 AlphaShiftDown = (s32)AlphaScan.Index;
         
-		uint32* SourceDest = Pixels;
-		for (int32 Y = 0;
+		u32* SourceDest = Pixels;
+		for (s32 Y = 0;
              Y < Header->Height;
              ++Y)
 		{
-			for (int32 X = 0;
+			for (s32 X = 0;
                  X < Header->Width;
                  ++X)
 			{
-				uint32 C = *SourceDest;
+				u32 C = *SourceDest;
 				v4 Texel = {
-					(real32)((C & RedMask) >> RedShiftDown),
-					(real32)((C & GreenMask) >> GreenShiftDown),
-					(real32)((C & BlueMask) >> BlueShiftDown),
-					(real32)((C & AlphaMask) >> AlphaShiftDown)
+					(r32)((C & RedMask) >> RedShiftDown),
+					(r32)((C & GreenMask) >> GreenShiftDown),
+					(r32)((C & BlueMask) >> BlueShiftDown),
+					(r32)((C & AlphaMask) >> AlphaShiftDown)
 				};
 				Texel = SRGBToLinear1(Texel);
 				Texel.rgb *= Texel.a;
 				Texel = Linear1ToSRGB(Texel);
                 
-				*SourceDest++ = ((uint32)(Texel.a + 0.5f) << 24) |
-					((uint32)(Texel.r + 0.5f) << 16) |
-					((uint32)(Texel.g + 0.5f) << 8) |
-					((uint32)(Texel.b + 0.5f) << 0);
+				*SourceDest++ = ((u32)(Texel.a + 0.5f) << 24) |
+					((u32)(Texel.r + 0.5f) << 16) |
+					((u32)(Texel.g + 0.5f) << 8) |
+					((u32)(Texel.b + 0.5f) << 0);
 			}
 		}
 	}
 	Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;
 #if 0
 	Result.Pitch = -Result.Width * BITMAP_BYTE_PER_PIXEL;
-	Result.Memory = (uint8*)Result.Memory - Result.Pitch * (Result.Height - 1);
+	Result.Memory = (u8*)Result.Memory - Result.Pitch * (Result.Height - 1);
 #endif
     
 	return(Result);
@@ -422,10 +422,10 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, hha_asset* Asset) {
                 Texel = SRGBToLinear1(Texel);
                 Texel.rgb *= Texel.a;
                 Texel = Linear1ToSRGB(Texel);
-                *Dest++ = (uint32)(Texel.a + 0.5f) << 24 |
-                    (uint32)(Texel.r + 0.5f) << 16 |
-                    (uint32)(Texel.g + 0.5f) << 8 |
-                    (uint32)(Texel.b + 0.5f) << 0;
+                *Dest++ = (u32)(Texel.a + 0.5f) << 24 |
+                    (u32)(Texel.r + 0.5f) << 16 |
+                    (u32)(Texel.g + 0.5f) << 8 |
+                    (u32)(Texel.b + 0.5f) << 0;
             }
             DestRow -= Result.Pitch;
         }
@@ -563,7 +563,7 @@ EndAssetType(game_assets* Assets) {
 }
 
 internal void
-AddTag(game_assets* Assets, asset_tag_id TagID, real32 Value) {
+AddTag(game_assets* Assets, asset_tag_id TagID, r32 Value) {
     Assert(Assets->AssetIndex);
     
     hha_asset *HHA = Assets->Assets + Assets->AssetIndex;
@@ -675,10 +675,10 @@ PackHero() {
     game_assets* Assets = &Assets_;
     InitialAssets(Assets);
     
-    real32 AngleRight = 0.0f * Tau32;
-    real32 AngleBack = 0.25f * Tau32;
-    real32 AngleLeft = 0.5f * Tau32;
-    real32 AngleFront = 0.75f * Tau32;
+    r32 AngleRight = 0.0f * Tau32;
+    r32 AngleBack = 0.25f * Tau32;
+    r32 AngleLeft = 0.5f * Tau32;
+    r32 AngleFront = 0.75f * Tau32;
     
     BeginAssetType(Assets, Asset_Shadow);
     AddBitmapAsset(Assets, "test/test_hero_shadow.bmp", 0.5f, 0.156682029f);
@@ -838,4 +838,4 @@ int main(int ArgCount, char **Args) {
     PackHero();
     PackFont();
     return(0);
-} 
+}

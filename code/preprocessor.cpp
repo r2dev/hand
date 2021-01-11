@@ -254,7 +254,8 @@ ParseIntrospectable(tokenizer *Tokenizer) {
         token TypeToken = GetToken(Tokenizer);
         if (TokenEqual(TypeToken, "struct")) {
             ParseStruct(Tokenizer);
-        } else {
+        } else if (TokenEqual(TypeToken, "union")) {
+        }else {
             fprintf(stderr, "Error: Introspect only support struct");
         }
     } else {
