@@ -1196,9 +1196,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     EntityOutlineColor = {1, 0, 1, 1};
                     PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
                     
-                    DEBUG_BEGIN_HOT_ELEMENT(Entity);
+                    DEBUG_BEGIN_DATA_BLOCK("HotEntity", GameState->LowEntities + Entity->StorageIndex, 0);
                     DEBUG_VALUE(Entity->P);
-                    DEBUG_END_HOT_ELEMENT();
+                    DEBUG_END_DATA_BLOCK();
                 }
                 
             }

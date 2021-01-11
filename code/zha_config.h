@@ -8,7 +8,7 @@
 #define DEBUGUI_FamiliarFollowsHero 0
 //#define DEBUGUI_Renderer 
 //#define DEBUGUI_Camera 
-#define DEBUGUI_DebugCameraDistance 10.099997f
+#define DEBUGUI_DebugCameraDistance 15.199997f
 #define DEBUGUI_RoomBaseCamera 0
 #define DEBUGUI_UseDebugCamera 0
 #define DEBUGUI_ShowLightningSampleSource 1

@@ -399,6 +399,9 @@ extern "C" {
         DebugEvent_V4,
         DebugEvent_Rectangle2,
         DebugEvent_Rectangle3,
+        
+        DebugEvent_OpenDataBlock,
+        DebugEvent_CloseDataBlock,
     };
     
     struct threadid_coreindex {
@@ -419,6 +422,7 @@ extern "C" {
             s32 VecS32[6];
             u32 VecU32[6];
             r32 VecR32[6];
+            void* VecPtr[3];
         };
     };
 	
@@ -550,24 +554,44 @@ DEBUGValueSetEventData(debug_event *Event, u32 Value) {
     Event->VecU32[0] = Value;
 }
 
-#define DEBUG_BEGIN_HOT_ELEMENT(...)
+#define DEBUG_BEGIN_DATA_BLOCK(Name, Ptr0, Ptr1) { \
+int Counter = __COUNTER__; \
+RecordDebugEventCommon(Counter, DebugEvent_OpenDataBlock); \
+Event->VecPtr[0] = Ptr0; \
+Event->VecPtr[1] = Ptr1; \
+debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+Record->FileName = __FILE__; \
+Record->LineNumber = __LINE__; \
+Record->BlockName = Name; \
+}
 
-
+#define DEBUG_END_DATA_BLOCK() { \
+int Counter = __COUNTER__; \
+RecordDebugEventCommon(Counter, DebugEvent_CloseDataBlock); \
+debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+Record->FileName = __FILE__; \
+Record->LineNumber = __LINE__; \
+}
 
 #define DEBUG_VALUE(Value) { \
 int Counter = __COUNTER__; \
 RecordDebugEventCommon(Counter, DebugEvent_R32); \
 DEBUGValueSetEventData(Event, Value); \
+debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+Record->FileName = __FILE__; \
+Record->LineNumber = __LINE__; \
+Record->BlockName = "Value"; \
 }
+
 #define DEBUG_BEGIN_ARRAY(...)
 #define DEBUG_END_ARRAY(...)
-#define DEBUG_END_HOT_ELEMENT(...)
+
 #else
-#define DEBUG_BEGIN_HOT_ELEMENT(...)
+#define DEBUG_BEGIN_DATA_BLOCK(...)
 #define DEBUG_VALUE(...)
 #define DEBUG_BEGIN_ARRAY(...)
 #define DEBUG_END_ARRAY(...)
-#define DEBUG_END_HOT_ELEMENT(...)
+#define DEBUG_END_DATA_BLOCK(...)
 #endif
 
 

@@ -148,7 +148,8 @@ struct open_debug_block {
 struct debug_thread {
     u32 ID;
     u32 LaneIndex;
-    open_debug_block *FirstOpenBlock;
+    open_debug_block *FirstOpenCodeBlock;
+    open_debug_block *FirstOpenDataBlock;
     debug_thread *Next;
 };
 
