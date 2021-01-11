@@ -887,7 +887,4 @@ DEBUGValueSetEventData(debug_event *Event, rectangle3 Value) {
     Event->VecR32[5] = Value.Max.z;
 }
 
-
-
-
 #endif

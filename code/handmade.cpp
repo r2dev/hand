@@ -1198,6 +1198,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     
                     DEBUG_BEGIN_DATA_BLOCK("HotEntity", GameState->LowEntities + Entity->StorageIndex, 0);
                     DEBUG_VALUE(Entity->P);
+                    DEBUG_VALUE(Entity->dP);
+                    DEBUG_VALUE(Entity->FacingDirection);
+                    DEBUG_VALUE(Entity->WalkableDim);
+                    DEBUG_VALUE(Entity->WalkableHeight);
                     DEBUG_END_DATA_BLOCK();
                 }
                 

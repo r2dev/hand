@@ -11,6 +11,9 @@ enum debug_variable_type {
     DebugVariableType_V2,
     DebugVariableType_V3,
     DebugVariableType_V4,
+    DebugVariableType_Rectangle2,
+    DebugVariableType_Rectangle3,
+    
     
     DebugVariableType_CounterThreadList,
     DebugVariableType_BitmapDiplay,
@@ -94,6 +97,7 @@ struct debug_variable {
         v2 Vector2;
         v3 Vector3;
         v4 Vector4;
+        
         debug_profile_setting ProfileSetting;
         debug_bitmap_display BitmapDisplay;
         debug_variable_link VarGroup;
@@ -132,6 +136,9 @@ struct debug_frame {
     u64 BeginClock;
     u64 EndClock;
     r32 WallSecondsElapsed;
+    
+    debug_variable *RootGroup;
+    
     u32 RegionCount;
     debug_frame_region *Regions;
     
@@ -142,6 +149,10 @@ struct open_debug_block {
     debug_event *Event;
     open_debug_block *Parent;
     open_debug_block *NextFree;
+    
+    // only data block
+    debug_variable *Group;
+    
     debug_record* Source;
 };
 
