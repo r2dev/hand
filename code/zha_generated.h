@@ -51,6 +51,13 @@ member_definition MembersOf_sim_region[] =
   {MetaMemberFlag_IsPointer, MetaType_sim_entity, "Entities", (u32)&((sim_region *)0)->Entities},
   {0, MetaType_sim_entity_hash, "Hash", (u32)&((sim_region *)0)->Hash},
 };
+member_definition MembersOf_world_position[] = 
+{
+  {0, MetaType_s32, "ChunkX", (u32)&((world_position *)0)->ChunkX},
+  {0, MetaType_s32, "ChunkY", (u32)&((world_position *)0)->ChunkY},
+  {0, MetaType_s32, "ChunkZ", (u32)&((world_position *)0)->ChunkZ},
+  {0, MetaType_v3, "Offset_", (u32)&((world_position *)0)->Offset_},
+};
 member_definition MembersOf_rectangle3[] = 
 {
   {0, MetaType_v3, "Min", (u32)&((rectangle3 *)0)->Min},
@@ -61,17 +68,10 @@ member_definition MembersOf_rectangle2[] =
   {0, MetaType_v2, "Min", (u32)&((rectangle2 *)0)->Min},
   {0, MetaType_v2, "Max", (u32)&((rectangle2 *)0)->Max},
 };
-member_definition MembersOf_world_position[] = 
-{
-  {0, MetaType_s32, "ChunkX", (u32)&((world_position *)0)->ChunkX},
-  {0, MetaType_s32, "ChunkY", (u32)&((world_position *)0)->ChunkY},
-  {0, MetaType_s32, "ChunkZ", (u32)&((world_position *)0)->ChunkZ},
-  {0, MetaType_v3, "Offset_", (u32)&((world_position *)0)->Offset_},
-};
 #define META_HANDLE_TYPE_DUMP(MemberPtr, LineIndent) \
-    case MetaType_world_position: {DEBUGTextLine(Member->Name);DEBUGDumpStruct(ArrayCount(MembersOf_world_position), MembersOf_world_position, MemberPtr, LineIndent + 1);} break; \
     case MetaType_rectangle2: {DEBUGTextLine(Member->Name);DEBUGDumpStruct(ArrayCount(MembersOf_rectangle2), MembersOf_rectangle2, MemberPtr, LineIndent + 1);} break; \
     case MetaType_rectangle3: {DEBUGTextLine(Member->Name);DEBUGDumpStruct(ArrayCount(MembersOf_rectangle3), MembersOf_rectangle3, MemberPtr, LineIndent + 1);} break; \
+    case MetaType_world_position: {DEBUGTextLine(Member->Name);DEBUGDumpStruct(ArrayCount(MembersOf_world_position), MembersOf_world_position, MemberPtr, LineIndent + 1);} break; \
     case MetaType_sim_region: {DEBUGTextLine(Member->Name);DEBUGDumpStruct(ArrayCount(MembersOf_sim_region), MembersOf_sim_region, MemberPtr, LineIndent + 1);} break; \
     case MetaType_sim_entity: {DEBUGTextLine(Member->Name);DEBUGDumpStruct(ArrayCount(MembersOf_sim_entity), MembersOf_sim_entity, MemberPtr, LineIndent + 1);} break; \
     case MetaType_sim_entity_collision_volume_group: {DEBUGTextLine(Member->Name);DEBUGDumpStruct(ArrayCount(MembersOf_sim_entity_collision_volume_group), MembersOf_sim_entity_collision_volume_group, MemberPtr, LineIndent + 1);} break; \

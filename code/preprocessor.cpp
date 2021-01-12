@@ -255,7 +255,7 @@ ParseIntrospectable(tokenizer *Tokenizer) {
         if (TokenEqual(TypeToken, "struct")) {
             ParseStruct(Tokenizer);
         } else if (TokenEqual(TypeToken, "union")) {
-        }else {
+        } else {
             fprintf(stderr, "Error: Introspect only support struct");
         }
     } else {
@@ -267,7 +267,8 @@ int main(int ArgCount, char **Args) {
     char *FileName[] = {
         "handmade_sim_region.h",
         "handmade_math.h",
-        "handmade_world.h"
+        "handmade_world.h",
+        "handmade_platform.h"
     };
     for (int FileIndex = 0; FileIndex < (sizeof(FileName) / sizeof(FileName[0])); ++FileIndex) {
         char *LoadedContent = ReadEntireFileIntoMemoryAndNullTerminate(FileName[FileIndex]);

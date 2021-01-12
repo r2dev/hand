@@ -1,19 +1,6 @@
 #if !defined(HANDMADE_MATH_H)
 #define HANDMADE_MATH_H
 #include <limits.h>
-struct v2 {
-	union {
-		struct {
-			r32 x;
-			r32 y;
-		};
-		r32 E[2];
-	};
-    
-	inline v2& operator*=(r32 A);
-	inline v2& operator+=(v2 A);
-    inline v2& operator-=(v2 A);
-};
 
 inline v2
 V2(r32 X, r32 Y) {
@@ -22,34 +9,6 @@ V2(r32 X, r32 Y) {
 	Result.y = Y;
 	return Result;
 }
-
-struct v3 {
-	union {
-		struct {
-			r32 x, y, z;
-		};
-		struct {
-			r32 r, g, b;
-		};
-		struct {
-			v2 xy;
-			r32 Ignored0_;
-		};
-		r32 E[3];
-	};
-	inline v3& operator*=(r32 A);
-	inline v3& operator+=(v3 A);
-    inline v3& operator-=(v3 A);
-};
-
-Introspect(category: "math") struct rectangle3 {
-	v3 Min;
-	v3 Max;
-};
-Introspect(category: "math") struct rectangle2 {
-	v2 Min;
-	v2 Max;
-};
 
 struct rectangle2i {
 	s32 MinX;
@@ -82,52 +41,6 @@ V3(r32 X, r32 Y, r32 Z) {
 	Result.z = Z;
 	return Result;
 }
-
-//v4
-struct v4 {
-	union {
-		struct {
-			union {
-				v3 xyz;
-				struct {
-					r32 x, y, z;	
-				};
-			};
-			r32 w;
-		};
-		struct {
-			union {
-				v3 rgb;
-				struct {
-					r32 r, g, b;
-				};
-			};
-			r32 a;
-		};
-		struct {
-			v2 xy;
-			r32 Ignored0_;
-			r32 Ignored1_;
-		};
-		struct {
-			r32 Ignored2_;
-			v2 yz;
-			r32 Ignored3_;
-		};
-		struct {
-			r32 Ignored4_;
-			r32 Ignored5_;
-			v2 zw;
-			
-		};
-		r32 E[4];
-	};
-    
-	inline v4& operator*=(r32 A);
-	inline v4& operator+=(v4 A);
-};
-
-
 
 inline v4
 V4(r32 X, r32 Y, r32 Z, r32 W) {
@@ -168,9 +81,9 @@ operator+(v4 A, v4 B) {
 }
 
 inline v4&
-v4::operator+=(v4 A) {
-	*this = *this + A;
-	return (*this);
+operator+=(v4 &A, v4 B) {
+    A= A + B;
+	return (A);
 }
 
 inline v4
@@ -203,9 +116,9 @@ operator*(v4 B, r32 A) {
 }
 
 inline v4&
-v4::operator*=(r32 A) {
-	*this = A * *this;
-	return (*this);
+operator*=(v4& A, r32 B) {
+    A = A * B;
+	return (A);
 }
 inline v4
 Hadamard(v4 A, v4 B) {
@@ -345,9 +258,9 @@ operator+(v2 A, v2 B) {
 }
 
 inline v2&
-v2::operator+=(v2 A) {
-	*this = *this + A;
-	return (*this);
+operator+=(v2& A, v2 B) {
+    A = A + B;
+	return(A);
 }
 
 inline v2
@@ -359,9 +272,9 @@ operator-(v2 A, v2 B) {
 }
 
 inline v2&
-v2::operator-=(v2 A) {
-	*this = *this - A;
-	return (*this);
+operator-=(v2& A, v2 B) {
+    A = A - B;
+	return(A);
 }
 
 inline v2
@@ -380,9 +293,9 @@ operator*(v2 B, r32 A) {
 }
 
 inline v2&
-v2::operator*=(r32 A) {
-	*this = A * *this;
-	return (*this);
+operator*=(v2& A, r32 B) {
+    A= A * B;
+	return (A);
 }
 
 inline v2
@@ -446,9 +359,9 @@ operator+(v3 A, v3 B) {
 }
 
 inline v3&
-v3::operator+=(v3 A) {
-	*this = *this + A;
-	return (*this);
+operator+=(v3& A, v3 B) {
+    A= A + B;
+	return(A);
 }
 
 inline v3
@@ -461,9 +374,9 @@ operator-(v3 A, v3 B) {
 }
 
 inline v3&
-v3::operator-=(v3 A) {
-	*this = *this - A;
-	return (*this);
+operator-=(v3& A, v3 B) {
+    A= A - B;
+	return(A);
 }
 
 inline v3
@@ -484,9 +397,9 @@ operator*(v3 B, r32 A) {
 }
 
 inline v3&
-v3::operator*=(r32 A) {
-	*this = A * *this;
-	return (*this);
+operator*=(v3& A, r32 B) {
+    A= A * B;
+	return(A);
 }
 
 inline v3
@@ -843,48 +756,5 @@ GetClampedRectArea(rectangle2i A) {
     return(Result);
 }
 
-
-inline void
-DEBUGValueSetEventData(debug_event *Event, v2 Value) {
-    Event->Type = DebugEvent_V2;
-    Event->VecR32[0] = Value.x;
-    Event->VecR32[1] = Value.y;
-}
-inline void
-DEBUGValueSetEventData(debug_event *Event, v3 Value) {
-    Event->Type = DebugEvent_V3;
-    Event->VecR32[0] = Value.x;
-    Event->VecR32[1] = Value.y;
-    Event->VecR32[2] = Value.z;
-}
-
-inline void
-DEBUGValueSetEventData(debug_event *Event, v4 Value) {
-    Event->Type = DebugEvent_V4;
-    Event->VecR32[0] = Value.x;
-    Event->VecR32[1] = Value.y;
-    Event->VecR32[2] = Value.z;
-    Event->VecR32[3] = Value.w;
-}
-
-inline void
-DEBUGValueSetEventData(debug_event *Event, rectangle2 Value) {
-    Event->Type = DebugEvent_Rectangle2;
-    Event->VecR32[0] = Value.Min.x;
-    Event->VecR32[1] = Value.Min.y;
-    Event->VecR32[2] = Value.Max.x;
-    Event->VecR32[3] = Value.Max.y;
-}
-
-inline void
-DEBUGValueSetEventData(debug_event *Event, rectangle3 Value) {
-    Event->Type = DebugEvent_Rectangle3;
-    Event->VecR32[0] = Value.Min.x;
-    Event->VecR32[1] = Value.Min.y;
-    Event->VecR32[2] = Value.Min.z;
-    Event->VecR32[3] = Value.Max.x;
-    Event->VecR32[4] = Value.Max.y;
-    Event->VecR32[5] = Value.Max.z;
-}
 
 #endif

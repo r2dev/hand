@@ -26,7 +26,7 @@ DEBUGGetState(void) {
 }
 
 internal debug_tree*
-DEBUGAddTree(debug_state *DebugState, debug_variable* Group, v2 TopLeftP) {
+DEBUGAddTree(debug_state *DebugState, debug_variable_group *Group, v2 TopLeftP) {
     debug_tree* Tree = (debug_tree*)PushStruct(&DebugState->DebugArena, debug_tree);
     Tree->UIP = TopLeftP;
     Tree->Group = Group;
@@ -202,46 +202,61 @@ DEBUGVariableToText(char* Buffer, char *End, debug_variable* Var, u32 Flags) {
                           ((Flags & DebugVarToText_Colon)? ":": ""));
     }
     switch (Var->Type) {
-        case DebugVariableType_Bool32:{
+        case DebugType_B32:{
             if (Flags & DebugVarToText_PrettyBools) {
                 At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                                  "%s", Var->Bool32? "True": "False");
+                                  "%s", Var->Event.Bool32? "True": "False");
             } else {
                 At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                                  "%d", Var->Bool32);
+                                  "%d", Var->Event.Bool32);
             }
             
         } break;
-        case DebugVariableType_Int32: {
+        case DebugType_S32: {
             At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                              "%i", Var->Int32);
+                              "%i", Var->Event.Int32);
         } break;
-        case DebugVariableType_UInt32: {
+        case DebugType_U32: {
             At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                              "%u", Var->UInt32);
+                              "%u", Var->Event.UInt32);
         } break;
-        case DebugVariableType_Real32: {
+        case DebugType_R32: {
             At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                              "%f", Var->Real32);
+                              "%f", Var->Event.Real32);
             if (Flags & DebugVarToText_FloatSuffix) {
                 *At++ = 'f';
             }
         } break;
-        case DebugVariableType_V2: {
+        case DebugType_V2: {
             At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                              "V2(%f, %f)", Var->Vector2.x, Var->Vector2.y);
+                              "V2(%f, %f)", Var->Event.Vector2.x, Var->Event.Vector2.y);
         } break;
-        case DebugVariableType_V3: {
+        case DebugType_V3: {
             At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                              "V3(%f, %f, %f)", Var->Vector3.x, Var->Vector3.y, Var->Vector3.z);
+                              "V3(%f, %f, %f)", Var->Event.Vector3.x, Var->Event.Vector3.y, Var->Event.Vector3.z);
         } break;
-        case DebugVariableType_V4: {
+        case DebugType_V4: {
             At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
-                              "V4(%ff, %ff, %ff, %ff)", Var->Vector4.x, Var->Vector4.y, Var->Vector4.z, Var->Vector4.w);
+                              "V4(%ff, %ff, %ff, %ff)", Var->Event.Vector4.x, Var->Event.Vector4.y, Var->Event.Vector4.z, Var->Event.Vector4.w);
         } break;
-        case DebugVariableType_CounterThreadList:
-        case DebugVariableType_BitmapDiplay:
-        case DebugVariableType_VarGroup: {
+        
+        case DebugType_Rectangle2: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "Min(v2):%f, %f / Max(v2):%f, %f",
+                              Var->Event.Rect2.Min.x, Var->Event.Rect2.Min.y,
+                              Var->Event.Rect2.Max.x, Var->Event.Rect2.Max.y);
+        } break;
+        
+        case DebugType_Rectangle3: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "Min(v3):%f, %f, %f / Max(v3):%f, %f, %f",
+                              Var->Event.Rect3.Min.x, Var->Event.Rect3.Min.y, Var->Event.Rect3.Min.z,
+                              Var->Event.Rect3.Max.x, Var->Event.Rect3.Max.y, Var->Event.Rect3.Max.z);
+        } break;
+        
+        case DebugType_CounterThreadList:
+        case DebugType_BitmapID:
+        case DebugType_VarGroup: {
         } break;
         InvalidDefaultCase;
     }
@@ -261,6 +276,8 @@ struct debug_variable_iterator {
 
 internal void
 WriteZhaConfig(debug_state* DebugState) {
+    
+#if 0    
     char Temp[4096];
     char *At = Temp;
     char* End = Temp + sizeof(Temp);
@@ -299,6 +316,7 @@ WriteZhaConfig(debug_state* DebugState) {
         DebugState->Compiling = true;
         DebugState->Compiler = Platform.DEBUGExecuteSystemCommand("../code/", "c:\\windows\\system32\\cmd.exe", "/C build.bat");
     }
+#endif
     
 }
 
@@ -548,79 +566,80 @@ DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
         
         u32 Depth = 0;
         
-        debug_variable *Group = Tree->Group;
+        debug_variable_group *Group = Tree->Group;
         if (DebugState->FrameCount > 0) {
             Group = DebugState->Frames[0].RootGroup;
         }
-        
-        debug_variable_iterator Stack[DEBUG_MAX_VARIABLE_STACK_SIZE];
-        Stack[Depth].Link = Group->VarGroup.Next;
-        Stack[Depth].Sentinal = &Group->VarGroup;
-        ++Depth;
-        while (Depth > 0) {
-            debug_variable_iterator *Iter = Stack + (Depth - 1);
-            if (Iter->Link == Iter->Sentinal) {
-                --Depth;
-            } else {
-                Layout.Depth = Depth;
-                debug_variable* Var = Iter->Link->Var;
-                debug_variable_link *Link = Iter->Link;
-                Iter->Link = Iter->Link->Next;
-                debug_interaction AutoInteraction = LinkInteraction(Tree, DebugInteraction_AutoModifyVariable, Link);
-                
-                b32 IsHot = InteractionAreEqual(DebugState->HotInteraction, AutoInteraction);
-                v4 ItemColor = (IsHot)? v4{1, 1, 0, 1}: v4{1, 1, 1, 1};
-                
-                debug_view *View = GetDebugViewFor(DebugState, GetDebugIDFromLink(Tree, Link));
-                
-                switch(Var->Type) {
-                    case DebugVariableType_CounterThreadList: {
-                        
-                        layout_element Element = BeginElementRectangle(&Layout, &View->InlineBlock.Dim);
-                        SetElementSizable(&Element);
-                        SetElementDefaultInteraction(&Element, AutoInteraction);
-                        EndElement(&Element);
-                        DrawProfile(DebugState, Element.Bounds, MouseP);
-                    } break;
-                    case DebugVariableType_BitmapDiplay: {
-                        loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, Var->BitmapDisplay.ID, RenderGroup->GenerationID);
-                        r32 BitmapScale = View->InlineBlock.Dim.y;
-                        if (Bitmap) {
-                            used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, V3(0, 0, 0), 1.0f);
-                            View->InlineBlock.Dim.x = Dim.Size.x;
-                        }
-                        debug_interaction TearInteraction = LinkInteraction(Tree, DebugInteraction_TearValue, Link);
-                        
-                        layout_element Element = BeginElementRectangle(&Layout, &View->InlineBlock.Dim);
-                        SetElementSizable(&Element);
-                        SetElementDefaultInteraction(&Element, TearInteraction);
-                        EndElement(&Element);
-                        PushRect(DebugState->RenderGroup, Element.Bounds, 0.0f, v4{0, 0, 0, 1.0f});
-                        PushBitmap(DebugState->RenderGroup, Var->BitmapDisplay.ID, BitmapScale, V3(GetMinCorner(Element.Bounds), 0.0f), v4{1, 1, 1, 1}, 0.0f);
-                    } break;
-                    default: {
-                        DEBUGVariableToText(Text, Text + sizeof(Text), Var, DebugVarToText_AddName|DebugVarToText_FloatSuffix
-                                            |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools);
-                        
-                        r32 LeftX = Layout.At.x + Layout.Depth * Layout.LineAdvance * 2.0f;
-                        r32 TopY = Layout.At.y;
-                        rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
-                        
-                        v2 Dim = {GetDim(TextBound).x, Layout.LineAdvance};
-                        layout_element Element = BeginElementRectangle(&Layout, &Dim);
-                        SetElementDefaultInteraction(&Element, AutoInteraction);
-                        EndElement(&Element);
-                        
-                        DEBUGTextOutAt(V2(GetMinCorner(Element.Bounds).x, GetMaxCorner(Element.Bounds).y - DebugState->FontScale * GetStartingBaselineY(DebugState->FontInfo)), Text, ItemColor);
-                    } break;
-                }
-                if (Var->Type == DebugVariableType_VarGroup 
-                    //&& View->Collapsible.ExpandedAlways
-                    ) {
-                    Iter = Stack + Depth;
-                    Iter->Link = Var->VarGroup.Next;
-                    Iter->Sentinal = &Var->VarGroup;
-                    Depth++;
+        if (Group) {
+            debug_variable_iterator Stack[DEBUG_MAX_VARIABLE_STACK_SIZE];
+            Stack[Depth].Link = Group->Sentinal.Next;
+            Stack[Depth].Sentinal = &Group->Sentinal;
+            ++Depth;
+            while (Depth > 0) {
+                debug_variable_iterator *Iter = Stack + (Depth - 1);
+                if (Iter->Link == Iter->Sentinal) {
+                    --Depth;
+                } else {
+                    Layout.Depth = Depth;
+                    debug_variable* Var = Iter->Link->Var;
+                    debug_variable_link *Link = Iter->Link;
+                    Iter->Link = Iter->Link->Next;
+                    debug_interaction AutoInteraction = LinkInteraction(Tree, DebugInteraction_AutoModifyVariable, Link);
+                    
+                    b32 IsHot = InteractionAreEqual(DebugState->HotInteraction, AutoInteraction);
+                    v4 ItemColor = (IsHot)? v4{1, 1, 0, 1}: v4{1, 1, 1, 1};
+                    
+                    debug_view *View = GetDebugViewFor(DebugState, GetDebugIDFromLink(Tree, Link));
+                    
+                    switch(Var->Type) {
+                        case DebugType_CounterThreadList: {
+                            
+                            layout_element Element = BeginElementRectangle(&Layout, &View->InlineBlock.Dim);
+                            SetElementSizable(&Element);
+                            SetElementDefaultInteraction(&Element, AutoInteraction);
+                            EndElement(&Element);
+                            DrawProfile(DebugState, Element.Bounds, MouseP);
+                        } break;
+                        case DebugType_BitmapID: {
+                            loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, Var->Event.BitmapID, RenderGroup->GenerationID);
+                            r32 BitmapScale = View->InlineBlock.Dim.y;
+                            if (Bitmap) {
+                                used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, V3(0, 0, 0), 1.0f);
+                                View->InlineBlock.Dim.x = Dim.Size.x;
+                            }
+                            debug_interaction TearInteraction = LinkInteraction(Tree, DebugInteraction_TearValue, Link);
+                            
+                            layout_element Element = BeginElementRectangle(&Layout, &View->InlineBlock.Dim);
+                            SetElementSizable(&Element);
+                            SetElementDefaultInteraction(&Element, TearInteraction);
+                            EndElement(&Element);
+                            PushRect(DebugState->RenderGroup, Element.Bounds, 0.0f, v4{0, 0, 0, 1.0f});
+                            PushBitmap(DebugState->RenderGroup, Var->Event.BitmapID, BitmapScale, V3(GetMinCorner(Element.Bounds), 0.0f), v4{1, 1, 1, 1}, 0.0f);
+                        } break;
+                        default: {
+                            DEBUGVariableToText(Text, Text + sizeof(Text), Var, DebugVarToText_AddName|DebugVarToText_FloatSuffix
+                                                |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools);
+                            
+                            r32 LeftX = Layout.At.x + Layout.Depth * Layout.LineAdvance * 2.0f;
+                            r32 TopY = Layout.At.y;
+                            rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
+                            
+                            v2 Dim = {GetDim(TextBound).x, Layout.LineAdvance};
+                            layout_element Element = BeginElementRectangle(&Layout, &Dim);
+                            SetElementDefaultInteraction(&Element, AutoInteraction);
+                            EndElement(&Element);
+                            
+                            DEBUGTextOutAt(V2(GetMinCorner(Element.Bounds).x, GetMaxCorner(Element.Bounds).y - DebugState->FontScale * GetStartingBaselineY(DebugState->FontInfo)), Text, ItemColor);
+                        } break;
+                    }
+                    if (Link->Children
+                        //&& View->Collapsible.ExpandedAlways
+                        ) {
+                        Iter = Stack + Depth;
+                        Iter->Link = Link->Children->Sentinal.Next;
+                        Iter->Sentinal = &Link->Children->Sentinal;
+                        Depth++;
+                    }
                 }
             }
         }
@@ -647,15 +666,15 @@ DEBUGBeginInteract(debug_state *DebugState, game_input *Input, v2 MouseP, b32 Al
     if (DebugState->HotInteraction.Type) {
         if (DebugState->HotInteraction.Type == DebugInteraction_AutoModifyVariable) {
             switch(DebugState->HotInteraction.Var->Type) {
-                case DebugVariableType_Bool32: {
+                
+                case DebugType_B32: {
                     DebugState->HotInteraction.Type = DebugInteraction_ToggleValue;
                 } break;
                 
-                case DebugVariableType_Real32: {
+                case DebugType_R32: {
                     DebugState->HotInteraction.Type = DebugInteraction_DragValue;
                 } break;
-                
-                case DebugVariableType_VarGroup: {
+                case DebugType_VarGroup: {
                     DebugState->HotInteraction.Type = DebugInteraction_ToggleValue;
                 } break;
             }
@@ -668,12 +687,14 @@ DEBUGBeginInteract(debug_state *DebugState, game_input *Input, v2 MouseP, b32 Al
         
         switch(DebugState->HotInteraction.Type) {
             case DebugInteraction_TearValue: {
+#if 0                
                 debug_variable* Group = DEBUGAddRootGroup(DebugState, "Tear");
                 DEBUGPushVariableToGroup(DebugState, Group, DebugState->HotInteraction.Var);
                 debug_tree *Tree = DEBUGAddTree(DebugState, Group, MouseP);
                 Tree->UIP = MouseP;
                 DebugState->HotInteraction.Type = DebugInteraction_Move;
                 DebugState->HotInteraction.P = &Tree->UIP;
+#endif
             }; break;
         }
         
@@ -691,10 +712,10 @@ DEBUGEndInteract(debug_state *DebugState, game_input *Input, v2 MouseP) {
             debug_variable *Var = DebugState->Interaction.Var;
             Assert(Var);
             switch (Var->Type) {
-                case DebugVariableType_Bool32: {
-                    Var->Bool32 = !Var->Bool32;
-                } break; 
-                case DebugVariableType_VarGroup: {
+                case DebugType_B32: {
+                    Var->Event.Bool32 = !Var->Event.Bool32;
+                } break;
+                case DebugType_VarGroup: {
                     debug_view *View = GetDebugViewFor(DebugState, DebugState->Interaction.ID);
                     View->Collapsible.ExpandedAlways = !View->Collapsible.ExpandedAlways;
                 } break;
@@ -721,10 +742,9 @@ DEBUGInteract(debug_state* DebugState, game_input *Input, v2 MouseP) {
         v2* P = DebugState->Interaction.P;
         switch(DebugState->Interaction.Type) {
             case DebugInteraction_DragValue: {
-                
                 switch(Var->Type) {
-                    case DebugVariableType_Real32: {
-                        Var->Real32 += 0.1f * dMouseP.x;
+                    case DebugType_R32: {
+                        Var->Event.Real32 += 0.1f * dMouseP.x;
                     } break;
                 }
             } break;
@@ -853,31 +873,33 @@ EventsMatch(debug_event *A, debug_event* B) {
 }
 
 internal debug_variable*
-CollateAddVariable(debug_state *DebugState, char* Name, debug_variable_type Type) {
+CollateAddVariable(debug_state *DebugState, char* Name, debug_type Type) {
     debug_variable* Result = PushStruct(&DebugState->CollateArena, debug_variable);
     Result->Name = (char*)PushCopy(&DebugState->CollateArena, StringLength(Name) + 1, Name);
     Result->Type = Type;
     return(Result);
 }
 
-internal void
-CollateAddVariableToGroup(debug_state* DebugState, debug_variable *Group, debug_variable* Addend) {
+internal debug_variable_link *
+CollateAddVariableToGroup(debug_state* DebugState, debug_variable_group *Group, debug_variable* Addend) {
     debug_variable_link *Link = PushStruct(&DebugState->CollateArena, debug_variable_link);
     Link->Var = Addend;
-    DLIST_INSERT(&Group->VarGroup, Link);
+    Link->Children = 0;
+    DLIST_INSERT(&Group->Sentinal, Link);
+    return(Link);
 }
 
 
-internal debug_variable*
-CollateCreateVariableGroup(debug_state *DebugState, char* GroupName) {
-    debug_variable *Group = CollateAddVariable(DebugState, GroupName, DebugVariableType_VarGroup);
-    DLIST_INIT(&Group->VarGroup);
+internal debug_variable_group*
+CollateCreateVariableGroup(debug_state *DebugState) {
+    debug_variable_group *Group = PushStruct(&DebugState->CollateArena, debug_variable_group);
+    DLIST_INIT(&Group->Sentinal);
     
     return(Group);
 }
 
 internal debug_variable*
-CollateCreateGroupedVariable(debug_state *DebugState, open_debug_block *FirstOpenBlock, char *Name, debug_variable_type Type) {
+CollateCreateGroupedVariable(debug_state *DebugState, open_debug_block *FirstOpenBlock, char *Name, debug_type Type) {
     debug_variable *Result = CollateAddVariable(DebugState, Name, Type);
     Assert(FirstOpenBlock);
     Assert(FirstOpenBlock->Group);
@@ -901,10 +923,10 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
         for (u32 EventIndex = 0; EventIndex < GlobalDebugTable->EventCounts[EventArrayIndex]; ++EventIndex) {
             debug_event *Event = GlobalDebugTable->Events[EventArrayIndex] + EventIndex;
             debug_record* Src = GlobalDebugTable->Records[Event->TranslationUnit] + Event->DebugRecordIndex;
-            if (Event->Type == DebugEvent_FrameMarker) {
+            if (Event->Type == DebugType_FrameMarker) {
                 if (DebugState->CollationFrame) {
                     DebugState->CollationFrame->EndClock = Event->Clock;
-                    DebugState->CollationFrame->WallSecondsElapsed = Event->SecondsElapsed;
+                    DebugState->CollationFrame->WallSecondsElapsed = Event->Real32;
                     ++DebugState->FrameCount;
                     r32 ClockRange = (r32)DebugState->CollationFrame->EndClock - (r32)DebugState->CollationFrame->BeginClock;
 #if 0                 
@@ -921,7 +943,7 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                 DebugState->CollationFrame->BeginClock = Event->Clock;
                 DebugState->CollationFrame->EndClock = 0;
                 DebugState->CollationFrame->RegionCount = 0;
-                DebugState->CollationFrame->RootGroup = CollateCreateVariableGroup(DebugState, "Frame");
+                DebugState->CollationFrame->RootGroup = CollateCreateVariableGroup(DebugState);
                 DebugState->CollationFrame->Regions = PushArray(&DebugState->CollateArena, MAX_REGIONS_PER_FRAME, debug_frame_region);
                 DebugState->CollationFrame->WallSecondsElapsed = 0.0f;
             } 
@@ -931,10 +953,10 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                 u64 RelativeClock = Event->Clock - DebugState->CollationFrame->BeginClock;
                 
                 switch(Event->Type) {
-                    case DebugEvent_BeginBlock: {
+                    case DebugType_BeginBlock: {
                         open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, FrameIndex, Event, Src, &Thread->FirstOpenCodeBlock);
                     } break;
-                    case DebugEvent_EndBlock: {
+                    case DebugType_EndBlock: {
                         if (Thread->FirstOpenCodeBlock) {
                             open_debug_block* MatchingBlock = Thread->FirstOpenCodeBlock;
                             debug_event* OpeningEvent = MatchingBlock->Event;
@@ -961,19 +983,21 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                             }
                         }
                     } break;
-                    case DebugEvent_OpenDataBlock: {
+                    case DebugType_OpenDataBlock: {
                         open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, FrameIndex, Event, Src, &Thread->FirstOpenDataBlock);
-                        DebugBlock->Group = CollateCreateVariableGroup(DebugState, Src->BlockName);
                         
+                        DebugBlock->Group = CollateCreateVariableGroup(DebugState);
+                        debug_variable *Var = CollateAddVariable(DebugState, Src->BlockName, DebugType_VarGroup);
+                        debug_variable_link *Link = 0;
                         if (DebugBlock->Parent) {
-                            CollateAddVariableToGroup(DebugState, DebugBlock->Parent->Group, DebugBlock->Group);
+                            Link = CollateAddVariableToGroup(DebugState, DebugBlock->Parent->Group, Var);
                         } else {
-                            CollateAddVariableToGroup(DebugState, DebugState->CollationFrame->RootGroup, DebugBlock->Group);
+                            Link = CollateAddVariableToGroup(DebugState, DebugState->CollationFrame->RootGroup, Var);
                         }
-                        
+                        Link->Children = DebugBlock->Group;
                         
                     } break;
-                    case DebugEvent_CloseDataBlock: {
+                    case DebugType_CloseDataBlock: {
                         if (Thread->FirstOpenDataBlock) {
                             open_debug_block* MatchingBlock = Thread->FirstOpenDataBlock;
                             debug_event* OpeningEvent = MatchingBlock->Event;
@@ -983,37 +1007,10 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                             }
                         }
                     } break;
-                    case DebugEvent_R32: {
-                        debug_variable *Var = CollateCreateGroupedVariable(DebugState, Thread->FirstOpenDataBlock, Src->BlockName, DebugVariableType_Real32);
-                        Var->Real32 = Event->VecR32[0];
+                    default: {
+                        debug_variable *Var = CollateCreateGroupedVariable(DebugState, Thread->FirstOpenDataBlock, Src->BlockName, (debug_type)Event->Type);
+                        Var->Event = *Event;
                     } break;
-                    case DebugEvent_U32: {
-                        debug_variable *Var = CollateCreateGroupedVariable(DebugState, Thread->FirstOpenDataBlock, Src->BlockName, DebugVariableType_UInt32);
-                        Var->UInt32 = Event->VecU32[0];
-                    } break;
-                    case DebugEvent_S32: {
-                        debug_variable *Var = CollateCreateGroupedVariable(DebugState, Thread->FirstOpenDataBlock, Src->BlockName, DebugVariableType_Int32);
-                        Var->Int32 = Event->VecS32[0];
-                    } break;
-                    case DebugEvent_V2: {
-                        debug_variable *Var = CollateCreateGroupedVariable(DebugState, Thread->FirstOpenDataBlock, Src->BlockName, DebugVariableType_V2);
-                        Var->Vector2 = {Event->VecR32[0], Event->VecR32[1]};
-                    } break;
-                    case DebugEvent_V3: {
-                        debug_variable *Var = CollateCreateGroupedVariable(DebugState, Thread->FirstOpenDataBlock, Src->BlockName, DebugVariableType_V3);
-                        Var->Vector3 = {Event->VecR32[0], Event->VecR32[1], Event->VecR32[2]};
-                    } break;
-                    case DebugEvent_V4: {
-                        debug_variable *Var = CollateCreateGroupedVariable(DebugState, Thread->FirstOpenDataBlock, Src->BlockName, DebugVariableType_V4);
-                        Var->Vector4 = {Event->VecR32[0], Event->VecR32[1], Event->VecR32[2], Event->VecR32[3]};
-                    } break;
-                    case DebugEvent_Rectangle2: {
-                        
-                    } break;
-                    case DebugEvent_Rectangle3: {
-                        
-                    } break;
-                    InvalidDefaultCase;
                 }
             }
         }
@@ -1097,6 +1094,7 @@ DEBUGDumpStruct(u32 MemberCount, member_definition *MemberDefs, void *StructPtr,
                                 "%s: {%f, %f, %f}",
                                 Member->Name, ((v3 *)MemberPtr)->x, ((v3 *)MemberPtr)->y, ((v3 *)MemberPtr)->z);
                 } break;
+                
                 META_HANDLE_TYPE_DUMP(MemberPtr, LineIndent + 1);
                 default: {
                 } break;
@@ -1118,6 +1116,7 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
         InitializeArena(&DebugState->DebugArena, DebugGlobalMemory->DebugStorageSize - sizeof(debug_state), 
                         DebugState + 1);
         
+#if 0        
         debug_variable_definition_context Context = {};
         Context.State = DebugState;
         Context.Arena = &DebugState->DebugArena;
@@ -1161,6 +1160,7 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
         DEBUGEndVariableGroup(&Context);
         DEBUGEndVariableGroup(&Context);
         Assert(Context.GroupDepth == 0);
+#endif
         
         
         DebugState->HighPriorityQueue = DebugGlobalMemory->HighPriorityQueue;

@@ -3,29 +3,6 @@
 #ifndef HANDMADE_DEBUG_H
 #define HANDMADE_DEBUG_H
 
-enum debug_variable_type {
-    DebugVariableType_Bool32,
-    DebugVariableType_Int32,
-    DebugVariableType_UInt32,
-    DebugVariableType_Real32,
-    DebugVariableType_V2,
-    DebugVariableType_V3,
-    DebugVariableType_V4,
-    DebugVariableType_Rectangle2,
-    DebugVariableType_Rectangle3,
-    
-    
-    DebugVariableType_CounterThreadList,
-    DebugVariableType_BitmapDiplay,
-    DebugVariableType_VarGroup,
-};
-
-inline b32
-DEBUGShouldBeWritten(debug_variable_type Type) {
-    b32 Result = (Type != DebugVariableType_CounterThreadList && Type != DebugVariableType_BitmapDiplay);
-    return(Result);
-}
-
 struct debug_variable;
 struct debug_tree;
 
@@ -58,27 +35,24 @@ struct debug_view {
         debug_view_collapsible Collapsible;
     };
 };
+struct debug_variable_group;
 
 struct debug_tree {
     v2 UIP;
-    debug_variable* Group;
+    debug_variable_group* Group;
     debug_tree* Next;
     debug_tree* Prev;
-};
-
-
-struct debug_profile_setting {
-    int PlaceHolder;
-};
-
-struct debug_bitmap_display {
-    bitmap_id ID;
 };
 
 struct debug_variable_link {
     debug_variable_link *Next;
     debug_variable_link *Prev;
+    debug_variable_group *Children;
     debug_variable *Var;
+};
+
+struct debug_variable_group {
+    debug_variable_link Sentinal;
 };
 
 struct debug_variable_array {
@@ -87,21 +61,9 @@ struct debug_variable_array {
 };
 
 struct debug_variable {
-    debug_variable_type Type;
+    debug_type Type;
     char* Name;
-    union {
-        b32 Bool32;
-        s32 Int32;
-        u32 UInt32;
-        r32 Real32;
-        v2 Vector2;
-        v3 Vector3;
-        v4 Vector4;
-        
-        debug_profile_setting ProfileSetting;
-        debug_bitmap_display BitmapDisplay;
-        debug_variable_link VarGroup;
-    };
+    debug_event Event;
 };
 
 enum debug_text_op {
@@ -137,7 +99,7 @@ struct debug_frame {
     u64 EndClock;
     r32 WallSecondsElapsed;
     
-    debug_variable *RootGroup;
+    debug_variable_group *RootGroup;
     
     u32 RegionCount;
     debug_frame_region *Regions;
@@ -151,7 +113,7 @@ struct open_debug_block {
     open_debug_block *NextFree;
     
     // only data block
-    debug_variable *Group;
+    debug_variable_group *Group;
     
     debug_record* Source;
 };
@@ -232,7 +194,7 @@ struct debug_state {
     debug_interaction NextHotInteraction;
     
     debug_tree TreeSentinal;
-    debug_variable *RootGroup;
+    debug_variable_group *RootGroup;
     debug_view* ViewHash[4096];
     
     v2 LastMouseP;

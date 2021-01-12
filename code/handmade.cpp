@@ -925,7 +925,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
 			}
             
-			// hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
+            //hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
 			switch (Entity->Type) {
                 case EntityType_Hero: {
                     
@@ -1202,6 +1202,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     DEBUG_VALUE(Entity->FacingDirection);
                     DEBUG_VALUE(Entity->WalkableDim);
                     DEBUG_VALUE(Entity->WalkableHeight);
+                    
                     DEBUG_END_DATA_BLOCK();
                 }
                 

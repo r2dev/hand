@@ -2,8 +2,9 @@
 
 #ifndef HANDMADE_DEBUG_VARIABLES_H
 #define HANDMADE_DEBUG_VARIABLES_H
-
 #define DEBUG_MAX_VARIABLE_STACK_SIZE 64
+#if 0
+
 struct debug_variable_definition_context {
     debug_state* State;
     memory_arena* Arena;
@@ -65,28 +66,28 @@ DEBUGEndVariableGroup(debug_variable_definition_context *Context) {
 
 internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, b32 Value) {
-    debug_variable* Var = DEBUGPushVariable(Context, Name, DebugVariableType_Bool32);
+    debug_variable* Var = DEBUGPushVariable(Context, Name, DebugVariableType_Event);
     Var->Bool32 = Value;
     return(Var);
 }
 
 internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, u32 Value) {
-    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_UInt32);
+    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_Event);
     Var->UInt32 = Value;
     return(Var);
 }
 
 internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, r32 Value) {
-    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_Real32);
+    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_Event);
     Var->Real32 = Value;
     return(Var);
 }
 
 internal debug_variable*
 DebugAddVariable(debug_variable_definition_context *Context, char* Name, v4 Value) {
-    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_V4);
+    debug_variable *Var = DEBUGPushVariable(Context, Name, DebugVariableType_Event);
     Var->Vector4 = Value;
     return(Var);
 }
@@ -140,5 +141,6 @@ DEBUGCreateVariables(debug_variable_definition_context* Context) {
     
 #undef DEBUG_VARIABLE_LISITING
 }
+#endif
 
 #endif //HANDMADE_DEBUG_VARIABLES_H

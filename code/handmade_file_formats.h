@@ -45,17 +45,6 @@ enum asset_tag_id {
 
 #pragma pack(push, 1)
 
-struct bitmap_id {
-	u32 Value;
-};
-
-struct sound_id {
-	u32 Value;
-};
-struct font_id {
-    u32 Value;
-};
-
 enum {
     HHASoundChain_none,
     HHASoundChain_loop,
