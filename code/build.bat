@@ -11,14 +11,14 @@ pushd ..\..\build
 del *.pdb > NUL 2> NUL
 
 REM Preprocessor
-cl %CommonCompilerFlags% -DTRANSLATION_UNIT_INDEX=0 ..\handmade\code\preprocessor.cpp /link %CommonLinkerFlags% 
+cl %CommonCompilerFlags% ..\handmade\code\preprocessor.cpp /link %CommonLinkerFlags% 
 
 pushd ..\handmade\code
 ..\..\build\preprocessor.exe > zha_generated.h
 popd
 
 REM Asset builder 
-REM cl %CommonCompilerFlags% -DTRANSLATION_UNIT_INDEX=0 ..\handmade\code\zha_test.cpp /link %CommonLinkerFlags% 
+REM cl %CommonCompilerFlags% ..\handmade\code\zha_test.cpp /link %CommonLinkerFlags% 
 
 REM 32-bit build
 REM cl %CommonCompilerFlags% -DHANDMADE_INTERNAL=1 -Z7 -FC -Fmwin32_handmade.map ..\handmade\code\win32_handmade.cpp /link -subsystem:windows %CommonLinkerFlags% 
@@ -28,11 +28,11 @@ REM 64-bit build
 REM optimization build /O2 /Oi /fp:fast
 echo WAITING FOR PDB > lock.tmp
 
-cl %CommonCompilerFlags% -DTRANSLATION_UNIT_INDEX=1 -O2 -c ..\handmade\code\handmade_optimized.cpp -Fohandmade_optimized.obj -LD
+cl %CommonCompilerFlags% -O2 -c ..\handmade\code\handmade_optimized.cpp -Fohandmade_optimized.obj -LD
 
-cl %CommonCompilerFlags% -DTRANSLATION_UNIT_INDEX=0 ..\handmade\code\handmade.cpp handmade_optimized.obj -Fmhandmade.map -LD /link -incremental:no -opt:ref -PDB:handmade_%random%.pdb -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples -EXPORT:DEBUGGameFrameEnd
+cl %CommonCompilerFlags% ..\handmade\code\handmade.cpp handmade_optimized.obj -Fmhandmade.map -LD /link -incremental:no -opt:ref -PDB:handmade_%random%.pdb -EXPORT:GameUpdateAndRender -EXPORT:GameGetSoundSamples -EXPORT:DEBUGGameFrameEnd
 
 del lock.tmp
-cl %CommonCompilerFlags% -DTRANSLATION_UNIT_INDEX=2 ..\handmade\code\win32_handmade.cpp -Fmwin32_handmade.map /link %CommonLinkerFlags% 
+cl %CommonCompilerFlags% ..\handmade\code\win32_handmade.cpp -Fmwin32_handmade.map /link %CommonLinkerFlags% 
 
 popd

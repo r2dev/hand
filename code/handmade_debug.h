@@ -3,7 +3,6 @@
 #ifndef HANDMADE_DEBUG_H
 #define HANDMADE_DEBUG_H
 
-struct debug_variable;
 struct debug_tree;
 
 struct debug_view_inline_block {
@@ -48,7 +47,7 @@ struct debug_variable_link {
     debug_variable_link *Next;
     debug_variable_link *Prev;
     debug_variable_group *Children;
-    debug_variable *Var;
+    debug_event *Event;
 };
 
 struct debug_variable_group {
@@ -57,13 +56,7 @@ struct debug_variable_group {
 
 struct debug_variable_array {
     u32 Count;
-    debug_variable *Vars;
-};
-
-struct debug_variable {
-    debug_type Type;
-    char* Name;
-    debug_event Event;
+    debug_event *Events;
 };
 
 enum debug_text_op {
@@ -89,7 +82,7 @@ struct debug_frame_region {
     r32 MaxT;
     u16 LaneIndex;
     u16 ColorIndex;
-    debug_record* Record;
+    debug_event* Event;
     
     u64 CycleCount;
 };
@@ -114,8 +107,6 @@ struct open_debug_block {
     
     // only data block
     debug_variable_group *Group;
-    
-    debug_record* Source;
 };
 
 struct debug_thread {
@@ -148,7 +139,7 @@ struct debug_interaction {
     
     union {
         void* Generic;
-        debug_variable *Var;
+        debug_event *Event;
         debug_tree *Tree;
         v2 *P;
     };
@@ -175,7 +166,7 @@ struct debug_state {
     u32 CollationArrayIndex;
     debug_frame* CollationFrame;
     
-    debug_record* RecordToScope;
+    char* RecordToScope;
     
     r32 AtY;
     r32 LeftEdge;

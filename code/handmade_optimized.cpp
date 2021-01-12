@@ -319,5 +319,3 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 		}
 	}
 }
-
-u32 DebugRecords_Optimized_Count = __COUNTER__;

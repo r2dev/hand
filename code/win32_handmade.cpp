@@ -1435,13 +1435,6 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     
                     FRAME_MARKER(Win32GetSecondsElapsed(LastCounter, EndCounter));
                     LastCounter = EndCounter;
-                    
-#if HANDMADE_INTERNAL
-                    if (GlobalDebugTable) {
-                        GlobalDebugTable->RecordCounts[TRANSLATION_UNIT_INDEX] = __COUNTER__;
-                    }
-#endif
-                    
                 }
             }
             else {
