@@ -21,10 +21,6 @@ enum debug_view_type {
     DebugViewType_Collapsible,
 };
 
-struct debug_id {
-    void *Value[2];
-};
-
 struct debug_view {
     debug_id ID;
     debug_view_type Type;
@@ -131,6 +127,7 @@ enum debug_interaction_type {
     DebugInteraction_TearValue,
     DebugInteraction_Resize,
     DebugInteraction_Move,
+    DebugInteraction_Select,
 };
 
 struct debug_interaction {
@@ -161,6 +158,9 @@ struct debug_state {
     debug_frame *Frames;
     debug_thread *FirstThread;
     open_debug_block *FirstFreeBlock;
+    
+    u32 SelectIDCount;
+    debug_id Selected[64];
     
     b32 Paused;
     u32 CollationArrayIndex;

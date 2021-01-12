@@ -1173,30 +1173,28 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                 } break;
                 
             }
-#if DEBUGUI_ShowEntityOutline
-            
+            if (DEBUG_UI_ENABLED) {
+                debug_id EntityDebugID = DEBUG_POINTER_ID(GameState->LowEntities + Entity->StorageIndex);
+                for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
+                    sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
+                    v3 WorldMousePoint = Unproject(RenderGroup, MouseP);
 #if 0
-            RenderGroup->Transform.OffsetP = V3(0, 0, 0);
-            RenderGroup->Transform.Scale = 1.0f;
-            r32 LocalZ = 3.0f;
-            v3 WorldMouseP = Unproject(RenderGroup, MouseP, LocalZ);
-            RenderGroup->Transform.OffsetP = WorldMouseP;
-            PushRect(RenderGroup, v3{0, 0, 0}, v2{1.0f, 1.0f}, v4{0.0f, 1.0f, 1.0f, 1.0f});
+                    PushRect(RenderGroup, V3(WorldMousePoint, 0.0f), v2{1.0f, 1.0f}, v4{1.0f, 0.0f, 1.0f, 1.0f});
 #endif
-            v4 EntityOutlineColor = {1, 0.5f, 1, 1};
-            for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
-                sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                v2 WorldMousePoint = Unproject(RenderGroup, MouseP).xy;
-#if 0
-                PushRect(RenderGroup, V3(WorldMousePoint, 0.0f), v2{1.0f, 1.0f}, v4{1.0f, 0.0f, 1.0f, 1.0f});
-#endif
-                if ((WorldMousePoint.x > -0.5f * Volume->Dim.x && WorldMousePoint.x < 0.5f * Volume->Dim.x) &&
-                    (WorldMousePoint.y > -0.5f * Volume->Dim.y && WorldMousePoint.y < 0.5f * Volume->Dim.y)){
-                    // IsInRectangle(RectCenterHalfDim(Volume->OffsetP.xy, Volume->Dim.xy), WorldMousePoint)) {
-                    EntityOutlineColor = {1, 0, 1, 1};
-                    PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
+                    if ((WorldMousePoint.x > -0.5f * Volume->Dim.x && WorldMousePoint.x < 0.5f * Volume->Dim.x) &&
+                        (WorldMousePoint.y > -0.5f * Volume->Dim.y && WorldMousePoint.y < 0.5f * Volume->Dim.y)){
+                        
+                        DEBUG_HIT(EntityDebugID, WorldMousePoint.z);
+                    }
+                    v4 EntityOutlineColor;
+                    if (DEBUG_HIGHLIGHTED(EntityDebugID, &EntityOutlineColor)) {
+                        
+                        PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
+                    }
                     
-                    DEBUG_BEGIN_DATA_BLOCK("HotEntity", GameState->LowEntities + Entity->StorageIndex, 0);
+                }
+                if (DEBUG_REQUESTED(EntityDebugID)) {
+                    DEBUG_BEGIN_DATA_BLOCK("Simulation Entity", EntityDebugID);
                     DEBUG_VALUE(Entity->P);
                     DEBUG_VALUE(Entity->dP);
                     DEBUG_VALUE(Entity->FacingDirection);
@@ -1205,9 +1203,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     
                     DEBUG_END_DATA_BLOCK();
                 }
-                
             }
-#endif
         }
     }
     RenderGroup->GlobalAlpha = 1.0;

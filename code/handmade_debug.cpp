@@ -15,8 +15,13 @@ GetDebugIDFromLink(debug_tree* Tree, debug_variable_link *Link) {
 
 inline debug_state*
 DEBUGGetState(game_memory* Memory) {
-    debug_state *DebugState = (debug_state*)Memory->DebugStorage;
-    Assert(DebugState->IsInitialized);
+    debug_state *DebugState = 0;
+    if (Memory) {
+        DebugState = (debug_state*)Memory->DebugStorage;
+        if(!DebugState->IsInitialized) {
+            DebugState = 0;
+        }
+    }
     return(DebugState);
 }
 inline debug_state*
@@ -323,6 +328,106 @@ WriteZhaConfig(debug_state* DebugState) {
     
 }
 
+inline b32
+DebugIDsAreEqual(debug_id A, debug_id B) {
+    b32 Result = (A.Value[0] == B.Value[0] && A.Value[1] == B.Value[1]) ? true: false;
+    return(Result);
+}
+
+inline debug_interaction 
+LinkInteraction(debug_tree* Tree, debug_interaction_type Type, debug_variable_link *Link) {
+    debug_interaction Result = {};
+    Result.ID = GetDebugIDFromLink(Tree, Link);
+    Result.Type = Type;
+    Result.Event = Link->Event;
+    return(Result);
+}
+
+inline debug_interaction 
+DebugIDInteraction(debug_interaction_type Type, debug_id ID) {
+    debug_interaction Result = {};
+    Result.ID = ID;
+    Result.Type = Type;
+    return(Result);
+}
+
+inline b32
+InteractionAreEqual(debug_interaction A, debug_interaction B) {
+    b32 Result = (A.Type == B.Type && A.Generic == B.Generic);
+    return(Result);
+}
+
+inline b32
+InteractionIsHot(debug_state* DebugState, debug_interaction A) {
+    b32 Result = InteractionAreEqual(A, DebugState->HotInteraction);
+    return(Result);
+}
+
+internal void
+DEBUG_HIT(debug_id ID, r32 ZValue){
+    debug_state *DebugState = DEBUGGetState();
+    if (DebugState) {
+        DebugState->NextHotInteraction = DebugIDInteraction(DebugInteraction_Select, ID);
+    }
+};
+
+internal void
+ClearSelection(debug_state *DebugState) {
+    DebugState->SelectIDCount = 0;
+}
+
+
+
+inline b32
+IsSelected(debug_state *DebugState, debug_id ID) {
+    b32 Result = false;
+    for (u32 Index = 0; Index < DebugState->SelectIDCount; ++Index) {
+        if (DebugIDsAreEqual(ID, DebugState->Selected[Index])) {
+            Result = true;
+            break;
+        };
+    }
+    
+    return(Result);
+}
+
+internal void
+AddToSelection(debug_state *DebugState, debug_id ID) {
+    if (DebugState->SelectIDCount < ArrayCount(DebugState->Selected) && !IsSelected(DebugState, ID)) {
+        DebugState->Selected[DebugState->SelectIDCount++] = ID;
+    }
+}
+
+internal b32
+DEBUG_HIGHLIGHTED(debug_id ID, v4 *Color) {
+    debug_state *DebugState = DEBUGGetState();
+    b32 Result = false;
+    if (DebugState) {
+        if (IsSelected(DebugState, ID)) {
+            *Color = V4(0, 1, 1, 1);
+            Result = true;
+        }
+        if (DebugIDsAreEqual(DebugState->HotInteraction.ID, ID)) {
+            *Color = V4(1, 1, 0, 1);
+            Result = true;
+        }
+        
+    }
+    
+    return(Result);
+}
+
+internal b32
+DEBUG_REQUESTED(debug_id ID) {
+    debug_state *DebugState = DEBUGGetState();
+    b32 Result = false;
+    if (DebugState) {
+        Result = IsSelected(DebugState, ID) || DebugIDsAreEqual(DebugState->HotInteraction.ID, ID);
+    }
+    return(Result);
+}
+
+
 internal void
 DrawProfile(debug_state *DebugState, rectangle2 ProfileRect, v2 MouseP) {
     PushRect(DebugState->RenderGroup, ProfileRect, 0, V4(0, 0, 0, 0.25f));
@@ -397,18 +502,6 @@ DrawProfile(debug_state *DebugState, rectangle2 ProfileRect, v2 MouseP) {
         }
     }
     //PushRect(DEBUGRenderGroup, v3{ChartLeft, ChartMinY + ChartHeight, 0}, v2{ChartWidth, 1}, v4{1, 1, 1, 1});
-}
-
-inline b32
-InteractionAreEqual(debug_interaction A, debug_interaction B) {
-    b32 Result = (A.Type == B.Type && A.Generic == B.Generic);
-    return(Result);
-}
-
-inline b32
-InteractionIsHot(debug_state* DebugState, debug_interaction A) {
-    b32 Result = InteractionAreEqual(A, DebugState->HotInteraction);
-    return(Result);
 }
 
 struct layout {
@@ -501,12 +594,6 @@ SetElementDefaultInteraction(layout_element *Element, debug_interaction Interact
     Element->Interaction = Interaction;
 }
 
-inline b32
-DebugIDsAreEqual(debug_id A, debug_id B) {
-    b32 Result = (A.Value[0] == B.Value[0] && A.Value[1] == B.Value[1]) ? true: false;
-    return(Result);
-}
-
 internal debug_view*
 GetDebugViewFor(debug_state *DebugState, debug_id ID) {
     debug_view *Result = 0;
@@ -527,16 +614,6 @@ GetDebugViewFor(debug_state *DebugState, debug_id ID) {
         
     }
     return(Result);
-}
-
-inline debug_interaction 
-LinkInteraction(debug_tree* Tree, debug_interaction_type Type, debug_variable_link *Link) {
-    debug_interaction Result = {};
-    Result.ID = GetDebugIDFromLink(Tree, Link);
-    Result.Type = Type;
-    Result.Event = Link->Event;
-    return(Result);
-    
 }
 
 internal void
@@ -686,7 +763,10 @@ DEBUGBeginInteract(debug_state *DebugState, game_input *Input, v2 MouseP, b32 Al
                 DebugState->HotInteraction.Type = DebugInteraction_Move;
                 DebugState->HotInteraction.P = &Tree->UIP;
 #endif
-            }; break;
+            } break;
+            case DebugInteraction_Select: {
+                AddToSelection(DebugState, DebugState->HotInteraction.ID);
+            } break;
         }
         
         DebugState->Interaction = DebugState->HotInteraction;
@@ -1175,8 +1255,6 @@ DEBUGEnd(debug_state* DebugState, game_input* Input, loaded_bitmap* DrawBuffer) 
     
     render_group* RenderGroup = DebugState->RenderGroup;
     
-    ZeroStruct(DebugState->NextHotInteraction);
-    
     debug_event* HotEvent = 0;
     // mouse Position
     v2 MouseP = Unproject(DebugState->RenderGroup, V2(Input->MouseX, Input->MouseY)).xy;
@@ -1272,6 +1350,7 @@ DEBUGEnd(debug_state* DebugState, game_input* Input, loaded_bitmap* DrawBuffer) 
     TiledRenderGroupToOutput(DebugState->HighPriorityQueue, DebugState->RenderGroup, DrawBuffer);
     EndRender(DebugState->RenderGroup);
     
+    ZeroStruct(DebugState->NextHotInteraction);
 }
 
 extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
@@ -1295,9 +1374,9 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
             RestartCollation(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
         }
         if (!DebugState->Paused) {
-            if (DebugState->FrameCount >= (MAX_DEBUG_EVENT_ARRAY_COUNT * 4 - 1)) {
-                RestartCollation(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
-            }
+            //if (DebugState->FrameCount >= (MAX_DEBUG_EVENT_ARRAY_COUNT * 4 - 1)) {
+            RestartCollation(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
+            //}
             
             CollateDebugRecords(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
         }
