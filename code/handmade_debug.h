@@ -186,6 +186,7 @@ struct debug_state {
     
     debug_tree TreeSentinal;
     debug_variable_group *RootGroup;
+    debug_variable_group *ValueGroup;
     debug_view* ViewHash[4096];
     
     v2 LastMouseP;

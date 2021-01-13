@@ -18,8 +18,10 @@ extern "C" {
     enum debug_type {
         DebugType_Unknown,
         DebugType_FrameMarker,
+        DebugType_VariableMarker,
         DebugType_BeginBlock,
         DebugType_EndBlock,
+        
         
         DebugType_r32,
         DebugType_u32,
@@ -55,7 +57,7 @@ extern "C" {
         
         union {
             debug_id DebugID;
-            
+            debug_event *Value_debug_event;
             b32 Value_b32;
             s32 Value_s32;
             u32 Value_u32;
@@ -245,7 +247,20 @@ DEBUG_POINTER_ID(void *Pointer) {
 internal void DEBUG_HIT(debug_id ID, r32 ZValue);
 internal b32 DEBUG_HIGHLIGHTED(debug_id ID, v4 *Color);
 internal b32 DEBUG_REQUESTED(debug_id);
-internal debug_event DEBUGInitializeValue(debug_type Type, debug_event *Event, char *Name, char *FileName, u32 LineNumber);
+
+inline debug_event
+DEBUGInitializeValue(debug_type Type, debug_event *SubEvent, char *Name, char *FileName, u32 LineNumber) {
+    RecordDebugEvent(DebugType_VariableMarker, "");
+    Event->Value_debug_event = SubEvent;
+    SubEvent->Clock = 0;
+    SubEvent->BlockName = Name;
+    SubEvent->FileName = FileName;
+    SubEvent->LineNumber = LineNumber;
+    SubEvent->ThreadID = 0;
+    SubEvent->CoreIndex = 0;
+    SubEvent->Type = (u8)Type;
+    return(*SubEvent);
+}
 
 #define DEBUG_IF__(Path) \
 local_persist debug_event DebugValue##Path = DEBUGInitializeValue((DebugValue##Path.Value_b32 = GlobalConstants_##Path, DebugType_b32), &DebugValue##Path, #Path, __FILE__, __LINE__); \

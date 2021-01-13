@@ -635,7 +635,7 @@ DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
         
         debug_variable_group *Group = Tree->Group;
         if (DebugState->FrameCount > 0) {
-            Group = DebugState->Frames[0].RootGroup;
+            Group = DebugState->ValueGroup;
         }
         if (Group) {
             debug_variable_iterator Stack[DEBUG_MAX_VARIABLE_STACK_SIZE];
@@ -786,7 +786,7 @@ DEBUGEndInteract(debug_state *DebugState, game_input *Input, v2 MouseP) {
             Assert(Event);
             switch (Event->Type) {
                 case DebugType_b32: {
-                    Event->Value_b32 = Event->Value_b32;
+                    Event->Value_b32 = !Event->Value_b32;
                 } break;
                 case DebugType_OpenDataBlock: {
                     debug_view *View = GetDebugViewFor(DebugState, DebugState->Interaction.ID);
@@ -944,8 +944,9 @@ CollateAddVariable(debug_state *DebugState, char* Name, debug_type Type) {
 }
 
 internal debug_variable_link *
-CollateAddVariableToGroup(debug_state* DebugState, debug_variable_group *Group, debug_event* Addend) {
-    debug_variable_link *Link = PushStruct(&DebugState->CollateArena, debug_variable_link);
+CollateAddVariableToGroup(debug_state* DebugState, debug_variable_group *Group, debug_event* Addend, b32 Permanent) {
+    debug_variable_link *Link = PushStruct(Permanent? &DebugState->DebugArena: &DebugState->CollateArena, debug_variable_link);
+    
     Link->Event = Addend;
     Link->Children = 0;
     DLIST_INSERT(&Group->Sentinal, Link);
@@ -954,12 +955,19 @@ CollateAddVariableToGroup(debug_state* DebugState, debug_variable_group *Group, 
 
 
 internal debug_variable_group*
-CollateCreateVariableGroup(debug_state *DebugState) {
-    debug_variable_group *Group = PushStruct(&DebugState->CollateArena, debug_variable_group);
+CollateCreateVariableGroup(debug_state *DebugState, b32 Permanent) {
+    debug_variable_group *Group = PushStruct(Permanent? &DebugState->DebugArena: &DebugState->CollateArena, debug_variable_group);
     DLIST_INIT(&Group->Sentinal);
     
     return(Group);
 }
+
+internal debug_variable_group*
+GetGroupForHierarchicalName(debug_state *DebugState, char *Name) {
+    debug_variable_group *Result = DebugState->ValueGroup;
+    return(Result);
+}
+
 
 internal void
 CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
@@ -976,7 +984,11 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
         for (u32 EventIndex = 0; EventIndex < GlobalDebugTable->EventCounts[EventArrayIndex]; ++EventIndex) {
             debug_event *Event = GlobalDebugTable->Events[EventArrayIndex] + EventIndex;
             
-            if (Event->Type == DebugType_FrameMarker) {
+            if (Event->Type == DebugType_VariableMarker) {
+                CollateAddVariableToGroup(DebugState,
+                                          GetGroupForHierarchicalName(DebugState, Event->Value_debug_event->BlockName),
+                                          Event->Value_debug_event, true);
+            } else if (Event->Type == DebugType_FrameMarker) {
                 if (DebugState->CollationFrame) {
                     DebugState->CollationFrame->EndClock = Event->Clock;
                     DebugState->CollationFrame->WallSecondsElapsed = Event->Value_r32;
@@ -996,7 +1008,7 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                 DebugState->CollationFrame->BeginClock = Event->Clock;
                 DebugState->CollationFrame->EndClock = 0;
                 DebugState->CollationFrame->RegionCount = 0;
-                DebugState->CollationFrame->RootGroup = CollateCreateVariableGroup(DebugState);
+                DebugState->CollationFrame->RootGroup = CollateCreateVariableGroup(DebugState, false);
                 DebugState->CollationFrame->Regions = PushArray(&DebugState->CollateArena, MAX_REGIONS_PER_FRAME, debug_frame_region);
                 DebugState->CollationFrame->WallSecondsElapsed = 0.0f;
             } 
@@ -1040,12 +1052,12 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                     case DebugType_OpenDataBlock: {
                         open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, FrameIndex, Event, &Thread->FirstOpenDataBlock);
                         
-                        DebugBlock->Group = CollateCreateVariableGroup(DebugState);
+                        DebugBlock->Group = CollateCreateVariableGroup(DebugState, false);
                         debug_variable_link *Link = 0;
                         if (DebugBlock->Parent) {
-                            Link = CollateAddVariableToGroup(DebugState, DebugBlock->Parent->Group, Event);
+                            Link = CollateAddVariableToGroup(DebugState, DebugBlock->Parent->Group, Event, false);
                         } else {
-                            Link = CollateAddVariableToGroup(DebugState, DebugState->CollationFrame->RootGroup, Event);
+                            Link = CollateAddVariableToGroup(DebugState, DebugState->CollationFrame->RootGroup, Event, false);
                         }
                         Link->Children = DebugBlock->Group;
                         
@@ -1061,7 +1073,7 @@ CollateDebugRecords(debug_state *DebugState, u32 InvalidEventArrayIndex) {
                         }
                     } break;
                     default: {
-                        CollateAddVariableToGroup(DebugState, Thread->FirstOpenDataBlock->Group, Event);
+                        CollateAddVariableToGroup(DebugState, Thread->FirstOpenDataBlock->Group, Event, false);
                     } break;
                 }
             }
@@ -1219,6 +1231,7 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
         DebugState->RenderGroup = AllocateRenderGroup(Assets, &DebugState->DebugArena, Megabytes(16), false);
         
         DebugState->IsInitialized = true;
+        DebugState->ValueGroup = CollateCreateVariableGroup(DebugState, true);
         DebugState->Paused = false;
         DebugState->RecordToScope = 0;
         
@@ -1353,19 +1366,6 @@ DEBUGEnd(debug_state* DebugState, game_input* Input, loaded_bitmap* DrawBuffer) 
     EndRender(DebugState->RenderGroup);
     
     ZeroStruct(DebugState->NextHotInteraction);
-}
-
-internal debug_event
-DEBUGInitializeValue(debug_type Type, debug_event *Event, char *Name, char *FileName, u32 LineNumber) {
-    Event->Clock = 0;
-    Event->BlockName = Name;
-    Event->FileName = FileName;
-    Event->LineNumber = LineNumber;
-    Event->ThreadID = 0;
-    Event->CoreIndex = 0;
-    Event->Type = (u8)Type;
-    
-    return(*Event);
 }
 
 extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
