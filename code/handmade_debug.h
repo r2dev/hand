@@ -92,14 +92,21 @@ struct debug_frame {
     
     u32 RegionCount;
     debug_frame_region *Regions;
+    union {
+        debug_frame *Next;
+        debug_frame *NextFree;
+    };
     
+    r32 FrameBarScale;
 };
 
 struct open_debug_block {
     u32 StartingFrameIndex;
     debug_event *Event;
-    open_debug_block *Parent;
-    open_debug_block *NextFree;
+    union {
+        open_debug_block *Parent;
+        open_debug_block *NextFree;
+    };
     
     // only data block
     debug_variable_group *Group;
@@ -110,7 +117,10 @@ struct debug_thread {
     u32 LaneIndex;
     open_debug_block *FirstOpenCodeBlock;
     open_debug_block *FirstOpenDataBlock;
-    debug_thread *Next;
+    union {
+        debug_thread *Next;
+        debug_thread *NextFree;
+    };
 };
 
 struct render_group;
@@ -145,26 +155,27 @@ struct debug_state {
     b32 IsInitialized;
     platform_work_queue* HighPriorityQueue;
     memory_arena DebugArena;
-    memory_arena CollateArena;
-    temporary_memory CollateTemp;
-    
-    u32 FrameCount;
-    u32 FrameBarLaneCount;
-    r32 FrameBarScale;
     
     b32 Compiling;
     debug_executing_process Compiler;
     
-    debug_frame *Frames;
+    u32 FrameBarLaneCount;
+    
+    u32 FrameCount;
+    debug_frame *OldestFrame;
+    debug_frame *LatestFrame;
+    debug_frame *FirstFreeFrame;
+    debug_frame* CollationFrame;
+    
     debug_thread *FirstThread;
+    debug_thread *FirstFreeThread;
     open_debug_block *FirstFreeBlock;
     
     u32 SelectIDCount;
     debug_id Selected[64];
     
     b32 Paused;
-    u32 CollationArrayIndex;
-    debug_frame* CollationFrame;
+    
     
     char* RecordToScope;
     

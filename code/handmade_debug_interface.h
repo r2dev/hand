@@ -73,22 +73,18 @@ extern "C" {
         };
     };
     
-#define MAX_DEBUG_EVENT_COUNT (16 * 65536)
-#define MAX_DEBUG_EVENT_ARRAY_COUNT 8
-#define MAX_DEBUG_THREAD_COUNT 512
-    
     struct debug_table {
         u32 CurrentEventArrayIndex;
         u64 volatile EventArrayIndex_EventIndex;
-        u32 EventCounts[MAX_DEBUG_EVENT_ARRAY_COUNT];
-        debug_event Events[MAX_DEBUG_EVENT_ARRAY_COUNT][MAX_DEBUG_EVENT_COUNT];
+        //ping pong buffer
+        debug_event Events[2][16 * 65536];
     };
     
     extern debug_table *GlobalDebugTable;
 #define RecordDebugEvent(EventType, Name) \
 u64 ArrayIndex_EventIndex = AtomicAddU64(&GlobalDebugTable->EventArrayIndex_EventIndex, 1); \
 u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF); \
-Assert(EventIndex < MAX_DEBUG_EVENT_COUNT); \
+Assert(EventIndex < ArrayCount(GlobalDebugTable->Events[0])); \
 debug_event *Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (ArrayIndex_EventIndex & 0xFFFFFFFF); \
 Event->Clock = __rdtsc(); \
 Event->Type = (u8)EventType; \
@@ -156,7 +152,7 @@ RecordDebugEvent(DebugType_EndBlock, "End Block"); \
 }
 #endif
 
-#if defined(__cplusplus) && defined(HANDMADE_INTERNAL)
+#if defined(__cplusplus) && HANDMADE_INTERNAL
 
 inline void
 DEBUGValueSetEventData(debug_event *Event, r32 Value) {
@@ -271,8 +267,6 @@ local_persist debug_event DebugValue##Variable = DEBUGInitializeValue((DebugValu
 Type Variable = DebugValue##Variable.Value_##Type;
 
 #else
-global_variable debug_id NullID = {};
-
 inline debug_id DEBUG_POINTER_ID(void *Pointer) {debug_id NullID = {}; return(NullID);} 
 #define DEBUG_BEGIN_DATA_BLOCK(...)
 #define DEBUG_VALUE(...)
@@ -283,7 +277,7 @@ inline debug_id DEBUG_POINTER_ID(void *Pointer) {debug_id NullID = {}; return(Nu
 #define DEBUG_UI_ENABLED 0
 #define DEBUG_HIT(...)
 #define DEBUG_HIGHLIGHTED(...) 0
-#define DEBUG_REQUESTED(...)
+#define DEBUG_REQUESTED(...) 0
 
 #define DEBUG_IF__(Path) if(GlobalConstants_##Path)
 #define DEBUG_VARIABLE__(Type, Path, Variable) Type Variable = GlobalConstants_##Path##_##Variable;

@@ -56,13 +56,30 @@ GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment = 4) {
 	return(Result);
 }
 
-
+#define DEFAULT_MEMORY_ALIGNMENT 4
 #define PushStruct(Arena, type, ...) (type*) _PushSize(Arena, sizeof(type), ## __VA_ARGS__)
 #define PushArray(Arena, Count, type, ...) (type*) _PushSize(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
 #define PushSize(Arena, Size, ...) _PushSize(Arena, Size, ## __VA_ARGS__)
 #define PushCopy(Arena, Size, Source, ...) Copy(Size, Source, _PushSize(Arena, Size, ## __VA_ARGS__))
+
+inline memory_index
+GetEffectiveSizeFor(memory_arena *Arena, memory_index SizeInit, memory_index Alignment) {
+    memory_index Size = SizeInit;
+    memory_index Pointer = (memory_index)Arena->Base + Arena->Used;
+	memory_index AlignmentMask = Alignment - 1;
+	memory_index Offset = GetAlignmentOffset(Arena, Alignment);
+	Size += Offset;
+    return(Size);
+}
+
+inline b32
+ArenaHasRoomFor(memory_arena* Arena, memory_index SizeInit, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
+    memory_index Size = GetEffectiveSizeFor(Arena, SizeInit, Alignment);
+    return ((Arena->Used + Size) <= Arena->Size);
+}
+
 inline void*
-_PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = 4) {
+_PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
     
 	memory_index Pointer = (memory_index)Arena->Base + Arena->Used;
 	memory_index AlignmentMask = Alignment - 1;

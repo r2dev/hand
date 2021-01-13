@@ -15,4 +15,21 @@
 (Sentinal)->Next = (Sentinal);
 
 
+
+#define FREELIST_ALLOC(FreeListPointer, Result, AllocationCode) \
+Result = FreeListPointer; \
+if (!Result) { \
+Result = AllocationCode; \
+} else { \
+FreeListPointer = Result->NextFree; \
+}
+
+#define FREELIST_DEALLOC(FreeListPointer, Pointer) \
+if (Pointer) { \
+Pointer->NextFree = FreeListPointer; \
+FreeListPointer = Pointer; \
+}
+
+
+
 #endif //ZHA_DATA_STRUCTURE_H
