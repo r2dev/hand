@@ -9,9 +9,11 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 	if (Transform->Orthographic == false) {
         r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
         
-#if DEBUGUI_UseDebugCamera
-        DistanceAboveTarget += DEBUGUI_DebugCameraDistance;
-#endif
+        DEBUG_IF(Renderer_UseDebugCamera)
+        {
+            DEBUG_VARIABLE(r32, Renderer_Camera, DebugCameraDistance);
+            DistanceAboveTarget += DebugCameraDistance;
+        }
         
 		r32 DistancePz = DistanceAboveTarget - P.z;
 		v3 RawXY = V3(P.xy, 1.0f);
@@ -445,11 +447,11 @@ SampleEnvironmentMap(v2 ScreenUV, v3 SampleDirection, r32 Roughness, environment
     
     Assert(X >= 0 && X < LOD->Width);
     Assert(Y >= 0 && Y < LOD->Height);
-#if DEBUGUI_ShowLightningSampleSource
-    u8 *TexelPtr = ((u8*)LOD->Memory + Y*LOD->Pitch + X *sizeof(u32));
-    *(u32 *)TexelPtr = 0xFFFFFFFF;
-#endif
-    
+    DEBUG_IF(Renderer_ShowLightning_SampleSource)
+    {
+        u8 *TexelPtr = ((u8*)LOD->Memory + Y*LOD->Pitch + X *sizeof(u32));
+        *(u32 *)TexelPtr = 0xFFFFFFFF;
+    }
 	bilinear_sample Sample = BilinearSample(LOD, X, Y);
 	v3 Result = SRGBBilinearBlend(Sample, fX, fY).xyz;
     

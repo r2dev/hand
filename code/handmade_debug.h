@@ -2,7 +2,7 @@
 
 #ifndef HANDMADE_DEBUG_H
 #define HANDMADE_DEBUG_H
-
+#define DEBUG_MAX_VARIABLE_STACK_SIZE 64
 struct debug_tree;
 
 struct debug_view_inline_block {

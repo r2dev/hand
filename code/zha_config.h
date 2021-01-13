@@ -1,21 +1,12 @@
-//#define DEBUGUI_Begin Debug 
-//#define DEBUGUI_View 
-//#define DEBUGUI_by Function 
-//#define DEBUGUI_by Thread 
-#define DEBUGUI_FauxV4 V4(1.000000f, 2.000000f, 3.000000f, 4.000000f)
-#define DEBUGUI_ShowEntityOutline 1
-#define DEBUGUI_ShowSpaceOutline 0
-#define DEBUGUI_FamiliarFollowsHero 0
-//#define DEBUGUI_Renderer 
-//#define DEBUGUI_Camera 
-#define DEBUGUI_DebugCameraDistance 15.199997f
-#define DEBUGUI_RoomBaseCamera 0
-#define DEBUGUI_UseDebugCamera 0
-#define DEBUGUI_ShowLightningSampleSource 1
-#define DEBUGUI_WeirdDrawBufferSize 0
-//#define DEBUGUI_Particle 
-#define DEBUGUI_ParticleGrid 0
-#define DEBUGUI_ParticleDemo 0
-//#define DEBUGUI_GroundChunk 
-#define DEBUGUI_ReGenGroundChunkOnReload 0
-#define DEBUGUI_ShowGroundChunkOutlines 0
+
+  #define GlobalConstants_Sim_RoomBaseCamera 0
+#define GlobalConstants_Renderer_UseDebugCamera 0
+#define GlobalConstants_Renderer_Camera_DebugCameraDistance 15.00f
+#define GlobalConstants_Renderer_ShowLightning_SampleSource 0
+#define GlobalConstants_GroundChunk_ReGenGroundChunkOnReload 0
+#define GlobalConstants_Renderer_WeirdDrawBufferSize 0
+#define GlobalConstants_GroundChunk_ShowGroundChunkOutlines 1
+#define GlobalConstants_Sim_FamiliarFollowsHero 0
+#define GlobalConstants_Particle_Demo 0
+#define GlobalConstants_Particle_Grid 0
+#define GlobalConstants_Renderer_Show_Space_Outline 1

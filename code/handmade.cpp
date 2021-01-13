@@ -708,14 +708,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		TranState->IsInitialized = true;
 	}
     
-#if DEBUGUI_ReGenGroundChunkOnReload
-    if (Memory->ExecutableReloaded) {
-        for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
-            ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-            GroundBuffer->P = NullPosition();
+    DEBUG_IF(GroundChunk_ReGenGroundChunkOnReload)
+    {
+        if (Memory->ExecutableReloaded) {
+            for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
+                ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
+                GroundBuffer->P = NullPosition();
+            }
         }
     }
-#endif
     
 	world* World = GameState->World;
     
@@ -794,10 +795,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     DrawBuffer->Pitch = SafeTruncateToUInt16(Buffer->Pitch);
 	DrawBuffer->Memory = Buffer->Memory;
     
-#if DEBUGUI_WeirdDrawBufferSize
-    DrawBuffer->Width = 1279;
-    DrawBuffer->Height = 719;
-#endif
+    DEBUG_IF(Renderer_WeirdDrawBufferSize)
+    {
+        DrawBuffer->Width = 1279;
+        DrawBuffer->Height = 719;
+    }
     v2 MouseP = {Input->MouseX, Input->MouseY};
 	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
                                                     Megabytes(4), false);
@@ -828,9 +830,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 			v3 Delta = Subtract(GameState->World, &GroundBuffer->P, &GameState->CameraP);
 			if (Delta.z >= -1.0f && Delta.z < 1.0f) {
 				PushBitmap(RenderGroup, Bitmap, World->ChunkDimInMeters.y, Delta);
-#if DEBUGUI_ShowGroundChunkOutlines
-				PushRectOutline(RenderGroup, Delta, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 1.0f, 1.0f });
-#endif
+                DEBUG_IF(GroundChunk_ShowGroundChunkOutlines)
+                {
+                    PushRectOutline(RenderGroup, Delta, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 1.0f, 1.0f });
+                }
 			}
 		}
 	}
@@ -972,18 +975,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     r32 ClosestHeroSq = Square(10.0f);
                     sim_entity* TestEntity = SimRegion->Entities;
                     
-#if DEBUGUI_FamiliarFollowsHero
-                    for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
-                        if (TestEntity->Type == EntityType_Hero) {
-                            r32 TestDSq = LengthSq(TestEntity->P - Entity->P);
-                            
-                            if (ClosestHeroSq > TestDSq) {
-                                ClosestHero = TestEntity;
-                                ClosestHeroSq = TestDSq;
+                    DEBUG_IF(Sim_FamiliarFollowsHero)
+                    {
+                        for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
+                            if (TestEntity->Type == EntityType_Hero) {
+                                r32 TestDSq = LengthSq(TestEntity->P - Entity->P);
+                                
+                                if (ClosestHeroSq > TestDSq) {
+                                    ClosestHero = TestEntity;
+                                    ClosestHeroSq = TestDSq;
+                                }
                             }
                         }
                     }
-#endif
+                    
                     if (ClosestHero && (ClosestHeroSq > Square(3.0f))) {
                         r32 Acceleration = 0.5f;
                         r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
@@ -1014,125 +1019,125 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
                     PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
                     DrawHitPoints(Entity, RenderGroup);
-                    
-#if DEBUGUI_ParticleDemo
-                    
-                    for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 2; ++ParticleSpawnIndex) {
-                        particle *Particle = GameState->Particle + GameState->NextParticle++;
-                        if (GameState->NextParticle >= ArrayCount(GameState->Particle)) {
-                            GameState->NextParticle = 0;
+                    DEBUG_IF(Particle_Demo)
+                    {
+                        for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 2; ++ParticleSpawnIndex) {
+                            particle *Particle = GameState->Particle + GameState->NextParticle++;
+                            if (GameState->NextParticle >= ArrayCount(GameState->Particle)) {
+                                GameState->NextParticle = 0;
+                            }
+                            
+                            Particle->P = v3{RandomBetween(&GameState->EffectEntropy, -0.1f, 0.1f), 0, 0};
+                            Particle->dP = v3{ 
+                                RandomBetween(&GameState->EffectEntropy, -0.1f, 0.1f), 
+                                7.0f * RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f), 
+                                0.0f};
+                            Particle->ddP = v3{0, -9.8f, 0};
+                            Particle->dColor = v4{0, 0, 0, -0.5f};
+                            Particle->Color = v4{
+                                RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
+                                RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
+                                RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
+                                1.0f
+                            };
+                            
                         }
                         
-                        Particle->P = v3{RandomBetween(&GameState->EffectEntropy, -0.1f, 0.1f), 0, 0};
-                        Particle->dP = v3{ 
-                            RandomBetween(&GameState->EffectEntropy, -0.1f, 0.1f), 
-                            7.0f * RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f), 
-                            0.0f};
-                        Particle->ddP = v3{0, -9.8f, 0};
-                        Particle->dColor = v4{0, 0, 0, -0.5f};
-                        Particle->Color = v4{
-                            RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
-                            RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
-                            RandomBetween(&GameState->EffectEntropy, 0.7f, 1.0f),
-                            1.0f
-                        };
+                        ZeroStruct(GameState->ParticleCels);
                         
-                    }
-                    
-                    ZeroStruct(GameState->ParticleCels);
-                    
-                    r32 GridScale = 0.5f;
-                    v3 GridOrigin = {-0.5f * GridScale * PARTICEL_CEL_DIM, 0, 0};
-                    r32 InvGridScale = 1.0f / GridScale;
-                    for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
-                        particle *Particle = GameState->Particle + ParticleIndex;
-                        
-                        v3 P = InvGridScale * (Particle->P - GridOrigin);
-                        s32 X = TruncateReal32ToInt32(P.x);
-                        s32 Y = TruncateReal32ToInt32(P.y);
-                        
-                        if (X < 0) {X = 0;}
-                        if (X > PARTICEL_CEL_DIM - 1) { X = PARTICEL_CEL_DIM - 1;}
-                        if (Y < 0) {Y = 0;}
-                        if (Y > PARTICEL_CEL_DIM - 1) { Y = PARTICEL_CEL_DIM - 1;}
-                        particle_cel *Cel = &GameState->ParticleCels[Y][X];
-                        r32 Density = Particle->Color.a;
-                        Cel->Density += Density;
-                        Cel->VelocityTimesDensity += Particle->dP * Density;
-                    }
-#if DEBUGUI_ParticleGrid
-                    for(u32 Y = 0; Y < PARTICEL_CEL_DIM; ++Y) {
-                        for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
+                        r32 GridScale = 0.5f;
+                        v3 GridOrigin = {-0.5f * GridScale * PARTICEL_CEL_DIM, 0, 0};
+                        r32 InvGridScale = 1.0f / GridScale;
+                        for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
+                            particle *Particle = GameState->Particle + ParticleIndex;
+                            
+                            v3 P = InvGridScale * (Particle->P - GridOrigin);
+                            s32 X = TruncateReal32ToInt32(P.x);
+                            s32 Y = TruncateReal32ToInt32(P.y);
+                            
+                            if (X < 0) {X = 0;}
+                            if (X > PARTICEL_CEL_DIM - 1) { X = PARTICEL_CEL_DIM - 1;}
+                            if (Y < 0) {Y = 0;}
+                            if (Y > PARTICEL_CEL_DIM - 1) { Y = PARTICEL_CEL_DIM - 1;}
                             particle_cel *Cel = &GameState->ParticleCels[Y][X];
-                            r32 Alpha = Clamp01(0.1f * Cel->Density);
-                            PushRect(RenderGroup, GridScale * v3{(r32)X, (r32)Y, 0} + GridOrigin, GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
+                            r32 Density = Particle->Color.a;
+                            Cel->Density += Density;
+                            Cel->VelocityTimesDensity += Particle->dP * Density;
+                        }
+                        DEBUG_IF(Particle_Grid)
+                        {
+                            for(u32 Y = 0; Y < PARTICEL_CEL_DIM; ++Y) {
+                                for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
+                                    particle_cel *Cel = &GameState->ParticleCels[Y][X];
+                                    r32 Alpha = Clamp01(0.1f * Cel->Density);
+                                    PushRect(RenderGroup, GridScale * v3{(r32)X, (r32)Y, 0} + GridOrigin, GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
+                                }
+                            }
+                        }
+                        
+                        for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
+                            particle *Particle = GameState->Particle + ParticleIndex;
+                            
+                            v3 P = InvGridScale * (Particle->P - GridOrigin);
+                            
+                            s32 X = TruncateReal32ToInt32(P.x);
+                            s32 Y = TruncateReal32ToInt32(P.y);
+                            
+                            if (X < 1) {X = 1;}
+                            if (X > PARTICEL_CEL_DIM - 2) { X = PARTICEL_CEL_DIM - 2;}
+                            if (Y < 1) {Y = 1;}
+                            if (Y > PARTICEL_CEL_DIM - 2) { Y = PARTICEL_CEL_DIM - 2;}
+                            
+                            particle_cel *CelCenter = &GameState->ParticleCels[Y][X];
+                            particle_cel *CelLeft = &GameState->ParticleCels[Y][X - 1];
+                            particle_cel *CelRight = &GameState->ParticleCels[Y][X + 1];
+                            particle_cel *CelDown = &GameState->ParticleCels[Y - 1][X];
+                            particle_cel *CelUp = &GameState->ParticleCels[Y + 1][X];
+                            
+                            v3 Dispersion = {};
+                            r32 Dc = 0.02f;
+                            Dispersion += Dc * (CelCenter->Density - CelLeft->Density) * v3{-1, 0, 0};
+                            Dispersion += Dc * (CelCenter->Density - CelRight->Density) * v3{1, 0, 0};
+                            Dispersion += Dc * (CelCenter->Density - CelUp->Density) * v3{0, -1, 0};
+                            Dispersion += Dc * (CelCenter->Density - CelDown->Density) * v3{0, 1, 0};
+                            
+                            Particle->ddP += Dispersion;
+                            
+                            Particle->P += 0.5f * Square(Input->dtForFrame) * Particle->ddP + Particle->dP * Input->dtForFrame;
+                            Particle->dP += Input->dtForFrame * Particle->ddP;
+                            Particle->Color += Input->dtForFrame * Particle->dColor;
+                            
+                            if (Particle->P.y < 0) {
+                                r32 CoefficientRestitution = 0.3f;
+                                Particle->P.y = -Particle->P.y;
+                                Particle->dP.y = - CoefficientRestitution * Particle->dP.y;
+                            }
+                            
+                            Particle->ddP += Dispersion;
+                            
+                            v4 Color;
+                            Color.r = Clamp01(Particle->Color.r);
+                            Color.g = Clamp01(Particle->Color.g);
+                            Color.b = Clamp01(Particle->Color.b);
+                            Color.a = Clamp01(Particle->Color.a);
+                            
+                            if (Color.a > 0.9f) {
+                                Color.a = 0.9f * Clamp01MapToRange(1.0f, Color.a, 0.9f);
+                            }
+                            
+                            asset_vector MatchV = {};
+                            asset_vector WeightV = {};
+                            MatchV.E[Tag_UnicodeCodepoint] = (r32)'R';
+                            
+                            WeightV.E[Tag_UnicodeCodepoint] = 1.0f;
+                            //PushBitmap(RenderGroup, GetBestMatchFontFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
+                            
+                            //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Font, &GameState->EffectEntropy), 0.5f, Particle->P, Color);
+                            PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameState->EffectEntropy), 1.0f, Particle->P, Color);
+                            //PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+                            
                         }
                     }
-#endif
-                    
-                    for (u32 ParticleIndex = 0; ParticleIndex < ArrayCount(GameState->Particle); ++ParticleIndex) {
-                        particle *Particle = GameState->Particle + ParticleIndex;
-                        
-                        v3 P = InvGridScale * (Particle->P - GridOrigin);
-                        
-                        s32 X = TruncateReal32ToInt32(P.x);
-                        s32 Y = TruncateReal32ToInt32(P.y);
-                        
-                        if (X < 1) {X = 1;}
-                        if (X > PARTICEL_CEL_DIM - 2) { X = PARTICEL_CEL_DIM - 2;}
-                        if (Y < 1) {Y = 1;}
-                        if (Y > PARTICEL_CEL_DIM - 2) { Y = PARTICEL_CEL_DIM - 2;}
-                        
-                        particle_cel *CelCenter = &GameState->ParticleCels[Y][X];
-                        particle_cel *CelLeft = &GameState->ParticleCels[Y][X - 1];
-                        particle_cel *CelRight = &GameState->ParticleCels[Y][X + 1];
-                        particle_cel *CelDown = &GameState->ParticleCels[Y - 1][X];
-                        particle_cel *CelUp = &GameState->ParticleCels[Y + 1][X];
-                        
-                        v3 Dispersion = {};
-                        r32 Dc = 0.02f;
-                        Dispersion += Dc * (CelCenter->Density - CelLeft->Density) * v3{-1, 0, 0};
-                        Dispersion += Dc * (CelCenter->Density - CelRight->Density) * v3{1, 0, 0};
-                        Dispersion += Dc * (CelCenter->Density - CelUp->Density) * v3{0, -1, 0};
-                        Dispersion += Dc * (CelCenter->Density - CelDown->Density) * v3{0, 1, 0};
-                        
-                        Particle->ddP += Dispersion;
-                        
-                        Particle->P += 0.5f * Square(Input->dtForFrame) * Particle->ddP + Particle->dP * Input->dtForFrame;
-                        Particle->dP += Input->dtForFrame * Particle->ddP;
-                        Particle->Color += Input->dtForFrame * Particle->dColor;
-                        
-                        if (Particle->P.y < 0) {
-                            r32 CoefficientRestitution = 0.3f;
-                            Particle->P.y = -Particle->P.y;
-                            Particle->dP.y = - CoefficientRestitution * Particle->dP.y;
-                        }
-                        
-                        Particle->ddP += Dispersion;
-                        
-                        v4 Color;
-                        Color.r = Clamp01(Particle->Color.r);
-                        Color.g = Clamp01(Particle->Color.g);
-                        Color.b = Clamp01(Particle->Color.b);
-                        Color.a = Clamp01(Particle->Color.a);
-                        
-                        if (Color.a > 0.9f) {
-                            Color.a = 0.9f * Clamp01MapToRange(1.0f, Color.a, 0.9f);
-                        }
-                        
-                        asset_vector MatchV = {};
-                        asset_vector WeightV = {};
-                        MatchV.E[Tag_UnicodeCodepoint] = (r32)'R';
-                        
-                        WeightV.E[Tag_UnicodeCodepoint] = 1.0f;
-                        //PushBitmap(RenderGroup, GetBestMatchFontFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
-                        
-                        //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Font, &GameState->EffectEntropy), 0.5f, Particle->P, Color);
-                        PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameState->EffectEntropy), 1.0f, Particle->P, Color);
-                        //PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                        
-                    }
-#endif
                 } break;
                 case EntityType_Wall: {
                     
@@ -1161,12 +1166,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     //PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
                 } break;
                 case EntityType_Space: {
-#if DEBUGUI_ShowSpaceOutline
-                    for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
-                        sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                        PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
+                    
+                    DEBUG_IF(Renderer_Show_Space_Outline)
+                    {
+                        for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
+                            sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
+                            PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
+                        }
                     }
-#endif
                 } break;
                 default: {
                     InvalidCodePath
@@ -1188,7 +1195,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     }
                     v4 EntityOutlineColor;
                     if (DEBUG_HIGHLIGHTED(EntityDebugID, &EntityOutlineColor)) {
-                        
                         PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
                     }
                     

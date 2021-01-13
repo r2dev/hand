@@ -280,11 +280,13 @@ extern "C" {
     };
     
     struct game_input {
-        game_button_state MouseButtons[PlatformMouseButton_Count];
-        r32 MouseX, MouseY, MouseZ;
         game_controller_input Controllers[5];
         
         r32 dtForFrame;
+        
+        game_button_state MouseButtons[PlatformMouseButton_Count];
+        r32 MouseX, MouseY, MouseZ;
+        b32 ShiftDown, AltDown, ControlDown;
     };
     
     inline b32 WasPressed(game_button_state *State) {
