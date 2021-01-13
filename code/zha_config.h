@@ -10,3 +10,4 @@
 #define GlobalConstants_Particle_Demo 0
 #define GlobalConstants_Particle_Grid 0
 #define GlobalConstants_Renderer_Show_Space_Outline 1
+#define GlobalConstants_Renderer_Camera 20.0f

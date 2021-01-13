@@ -1355,6 +1355,19 @@ DEBUGEnd(debug_state* DebugState, game_input* Input, loaded_bitmap* DrawBuffer) 
     ZeroStruct(DebugState->NextHotInteraction);
 }
 
+internal debug_event
+DEBUGInitializeValue(debug_type Type, debug_event *Event, char *Name, char *FileName, u32 LineNumber) {
+    Event->Clock = 0;
+    Event->BlockName = Name;
+    Event->FileName = FileName;
+    Event->LineNumber = LineNumber;
+    Event->ThreadID = 0;
+    Event->CoreIndex = 0;
+    Event->Type = (u8)Type;
+    
+    return(*Event);
+}
+
 extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
     
     ++GlobalDebugTable->CurrentEventArrayIndex;
