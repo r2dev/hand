@@ -3,6 +3,7 @@
 #ifndef HANDMADE_DEBUG_H
 #define HANDMADE_DEBUG_H
 #define DEBUG_MAX_VARIABLE_STACK_SIZE 64
+
 struct debug_tree;
 
 struct debug_view_inline_block {
@@ -39,11 +40,27 @@ struct debug_tree {
     debug_tree* Prev;
 };
 
+struct debug_stored_event {
+    union {
+        debug_stored_event *Next;
+        debug_stored_event *NextFree;
+    };
+    debug_event Event;
+    u32 FrameIndex;
+};
+
+struct debug_element {
+    char *GUID;
+    debug_element *NextInHash;
+    debug_stored_event *OldestEvent;
+    debug_stored_event *LatestEvent;
+};
+
 struct debug_variable_link {
     debug_variable_link *Next;
     debug_variable_link *Prev;
     debug_variable_group *Children;
-    debug_event *Event;
+    debug_element *Element;
 };
 
 struct debug_variable_group {
@@ -87,11 +104,7 @@ struct debug_frame {
     u64 BeginClock;
     u64 EndClock;
     r32 WallSecondsElapsed;
-    
-    debug_variable_group *RootGroup;
-    
-    u32 RegionCount;
-    debug_frame_region *Regions;
+    u32 FrameIndex;
     union {
         debug_frame *Next;
         debug_frame *NextFree;
@@ -155,16 +168,23 @@ struct debug_state {
     b32 IsInitialized;
     platform_work_queue* HighPriorityQueue;
     memory_arena DebugArena;
+    memory_arena PerFrameArena;
     
     b32 Compiling;
     debug_executing_process Compiler;
     
     u32 FrameBarLaneCount;
+    debug_element *ElementHash[1024];
+    debug_tree TreeSentinal;
+    debug_tree *RootTree;
+    debug_view* ViewHash[4096];
     
+    // wrapping after 2 years
+    u32 TotalFrameCount;
     u32 FrameCount;
     debug_frame *OldestFrame;
     debug_frame *LatestFrame;
-    debug_frame *FirstFreeFrame;
+    
     debug_frame* CollationFrame;
     
     debug_thread *FirstThread;
@@ -195,14 +215,12 @@ struct debug_state {
     debug_interaction HotInteraction;
     debug_interaction NextHotInteraction;
     
-    debug_tree TreeSentinal;
-    debug_variable_group *RootGroup;
-    debug_variable_group *ValueGroup;
-    debug_view* ViewHash[4096];
-    
     v2 LastMouseP;
     
     v2 HotMenuP;
+    
+    debug_frame *FirstFreeFrame;
+    debug_stored_event *FirstFreeStoredEvent;
 };
 
 #endif //HANDMADE_DEBUG_H

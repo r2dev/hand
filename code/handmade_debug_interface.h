@@ -44,11 +44,8 @@ extern "C" {
     };
     
     struct debug_event {
-        char* FileName;
+        char* GUID;
         char* BlockName;
-        
-        u32 LineNumber;
-        
         u64 Clock;
         u8 Type;
         
@@ -81,6 +78,10 @@ extern "C" {
     };
     
     extern debug_table *GlobalDebugTable;
+#define UniqueFileCounterString__(A, B, C) A "(" #B ")." #C
+#define UniqueFileCounterString_(A, B, C) UniqueFileCounterString__(A, B, C)
+#define UniqueFileCounterString() UniqueFileCounterString_(__FILE__, __LINE__,  __COUNTER__)
+    
 #define RecordDebugEvent(EventType, Name) \
 u64 ArrayIndex_EventIndex = AtomicAddU64(&GlobalDebugTable->EventArrayIndex_EventIndex, 1); \
 u32 EventIndex = (ArrayIndex_EventIndex & 0xFFFFFFFF); \
@@ -90,9 +91,9 @@ Event->Clock = __rdtsc(); \
 Event->Type = (u8)EventType; \
 Event->CoreIndex = 0; \
 Event->ThreadID = (u16)GetThreadID(); \
-Event->FileName = __FILE__; \
+Event->GUID = UniqueFileCounterString(); \
 Event->BlockName = Name; \
-Event->LineNumber = __LINE__; \
+    
     
     
 #define FRAME_MARKER(SecondsElapsedInit) { \
@@ -245,25 +246,24 @@ internal b32 DEBUG_HIGHLIGHTED(debug_id ID, v4 *Color);
 internal b32 DEBUG_REQUESTED(debug_id);
 
 inline debug_event
-DEBUGInitializeValue(debug_type Type, debug_event *SubEvent, char *Name, char *FileName, u32 LineNumber) {
+DEBUGInitializeValue(debug_type Type, debug_event *SubEvent, char *Name, char* GUID) {
     RecordDebugEvent(DebugType_VariableMarker, "");
     Event->Value_debug_event = SubEvent;
     SubEvent->Clock = 0;
     SubEvent->BlockName = Name;
-    SubEvent->FileName = FileName;
-    SubEvent->LineNumber = LineNumber;
     SubEvent->ThreadID = 0;
     SubEvent->CoreIndex = 0;
     SubEvent->Type = (u8)Type;
+    SubEvent->GUID = GUID;
     return(*SubEvent);
 }
 
 #define DEBUG_IF__(Path) \
-local_persist debug_event DebugValue##Path = DEBUGInitializeValue((DebugValue##Path.Value_b32 = GlobalConstants_##Path, DebugType_b32), &DebugValue##Path, #Path, __FILE__, __LINE__); \
+local_persist debug_event DebugValue##Path = DEBUGInitializeValue((DebugValue##Path.Value_b32 = GlobalConstants_##Path, DebugType_b32), &DebugValue##Path, #Path, UniqueFileCounterString()); \
 if (DebugValue##Path.Value_b32)
 
 #define DEBUG_VARIABLE__(Type, Path, Variable) \
-local_persist debug_event DebugValue##Variable = DEBUGInitializeValue((DebugValue##Variable.Value_##Type = GlobalConstants_##Path, DebugType_##Type), &DebugValue##Variable, #Path "_" #Variable, __FILE__, __LINE__); \
+local_persist debug_event DebugValue##Variable = DEBUGInitializeValue((DebugValue##Variable.Value_##Type = GlobalConstants_##Path, DebugType_##Type), &DebugValue##Variable, #Path "_" #Variable, UniqueFileCounterString()); \
 Type Variable = DebugValue##Variable.Value_##Type;
 
 #else
