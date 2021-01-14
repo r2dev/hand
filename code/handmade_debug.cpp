@@ -1009,7 +1009,7 @@ FreeFrame(debug_state *DebugState, debug_frame *Frame) {
             }
         }
     }
-    FREELIST_DEALLOC(Frame, DebugState->FirstFreeFrame);
+    FREELIST_DEALLOC(DebugState->FirstFreeFrame, Frame);
 }
 
 internal void
@@ -1100,8 +1100,8 @@ GetElementFromEvent(debug_state *DebugState, debug_event *Event) {
         Result = PushStruct(&DebugState->DebugArena, debug_element);
         
         Result->NextInHash = DebugState->ElementHash[Index];
-        DebugState->ElementHash[Index] = Result;
         Result->GUID = Event->GUID;
+        DebugState->ElementHash[Index] = Result;
         
         Result->OldestEvent = Result->LatestEvent = 0;
     }
