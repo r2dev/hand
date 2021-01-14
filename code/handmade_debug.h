@@ -64,6 +64,8 @@ struct debug_variable_link {
 };
 
 struct debug_variable_group {
+    u32 NameLength;
+    char *Name;
     debug_variable_link Sentinal;
 };
 
@@ -147,6 +149,7 @@ enum debug_interaction_type {
     DebugInteraction_AutoModifyVariable,
     DebugInteraction_DragValue,
     DebugInteraction_ToggleValue,
+    DebugInteraction_ToggleExpansion,
     DebugInteraction_TearValue,
     DebugInteraction_Resize,
     DebugInteraction_Move,
@@ -176,7 +179,7 @@ struct debug_state {
     u32 FrameBarLaneCount;
     debug_element *ElementHash[1024];
     debug_tree TreeSentinal;
-    debug_tree *RootTree;
+    debug_variable_group *RootGroup;
     debug_view* ViewHash[4096];
     
     // wrapping after 2 years

@@ -24,10 +24,26 @@ struct temporary_memory {
 #define Maximum(A, B) ((A > B)? (A): (B))
 inline b32
 StringsAreEqual(char* A, char* B) {
+    b32 Result = A == B;
     while (*A && *B &&  *A++ == *B++) {
         
     }
-    b32 Result = (*A == 0 && *B == 0);
+    Result= (*A == 0 && *B == 0);
+    return(Result);
+}
+
+inline b32
+StringsAreEqual(memory_index ALenght, char* A, memory_index BLength, char* B) {
+    b32 Result = ALenght == BLength;
+    if (Result) {
+        Result = true;
+        for (u32 Index = 0; Index < ALenght; ++Index) {
+            if (A[Index] != B[Index]) {
+                Result = false;
+                break;
+            }
+        }
+    }
     return(Result);
 }
 
