@@ -1075,7 +1075,7 @@ StoreEvent(debug_state *DebugState, debug_element *Element, debug_event *Event) 
         Element->LatestEvent->Next = Result;
         Element->LatestEvent = Result;
     } else {
-        Element->OldestEvent = Element->LatestEvent = 0;
+        Element->OldestEvent = Element->LatestEvent = Result;
     }
     return(Result);
 }
