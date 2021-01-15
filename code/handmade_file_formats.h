@@ -21,8 +21,9 @@ enum asset_type_id {
 	Asset_Music,
     //Asset_Forget,
 	Asset_Bloop,
+    Asset_OpeningCutScene,
     
-	Asset_Count
+    Asset_Count
 };
 
 enum asset_font_type {
@@ -37,6 +38,9 @@ enum asset_tag_id {
     
     Tag_UnicodeCodepoint,
     Tag_FontType,
+    
+    Tag_ShotIndex,
+    Tag_LayerIndex,
     
     
 	Tag_Count

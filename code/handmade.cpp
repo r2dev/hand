@@ -669,7 +669,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		TranState->HighPriorityQueue = Memory->HighPriorityQueue;
 		TranState->LowPriorityQueue = Memory->LowPriorityQueue;
         
-		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(4), TranState);
+		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(256), TranState);
 		
 		TranState->GroundBufferCount = 256;
 		TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);

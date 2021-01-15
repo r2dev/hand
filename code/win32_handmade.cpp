@@ -4,6 +4,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <dsound.h>
+#include <gl/gl.h>
 
 #include "win32_handmade.h"
 
@@ -438,10 +439,10 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
 }
 
 internal void
-Win32DisplayBufferInWindow(
-                           win32_offscreen_buffer* Buffer,
+Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
                            HDC DeviceContext, int WindowWidth, int WindowHeight) {
     
+#if 0    
     if (WindowWidth >= Buffer->Width * 2 && WindowHeight >= Buffer->Height * 2) {
         StretchDIBits(DeviceContext,
                       0, 0, Buffer->Width * 2, Buffer->Height * 2,
@@ -465,6 +466,13 @@ Win32DisplayBufferInWindow(
                       0, 0, Buffer->Width, Buffer->Height,
                       Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
     }
+#else
+    glViewport(0, 0, WindowWidth, WindowHeight);
+    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    SwapBuffers(DeviceContext);
+#endif
+    
 }
 
 internal void
@@ -971,6 +979,34 @@ global_variable debug_table GlobalDebugTable_;
 debug_table* GlobalDebugTable = &GlobalDebugTable_;
 #endif
 
+internal void
+Win32InitOpenGL(HWND Window) {
+    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+    DesiredPixelFormat.nVersion = 1;
+    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
+    DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
+    DesiredPixelFormat.cColorBits = 32; 
+    DesiredPixelFormat.cAlphaBits = 8;
+    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+    HDC WindowDC = GetDC(Window);
+    int PixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+    if (PixelFormatIndex) {
+        PIXELFORMATDESCRIPTOR SuggestPixelFormat = {};
+        DescribePixelFormat(WindowDC, PixelFormatIndex, sizeof(SuggestPixelFormat), &SuggestPixelFormat);
+        if (SetPixelFormat(WindowDC, PixelFormatIndex, &SuggestPixelFormat)) {
+            HGLRC OpenglRC = wglCreateContext(WindowDC);
+            if (wglMakeCurrent(WindowDC, OpenglRC)) {
+                
+            } else {
+                InvalidCodePath;
+            }
+            ReleaseDC(Window, WindowDC);
+        }
+    }
+}
+
+
 int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int showCode) {
     
     platform_work_queue HighPriorityQueue;
@@ -1024,6 +1060,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                                      "Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
         if (Window) {
             GlobalRunning = true;
+            Win32InitOpenGL(Window);
             
             win32_sound_output SoundOutput = {};
             int MonitorRefreshHz = 60;

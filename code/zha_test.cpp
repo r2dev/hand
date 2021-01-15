@@ -670,6 +670,36 @@ WriteHHA(game_assets* Assets, char* FileName) {
 }
 
 internal void
+PackCutScene() {
+    game_assets Assets_;
+    game_assets* Assets = &Assets_;
+    InitialAssets(Assets);
+    
+    BeginAssetType(Assets, Asset_OpeningCutScene);
+    
+    AddBitmapAsset(Assets, "test/test_scene_layer_00.bmp");
+    AddTag(Assets, Tag_ShotIndex, 0);
+    AddTag(Assets, Tag_LayerIndex, 0);
+    AddBitmapAsset(Assets, "test/test_scene_layer_01.bmp");
+    AddTag(Assets, Tag_ShotIndex, 0);
+    AddTag(Assets, Tag_LayerIndex, 1.0f);
+    AddBitmapAsset(Assets, "test/test_scene_layer_02.bmp");
+    AddTag(Assets, Tag_ShotIndex, 0);
+    AddTag(Assets, Tag_LayerIndex, 2.0f);
+    AddBitmapAsset(Assets, "test/test_scene_layer_03.bmp");
+    AddTag(Assets, Tag_ShotIndex, 0);
+    AddTag(Assets, Tag_LayerIndex, 3.0f);
+    AddBitmapAsset(Assets, "test/test_scene_layer_04.bmp");
+    AddTag(Assets, Tag_ShotIndex, 0);
+    AddTag(Assets, Tag_LayerIndex, 4.0f);
+    
+    EndAssetType(Assets);
+    
+    
+    WriteHHA(Assets, "cut.hha");
+}
+
+internal void
 PackHero() {
     game_assets Assets_;
     game_assets* Assets = &Assets_;
@@ -836,6 +866,7 @@ int main(int ArgCount, char **Args) {
     PackMusic();
     PackOtherAsset();
     PackHero();
+    PackCutScene();
     PackFont();
     return(0);
 }
