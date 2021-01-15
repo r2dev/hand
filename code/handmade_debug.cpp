@@ -12,6 +12,14 @@ GetDebugIDFromLink(debug_tree* Tree, debug_variable_link *Link) {
     return(Result);
 }
 
+inline debug_id
+GetDebugIDFromGUID(debug_tree* Tree, char* GUID) {
+    debug_id Result = {};
+    Result.Value[0] = Tree;
+    Result.Value[1] = GUID;
+    return(Result);
+}
+
 inline b32
 DebugIDsAreEqual(debug_id A, debug_id B) {
     b32 Result = (A.Value[0] == B.Value[0] && A.Value[1] == B.Value[1]) ? true: false;
@@ -268,8 +276,11 @@ DEBUGEventToText(char* Buffer, char *End, debug_event* Event, u32 Flags) {
         } break;
         
         case DebugType_CounterThreadList:
-        case DebugType_bitmap_id:
+        case DebugType_bitmap_id: {
+        } break;
         case DebugType_OpenDataBlock: {
+            At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
+                              "%s", Event->BlockName);
         } break;
         default: {
             At += _snprintf_s(At, (size_t)(End - At), (size_t)(End - At), 
@@ -336,21 +347,12 @@ WriteZhaConfig(debug_state* DebugState) {
     
 }
 
-inline debug_event *
-GetEventFromLink(debug_variable_link *Link) {
-    debug_event *Result = 0;
-    if (Link->Element->LatestEvent) {
-        Result = &Link->Element->LatestEvent->Event;
-    }
-    return(Result);
-}
-
 inline debug_interaction 
-VarLinkInteraction(debug_tree* Tree, debug_interaction_type Type, debug_variable_link *Link) {
+EventInteraction(debug_id ID, debug_interaction_type Type, debug_event *Event) {
     debug_interaction Result = {};
-    Result.ID = GetDebugIDFromLink(Tree, Link);
+    Result.ID = ID;
     Result.Type = Type;
-    Result.Event = GetEventFromLink(Link);
+    Result.Event = Event;
     return(Result);
 }
 
@@ -527,7 +529,7 @@ DrawProfile(debug_state *DebugState, rectangle2 ProfileRect, v2 MouseP) {
 
 struct layout {
     v2 At;
-    int Depth;
+    u32 Depth;
     r32 LineAdvance;
     r32 SpacingY;
     v2 MouseP;
@@ -638,6 +640,93 @@ GetDebugViewFor(debug_state *DebugState, debug_id ID) {
 }
 
 internal void
+DEBUGDrawEvent(layout *Layout, debug_stored_event* StoredEvent, debug_id ID) {
+    debug_state *DebugState = Layout->DebugState;
+    render_group* RenderGroup = DebugState->RenderGroup;
+    if (StoredEvent) {
+        debug_event *Event = &StoredEvent->Event;
+        debug_interaction AutoInteraction = EventInteraction(ID, DebugInteraction_AutoModifyVariable, Event);
+        
+        b32 IsHot = InteractionAreEqual(DebugState->HotInteraction, AutoInteraction);
+        v4 ItemColor = (IsHot)? v4{1, 1, 0, 1}: v4{1, 1, 1, 1};
+        
+        debug_view *View = GetDebugViewFor(DebugState, ID);
+        
+        switch(Event->Type) {
+            
+            case DebugType_bitmap_id: {
+                loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, Event->Value_bitmap_id, RenderGroup->GenerationID);
+                r32 BitmapScale = View->InlineBlock.Dim.y;
+                if (Bitmap) {
+                    used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, V3(0, 0, 0), 1.0f);
+                    View->InlineBlock.Dim.x = Dim.Size.x;
+                }
+                debug_interaction TearInteraction = EventInteraction(ID, DebugInteraction_TearValue, Event);
+                
+                layout_element Element = BeginElementRectangle(Layout, &View->InlineBlock.Dim);
+                SetElementSizable(&Element);
+                SetElementDefaultInteraction(&Element, TearInteraction);
+                EndElement(&Element);
+                PushRect(DebugState->RenderGroup, Element.Bounds, 0.0f, v4{0, 0, 0, 1.0f});
+                PushBitmap(DebugState->RenderGroup, Event->Value_bitmap_id, BitmapScale, V3(GetMinCorner(Element.Bounds), 0.0f), v4{1, 1, 1, 1}, 0.0f);
+            } break;
+            default: {
+                char Text[256];
+                DEBUGEventToText(Text, Text + sizeof(Text), Event, DebugVarToText_AddName|DebugVarToText_FloatSuffix
+                                 |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools);
+                
+                r32 LeftX = Layout->At.x + Layout->Depth * Layout->LineAdvance * 2.0f;
+                r32 TopY = Layout->At.y;
+                rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
+                
+                v2 Dim = {GetDim(TextBound).x, Layout->LineAdvance};
+                layout_element Element = BeginElementRectangle(Layout, &Dim);
+                SetElementDefaultInteraction(&Element, AutoInteraction);
+                EndElement(&Element);
+                
+                DEBUGTextOutAt(V2(GetMinCorner(Element.Bounds).x, GetMaxCorner(Element.Bounds).y - DebugState->FontScale * GetStartingBaselineY(DebugState->FontInfo)), Text, ItemColor);
+            } break;
+        }
+    }
+}
+
+internal void
+DEBUGDrawElement(layout *Layout, debug_tree *Tree, debug_element *Element, debug_id ID) {
+    debug_stored_event *OldestEvent = Element->OldestEvent;
+    debug_state *DebugState = Layout->DebugState;
+    if (OldestEvent) {
+        debug_view *View = GetDebugViewFor(DebugState, ID);
+        switch(OldestEvent->Event.Type) {
+            case DebugType_CounterThreadList: {
+                layout_element LayoutElement = BeginElementRectangle(Layout, &View->InlineBlock.Dim);
+                SetElementSizable(&LayoutElement);
+                EndElement(&LayoutElement);
+                DrawProfile(DebugState, LayoutElement.Bounds, Layout->MouseP);
+            } break;
+            
+            case DebugType_OpenDataBlock: {
+                debug_stored_event *LastOpenEvent = Element->OldestEvent;
+                for (debug_stored_event *Event = Element->OldestEvent; Event; Event = Event->Next) {
+                    if (Event->Event.Type == DebugType_OpenDataBlock) {
+                        LastOpenEvent = Event;
+                    }
+                }
+                
+                for (debug_stored_event *Event = LastOpenEvent; Event; Event = Event->Next) {
+                    
+                    debug_id NewID = GetDebugIDFromGUID(Tree, Event->Event.GUID);
+                    DEBUGDrawEvent(Layout, Event, NewID);
+                }
+            } break;
+            default: {
+                debug_stored_event *Event = Element->LatestEvent;
+                DEBUGDrawEvent(Layout, Event, ID);
+            } break;
+        }
+    }
+}
+
+internal void
 DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP) {
     for (debug_tree* Tree = DebugState->TreeSentinal.Next;
          Tree != &DebugState->TreeSentinal; 
@@ -702,59 +791,8 @@ DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
                         }
                         
                     } else {
-                        
-                        debug_event* Event = GetEventFromLink(Link);
-                        if (Event) {
-                            
-                            debug_interaction AutoInteraction = VarLinkInteraction(Tree, DebugInteraction_AutoModifyVariable, Link);
-                            
-                            b32 IsHot = InteractionAreEqual(DebugState->HotInteraction, AutoInteraction);
-                            v4 ItemColor = (IsHot)? v4{1, 1, 0, 1}: v4{1, 1, 1, 1};
-                            
-                            debug_view *View = GetDebugViewFor(DebugState, GetDebugIDFromLink(Tree, Link));
-                            
-                            switch(Event->Type) {
-                                case DebugType_CounterThreadList: {
-                                    
-                                    layout_element Element = BeginElementRectangle(&Layout, &View->InlineBlock.Dim);
-                                    SetElementSizable(&Element);
-                                    SetElementDefaultInteraction(&Element, AutoInteraction);
-                                    EndElement(&Element);
-                                    DrawProfile(DebugState, Element.Bounds, MouseP);
-                                } break;
-                                case DebugType_bitmap_id: {
-                                    loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, Event->Value_bitmap_id, RenderGroup->GenerationID);
-                                    r32 BitmapScale = View->InlineBlock.Dim.y;
-                                    if (Bitmap) {
-                                        used_bitmap_dim Dim = GetBitmapDim(RenderGroup, Bitmap, BitmapScale, V3(0, 0, 0), 1.0f);
-                                        View->InlineBlock.Dim.x = Dim.Size.x;
-                                    }
-                                    debug_interaction TearInteraction = VarLinkInteraction(Tree, DebugInteraction_TearValue, Link);
-                                    
-                                    layout_element Element = BeginElementRectangle(&Layout, &View->InlineBlock.Dim);
-                                    SetElementSizable(&Element);
-                                    SetElementDefaultInteraction(&Element, TearInteraction);
-                                    EndElement(&Element);
-                                    PushRect(DebugState->RenderGroup, Element.Bounds, 0.0f, v4{0, 0, 0, 1.0f});
-                                    PushBitmap(DebugState->RenderGroup, Event->Value_bitmap_id, BitmapScale, V3(GetMinCorner(Element.Bounds), 0.0f), v4{1, 1, 1, 1}, 0.0f);
-                                } break;
-                                default: {
-                                    DEBUGEventToText(Text, Text + sizeof(Text), Event, DebugVarToText_AddName|DebugVarToText_FloatSuffix
-                                                     |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools);
-                                    
-                                    r32 LeftX = Layout.At.x + Layout.Depth * Layout.LineAdvance * 2.0f;
-                                    r32 TopY = Layout.At.y;
-                                    rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
-                                    
-                                    v2 Dim = {GetDim(TextBound).x, Layout.LineAdvance};
-                                    layout_element Element = BeginElementRectangle(&Layout, &Dim);
-                                    SetElementDefaultInteraction(&Element, AutoInteraction);
-                                    EndElement(&Element);
-                                    
-                                    DEBUGTextOutAt(V2(GetMinCorner(Element.Bounds).x, GetMaxCorner(Element.Bounds).y - DebugState->FontScale * GetStartingBaselineY(DebugState->FontInfo)), Text, ItemColor);
-                                } break;
-                            }
-                        }
+                        debug_id ID = GetDebugIDFromLink(Tree, Link);
+                        DEBUGDrawElement(&Layout, Tree, Link->Element, ID);
                     }
                 }
             }
@@ -954,13 +992,14 @@ AddRegion(debug_state *DebugState, debug_frame* CurrentFrame) {
 #endif
 
 inline open_debug_block *
-AllocateOpenDebugBlock(debug_state *DebugState, u32 FrameIndex, debug_event *Event, open_debug_block **FirstOpenBlock) {
+AllocateOpenDebugBlock(debug_state *DebugState, debug_element *Element, u32 FrameIndex, debug_event *Event, open_debug_block **FirstOpenBlock) {
     open_debug_block *DebugBlock;
     FREELIST_ALLOC(DebugState->FirstFreeBlock, DebugBlock, PushStruct(&DebugState->DebugArena, open_debug_block));
     
     DebugBlock->StartingFrameIndex = FrameIndex;
     DebugBlock->Event = Event;
     DebugBlock->NextFree = 0;
+    DebugBlock->Element = Element;
     
     DebugBlock->Parent = *FirstOpenBlock;
     *FirstOpenBlock = DebugBlock;
@@ -1040,6 +1079,7 @@ GetGroupForHierarchicalName(debug_state *DebugState, debug_variable_group* Paren
             FirstUnderScore = Scan;
         }
     }
+    
     if (FirstUnderScore) {
         debug_variable_group *SubGroup = GetOrCreateGroupWithName(DebugState, Parent, Name, (u32)(FirstUnderScore - Name));
         Result = GetGroupForHierarchicalName(DebugState, SubGroup, FirstUnderScore + 1);
@@ -1227,7 +1267,7 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *EventA
             
             switch(Event->Type) {
                 case DebugType_BeginBlock: {
-                    open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, FrameIndex, Event, &Thread->FirstOpenCodeBlock);
+                    open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, Element, FrameIndex, Event, &Thread->FirstOpenCodeBlock);
                 } break;
                 case DebugType_EndBlock: {
                     if (Thread->FirstOpenCodeBlock) {
@@ -1260,32 +1300,25 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *EventA
                     }
                 } break;
                 case DebugType_OpenDataBlock: {
-                    open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, FrameIndex, Event, &Thread->FirstOpenDataBlock);
-                    
-#if 0                    
-                    DebugBlock->Group = CreateVariableGroup(DebugState);
-                    debug_variable_link *Link = 0;
-                    if (DebugBlock->Parent) {
-                        Link = AddVariableToGroup(DebugState, DebugBlock->Parent->Group, Event);
-                    } else {
-                        Link = AddVariableToGroup(DebugState, DebugState->CollationFrame->RootGroup, Event);
-                    }
-                    Link->Children = DebugBlock->Group;
-#endif
-                    
+                    open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, Element, FrameIndex, Event, &Thread->FirstOpenDataBlock);
+                    StoreEvent(DebugState, Element, Event);
                 } break;
                 case DebugType_CloseDataBlock: {
                     if (Thread->FirstOpenDataBlock) {
+                        StoreEvent(DebugState, Thread->FirstOpenDataBlock->Element, Event);
                         open_debug_block* MatchingBlock = Thread->FirstOpenDataBlock;
                         debug_event* OpeningEvent = MatchingBlock->Event;
                         if (EventsMatch(OpeningEvent, Event)) {
                             DeallocateOpenDebugBlock(DebugState, &Thread->FirstOpenDataBlock);
-                        } else {
                         }
                     }
                 } break;
                 default: {
-                    StoreEvent(DebugState, Element, Event);
+                    debug_element * StoredElement = Element;
+                    if (Thread->FirstOpenDataBlock) {
+                        StoredElement = Thread->FirstOpenDataBlock->Element;
+                    }
+                    StoreEvent(DebugState, StoredElement, Event);
                 } break;
             }
         }
@@ -1379,7 +1412,7 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
         
         memory_index TotalMemorySize = DebugGlobalMemory->DebugStorageSize - sizeof(debug_state);
         InitializeArena(&DebugState->DebugArena, TotalMemorySize, DebugState + 1);
-        SubArena(&DebugState->PerFrameArena, &DebugState->DebugArena, 32 * 1024);
+        SubArena(&DebugState->PerFrameArena, &DebugState->DebugArena, TotalMemorySize / 2);
         
         DebugState->RootGroup = CreateVariableGroup(DebugState, "root", 4);
         

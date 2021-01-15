@@ -118,6 +118,7 @@ struct debug_frame {
 struct open_debug_block {
     u32 StartingFrameIndex;
     debug_event *Event;
+    debug_element *Element;
     union {
         open_debug_block *Parent;
         open_debug_block *NextFree;

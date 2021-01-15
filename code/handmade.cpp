@@ -1200,12 +1200,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                     
                 }
                 if (DEBUG_REQUESTED(EntityDebugID)) {
-                    DEBUG_BEGIN_DATA_BLOCK("Simulation Entity", EntityDebugID);
+                    DEBUG_BEGIN_DATA_BLOCK(Simulation_Entity, EntityDebugID);
                     DEBUG_VALUE(Entity->P);
                     DEBUG_VALUE(Entity->dP);
                     DEBUG_VALUE(Entity->FacingDirection);
                     DEBUG_VALUE(Entity->WalkableDim);
                     DEBUG_VALUE(Entity->WalkableHeight);
+                    DEBUG_VALUE(Entity->StorageIndex);
                     
                     DEBUG_END_DATA_BLOCK();
                 }
