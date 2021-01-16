@@ -244,6 +244,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
                 
                 Bitmap->WidthOverHeight = SafeRatio1((r32)Bitmap->Width, (r32)Bitmap->Height);
                 Bitmap->AlignPercentage = v2{Info->AlignPercentage[0], Info->AlignPercentage[1]};
+                Bitmap->Handle = 0;
                 
                 Bitmap->Pitch = SafeTruncateToUInt16(Size.Section);
                 Bitmap->Memory = (Asset->Header + 1);

@@ -1,4 +1,6 @@
 #include "handmade_platform.h"
+#include "handmade_intrinsics.h"
+#include "handmade_math.h"
 #include <windows.h>
 #include <Xinput.h>
 #include <malloc.h>
@@ -7,6 +9,8 @@
 #include <gl/gl.h>
 
 #include "win32_handmade.h"
+
+#include "handmade_opengl.cpp"
 
 global_variable b32 GlobalRunning;
 global_variable b32 GlobalPause;
@@ -437,7 +441,7 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
     Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     
 }
-
+global_variable GLuint BlitTextureHandle;
 internal void
 Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
                            HDC DeviceContext, int WindowWidth, int WindowHeight) {
@@ -467,9 +471,60 @@ Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
                       Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
     }
 #else
+    
+#if 0    
     glViewport(0, 0, WindowWidth, WindowHeight);
-    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+    
+    glBindTexture(GL_TEXTURE_2D, BlitTextureHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Buffer->Width, Buffer->Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Buffer->Memory);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    
+    glEnable(GL_TEXTURE_2D);
+    
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    
+    glMatrixMode(GL_TEXTURE);
+    glLoadIdentity();
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glMatrixMode(GL_PROJECTION);
+    
+    r32 Proj[] = {
+        SafeRatio1(2.0f, (r32)Buffer->Width), 0, 0, 0,
+        0, SafeRatio1(2.0f, (r32)Buffer->Height), 0, 0,
+        0, 0, 1.0f, 0,
+        -1.0f, -1.0f, 0, 1.0f,
+    };
+    glLoadMatrixf(Proj);
+    
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    v2 MinP = {0, 0};
+    v2 MaxP = {(r32)Buffer->Width, (r32)Buffer->Height};
+    glBegin(GL_TRIANGLES);
+    
+    glTexCoord2f(0, 0);
+    glVertex2f(MinP.x, MinP.y);
+    glTexCoord2f(1.0f, 0);
+    glVertex2f(MaxP.x, MinP.y);
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2f(MaxP.x, MaxP.y);
+    
+    glTexCoord2f(0, 0);
+    glVertex2f(MinP.x, MinP.y);
+    glTexCoord2f(1.0f, 1.0f);
+    glVertex2f(MaxP.x, MaxP.y);
+    glTexCoord2f(0, 1.0f);
+    glVertex2f(MinP.x, MaxP.y);
+    
+    glEnd();
+#endif
     SwapBuffers(DeviceContext);
 #endif
     
@@ -997,7 +1052,7 @@ Win32InitOpenGL(HWND Window) {
         if (SetPixelFormat(WindowDC, PixelFormatIndex, &SuggestPixelFormat)) {
             HGLRC OpenglRC = wglCreateContext(WindowDC);
             if (wglMakeCurrent(WindowDC, OpenglRC)) {
-                
+                glGenTextures(1, &BlitTextureHandle);
             } else {
                 InvalidCodePath;
             }
@@ -1058,10 +1113,12 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
         HWND Window = CreateWindowEx(
                                      0, WindowClass.lpszClassName,
                                      "Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
+        
         if (Window) {
+            
+            ToggleFullScreen(Window);
             GlobalRunning = true;
             Win32InitOpenGL(Window);
-            
             win32_sound_output SoundOutput = {};
             int MonitorRefreshHz = 60;
             HDC RefreshDC = GetDC(Window);
@@ -1118,6 +1175,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             GameMemory.PlatformAPI.FileError = Win32FileError;
             GameMemory.PlatformAPI.AllocateMemory = Win32AllocateMemory;
             GameMemory.PlatformAPI.DeallocateMemory = Win32DeallocateMemory;
+            GameMemory.PlatformAPI.RenderToOpenGL = OpenGLRenderGroupToOutput;
             
             Win32State.TotalSize = (GameMemory.PermanentStorageSize + 
                                     GameMemory.TransientStorageSize +
@@ -1419,7 +1477,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     END_BLOCK(DebugCollation);
 #endif
                     ///
-#if 1
+#if 0
                     BEGIN_BLOCK(WaitFrameComplete);
                     if (!GlobalPause) {
                         LARGE_INTEGER WorkCounter = Win32GetWallClock();

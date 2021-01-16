@@ -1279,7 +1279,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
     rectangle2i d = {4, 4, 120, 120};
     
-    TiledRenderGroupToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
+    RenderToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
     EndRender(RenderGroup);
     
     EndSim(SimRegion, GameState);

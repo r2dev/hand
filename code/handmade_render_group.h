@@ -1,5 +1,22 @@
 #pragma once
 
+struct loaded_bitmap {
+    void* Memory;
+	v2 AlignPercentage;
+	r32 WidthOverHeight;
+    
+	s16 Width;
+	s16 Height;
+	s16 Pitch;
+    
+    // opengl handle texture
+    u32 Handle;
+};
+
+struct environment_map {
+	loaded_bitmap LOD[4];
+	r32 Pz;
+};
 
 enum render_group_entry_type {
 	RenderGroupEntryType_render_entry_clear,
@@ -37,6 +54,7 @@ struct render_transform {
 
 
 struct render_group {
+    b32 IsHardware;
 	u32 MaxPushBufferSize;
 	
 	u32 PushBufferSize;

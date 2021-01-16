@@ -333,15 +333,16 @@ extern "C" {
 #define PLATFORM_WORK_QUEUE_CALLBACK(name) void name(platform_work_queue* Queue, void* Data)
     typedef PLATFORM_WORK_QUEUE_CALLBACK(platform_work_queue_callback);
     
-    typedef void platform_add_entry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data);
-    typedef void platform_complete_all_work(platform_work_queue* Queue);
-    
-    
 #define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_index Size)
     typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
     
 #define PLATFORM_DEALLOCATE_MEMORY(name) void name(void* Memory)
     typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory);
+    
+    typedef void platform_opengl_render(struct render_group* RenderGroup, struct loaded_bitmap* OutputTarget);
+    typedef void platform_add_entry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data);
+    typedef void platform_complete_all_work(platform_work_queue* Queue);
+    
     
     typedef struct platform_api {
         platform_add_entry* AddEntry;
@@ -355,6 +356,8 @@ extern "C" {
         
         platform_allocate_memory *AllocateMemory;
         platform_deallocate_memory *DeallocateMemory;
+        
+        platform_opengl_render *RenderToOpenGL;
         
 #if HANDMADE_INTERNAL
         debug_platform_read_entire_file* DEBUGReadEntireFile;

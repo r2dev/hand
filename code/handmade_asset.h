@@ -1,19 +1,5 @@
 #pragma once
 
-struct loaded_bitmap {
-    void* Memory;
-	v2 AlignPercentage;
-	r32 WidthOverHeight;
-    
-	s16 Width;
-	s16 Height;
-	s16 Pitch;
-};
-struct environment_map {
-	loaded_bitmap LOD[4];
-	r32 Pz;
-};
-
 struct loaded_sound {
 	u32 SampleCount;
 	u32 ChannelCount;
@@ -50,9 +36,11 @@ struct loaded_font {
 struct asset_memory_header {
     asset_memory_header *Next;
     asset_memory_header *Prev;
+    
     u32 AssetIndex;
     u32 TotalSize;
     u32 GenerationID;
+    
     union { 
 		loaded_bitmap Bitmap; 
 		loaded_sound Sound;

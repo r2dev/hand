@@ -699,7 +699,9 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
             } break;
             case RenderGroupEntryType_render_entry_bitmap: {
                 render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
-                DrawRectangle2(OutputTarget, Entry->P, V2(Entry->Size.x, 0), V2(0, Entry->Size.y), Entry->Color, Entry->Bitmap, NullPixelsToMeters, ClipRect, Even);
+                v2 XAxis = {1, 0};
+                v2 YAxis = {0, 1};
+                DrawRectangle2(OutputTarget, Entry->P, Entry->Size.x * XAxis, Entry->Size.y * YAxis, Entry->Color, Entry->Bitmap, NullPixelsToMeters, ClipRect, Even);
 				
                 BaseAddress += sizeof(*Entry);
                 
@@ -808,4 +810,15 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
 	Work.RenderGroup = RenderGroup;
 	Work.OutputTarget = OutputTarget;
 	DoTileRenderWork(0, &Work);
+}
+
+
+inline void
+RenderToOutput(platform_work_queue* Queue, render_group* RenderGroup, loaded_bitmap* OutputTarget) {
+    if (1) {
+        Platform.RenderToOpenGL(RenderGroup, OutputTarget);
+    } else {
+        TiledRenderGroupToOutput(Queue, RenderGroup, OutputTarget);
+    }
+    
 }
