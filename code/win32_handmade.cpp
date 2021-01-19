@@ -10,8 +10,6 @@
 
 #include "win32_handmade.h"
 
-#include "handmade_opengl.cpp"
-
 global_variable b32 GlobalRunning;
 global_variable b32 GlobalPause;
 global_variable win32_offscreen_buffer GlobalBackbuffer;
@@ -19,6 +17,10 @@ global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global_variable int64 GlobalPerfCountFrequency;
 global_variable b32 DEBUGGlobalShowCursor;
 global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
+global_variable GLint DefaultInternalTextureFormat;
+
+#include "handmade_opengl.cpp"
+
 
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
@@ -35,6 +37,9 @@ X_INPUT_SET_STATE(XInputSetStateStub) {
 }
 global_variable x_input_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
+
+typedef BOOL WINAPI wgl_swap_interval_ext(int intervel);
+global_variable wgl_swap_interval_ext *wglSwapInterval;
 
 internal void
 CatStrings(size_t SourceACount, char* SourceA,
@@ -439,8 +444,8 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
     int BitmapMemorySize = Buffer->Pitch * Buffer->Height;
     
     Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    
 }
+
 global_variable GLuint BlitTextureHandle;
 internal void
 Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
@@ -472,7 +477,7 @@ Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
     }
 #else
     
-#if 0    
+#if 0
     glViewport(0, 0, WindowWidth, WindowHeight);
     
     glBindTexture(GL_TEXTURE_2D, BlitTextureHandle);
@@ -525,6 +530,7 @@ Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
     
     glEnd();
 #endif
+    
     SwapBuffers(DeviceContext);
 #endif
     
@@ -773,10 +779,6 @@ Win32MainWindowCallback(
         case WM_PAINT: {
             PAINTSTRUCT Paint;
             HDC DeviceContext = BeginPaint(Window, &Paint);
-            int X = Paint.rcPaint.left;
-            int Y = Paint.rcPaint.top;
-            int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
-            int Width = Paint.rcPaint.right - Paint.rcPaint.left;
             win32_window_dimension Dimension = Win32GetWindowDimension(Window);
             Win32DisplayBufferInWindow(&GlobalBackbuffer, DeviceContext, Dimension.Width, Dimension.Height);
             EndPaint(Window, &Paint);
@@ -1052,7 +1054,24 @@ Win32InitOpenGL(HWND Window) {
         if (SetPixelFormat(WindowDC, PixelFormatIndex, &SuggestPixelFormat)) {
             HGLRC OpenglRC = wglCreateContext(WindowDC);
             if (wglMakeCurrent(WindowDC, OpenglRC)) {
-                glGenTextures(1, &BlitTextureHandle);
+                
+#define SRGB8_ALPHA8_EXT 0x8C43
+#define GL_FRAMEBUFFER_SRGB 0x8DB9
+                
+                DefaultInternalTextureFormat = GL_RGBA8;
+                // if () 
+                {
+                    DefaultInternalTextureFormat = SRGB8_ALPHA8_EXT;
+                }
+                // if ()
+                {
+                    glEnable(GL_FRAMEBUFFER_SRGB);
+                }
+                
+                wglSwapInterval = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
+                if (wglSwapInterval) {
+                    wglSwapInterval(1);
+                }
             } else {
                 InvalidCodePath;
             }
@@ -1127,7 +1146,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             if (Win32RefreshRate > 1) {
                 MonitorRefreshHz = Win32RefreshRate;
             }
-            r32 GameUpdateHz = MonitorRefreshHz / 2.0f;
+            r32 GameUpdateHz = MonitorRefreshHz / 1.0f;
             r32 TargetSecondsPerFrame = 1.0f / GameUpdateHz;
             
             

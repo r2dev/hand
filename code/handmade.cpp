@@ -790,16 +790,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
 	loaded_bitmap DrawBuffer_ = {};
 	loaded_bitmap* DrawBuffer = &DrawBuffer_;
-	DrawBuffer->Height = SafeTruncateToUInt16(Buffer->Height);
-	DrawBuffer->Width = SafeTruncateToUInt16(Buffer->Width);
-    DrawBuffer->Pitch = SafeTruncateToUInt16(Buffer->Pitch);
+	DrawBuffer->Height = Buffer->Height;
+	DrawBuffer->Width = Buffer->Width;
+    DrawBuffer->Pitch = Buffer->Pitch;
 	DrawBuffer->Memory = Buffer->Memory;
     
-    DEBUG_IF(Renderer_WeirdDrawBufferSize)
-    {
-        DrawBuffer->Width = 1279;
-        DrawBuffer->Height = 719;
-    }
     v2 MouseP = {Input->MouseX, Input->MouseY};
 	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
                                                     Megabytes(4), false);

@@ -25,7 +25,6 @@ global_variable u32 TextBindCount = 0;
 
 internal void
 OpenGLRenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget) {
-    v2 ScreenDim = { (r32)OutputTarget->Width, (r32)OutputTarget->Height };
     glViewport(0, 0, OutputTarget->Width, OutputTarget->Height);
     
     glEnable(GL_TEXTURE_2D);
@@ -37,8 +36,8 @@ OpenGLRenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget
     glLoadIdentity();
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    glMatrixMode(GL_PROJECTION);
     
+    glMatrixMode(GL_PROJECTION);
     r32 a = SafeRatio1(2.0f, (r32)OutputTarget->Width);
     r32 b = SafeRatio1(2.0f, (r32)OutputTarget->Height);
     r32 Proj[] = {
@@ -78,12 +77,17 @@ OpenGLRenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget
             case RenderGroupEntryType_render_entry_bitmap: {
                 render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
                 
+                v2 XAxis = {1, 0};
+                v2 YAxis = {0, 1};
+                v2 MinP = Entry->P;
+                v2 MaxP = MinP + Entry->Size.x * XAxis + Entry->Size.y * YAxis;
+                
                 if (Entry->Bitmap->Handle) {
                     glBindTexture(GL_TEXTURE_2D, Entry->Bitmap->Handle);
                 } else {
                     Entry->Bitmap->Handle = ++TextBindCount;
                     glBindTexture(GL_TEXTURE_2D, Entry->Bitmap->Handle);
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Entry->Bitmap->Width, Entry->Bitmap->Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Entry->Bitmap->Memory);
+                    glTexImage2D(GL_TEXTURE_2D, 0, DefaultInternalTextureFormat, Entry->Bitmap->Width, Entry->Bitmap->Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Entry->Bitmap->Memory);
                     
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -93,11 +97,8 @@ OpenGLRenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
                 }
                 
-                v2 XAxis = {1, 0};
-                v2 YAxis = {0, 1};
-                v2 MinP = Entry->P;
-                v2 MaxP = MinP + Entry->Size.x * XAxis + Entry->Size.y * YAxis;
-				OpenGLRectangle(MinP, MaxP, Entry->Color);
+                
+				OpenGLRectangle(Entry->P, MaxP, Entry->Color);
                 
                 BaseAddress += sizeof(*Entry);
                 
