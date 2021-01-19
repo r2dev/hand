@@ -54,7 +54,7 @@ extern "C" {
     typedef int8 s8;
     typedef int16 s16;
     typedef int32 s32;
-    typedef int64 s65;
+    typedef int64 s64;
     typedef bool32 b32;
     
     typedef uint8 u8;
@@ -66,7 +66,7 @@ extern "C" {
     typedef real64 r64;
     
     typedef size_t memory_index;
-    typedef u64 umm;
+    typedef uintptr_t umm;
     
     union v2 {
         struct {

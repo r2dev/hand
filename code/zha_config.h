@@ -5,7 +5,7 @@
 #define GlobalConstants_Renderer_ShowLightning_SampleSource 0
 #define GlobalConstants_GroundChunk_ReGenGroundChunkOnReload 0
 #define GlobalConstants_Renderer_WeirdDrawBufferSize 0
-#define GlobalConstants_GroundChunk_ShowGroundChunkOutlines 1
+#define GlobalConstants_GroundChunk_ShowGroundChunkOutlines 0
 #define GlobalConstants_Sim_FamiliarFollowsHero 0
 #define GlobalConstants_Particle_Demo 0
 #define GlobalConstants_Particle_Grid 0

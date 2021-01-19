@@ -1,5 +1,75 @@
 #include "handmade_render_group.h"
 
+#define SRGB8_ALPHA8_EXT 0x8C43
+#define GL_FRAMEBUFFER_SRGB 0x8DB9
+
+#define GL_SHADING_LANGUAGE_VERSION             0x8B8C
+
+#define WGL_CONTEXT_MAJOR_VERSION_ARB           0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB           0x2092
+#define WGL_CONTEXT_LAYER_PLANE_ARB             0x2093
+#define WGL_CONTEXT_FLAGS_ARB                   0x2094
+#define WGL_CONTEXT_PROFILE_MASK_ARB            0x9126
+
+#define WGL_CONTEXT_DEBUG_BIT_ARB               0x0001
+#define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB  0x0002
+
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB        0x00000001
+#define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
+
+struct opengl_info {
+    char *Vendor;
+    char *Renderer;
+    char *Version;
+    char *ShadingLanguageVersion;
+    char *Extensions;
+    
+    b32 GL_EXT_texture_sRGB;
+    b32 GL_EXT_framebuffer_sRGB;
+};
+
+internal opengl_info
+OpenGLGetInfo(b32 ModernContext) {
+    opengl_info Result = {};
+    Result.Vendor = (char*)glGetString(GL_VENDOR);
+    Result.Renderer = (char*)glGetString(GL_RENDERER);
+    Result.Version = (char*)glGetString(GL_VERSION);
+    if (ModernContext) {
+        Result.ShadingLanguageVersion = (char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+    } else {
+        Result.ShadingLanguageVersion = "none";
+    }
+    Result.Extensions = (char*)glGetString(GL_EXTENSIONS);
+    char *At = Result.Extensions;
+    
+    while(*At) {
+        while (IsWhiteSpace(*At)) {++At;};
+        char *End = At;
+        while(*End && !IsWhiteSpace(*End)) {++End;};
+        umm Count = End - At;
+        
+        if      (StringsAreEqual(Count, At, "GL_EXT_texture_sRGB")){ Result.GL_EXT_texture_sRGB = true; }
+        else if (StringsAreEqual(Count, At, "GL_EXT_framebuffer_sRGB")){ Result.GL_EXT_framebuffer_sRGB = true; }
+        
+        At = End;
+    }
+    
+    return(Result);
+}
+
+internal void
+OpenGLInit(b32 ModernContext) {
+    opengl_info Info = OpenGLGetInfo(ModernContext);
+    
+    DefaultInternalTextureFormat = GL_RGBA8;
+    if (Info.GL_EXT_texture_sRGB) {
+        DefaultInternalTextureFormat = SRGB8_ALPHA8_EXT;
+    }
+    if (Info.GL_EXT_framebuffer_sRGB) {
+        glEnable(GL_FRAMEBUFFER_SRGB);
+    }
+}
+
 inline void 
 OpenGLSetScreenSpace(s32 Width, s32 Height) {
     glMatrixMode(GL_PROJECTION);
@@ -42,7 +112,7 @@ OpenGLDisplayBitmap(s32 Width, s32 Height, void *Memory, s32 Pitch, s32 WindowWi
     glViewport(0, 0, Width, Height);
     
     glBindTexture(GL_TEXTURE_2D, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Memory);
+    glTexImage2D(GL_TEXTURE_2D, 0, DefaultInternalTextureFormat, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Memory);
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -74,8 +144,10 @@ global_variable u32 TextBindCount = 0;
 
 internal void
 OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 WindowHeight) {
+    // Passing windowWidth and height
     glViewport(0, 0, Commands->Width, Commands->Height);
     
+    //glViewport(0, 0, WindowWidth, WindowHeight);
     glEnable(GL_TEXTURE_2D);
     
     glEnable(GL_BLEND);

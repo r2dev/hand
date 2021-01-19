@@ -1,6 +1,5 @@
 #include "handmade_platform.h"
-#include "handmade_intrinsics.h"
-#include "handmade_math.h"
+#include "handmade_share.h"
 #include <windows.h>
 #include <Xinput.h>
 #include <malloc.h>
@@ -15,7 +14,7 @@ global_variable b32 GlobalRunning;
 global_variable b32 GlobalPause;
 global_variable win32_offscreen_buffer GlobalBackbuffer;
 global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
-global_variable int64 GlobalPerfCountFrequency;
+global_variable s64 GlobalPerfCountFrequency;
 global_variable b32 DEBUGGlobalShowCursor;
 global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
 global_variable GLint DefaultInternalTextureFormat;
@@ -42,6 +41,8 @@ global_variable x_input_set_state* XInputSetState_ = XInputSetStateStub;
 
 typedef BOOL WINAPI wgl_swap_interval_ext(int intervel);
 global_variable wgl_swap_interval_ext *wglSwapInterval;
+
+typedef HGLRC WINAPI wgl_create_context_attribs_arb(HDC hDC, HGLRC hshareContext, const int *attribList);
 
 internal void
 CatStrings(size_t SourceACount, char* SourceA,
@@ -1023,20 +1024,32 @@ Win32InitOpenGL(HWND Window) {
         if (SetPixelFormat(WindowDC, PixelFormatIndex, &SuggestPixelFormat)) {
             HGLRC OpenglRC = wglCreateContext(WindowDC);
             if (wglMakeCurrent(WindowDC, OpenglRC)) {
-                
-#define SRGB8_ALPHA8_EXT 0x8C43
-#define GL_FRAMEBUFFER_SRGB 0x8DB9
-                
-                DefaultInternalTextureFormat = GL_RGBA8;
-                // if () 
-                {
-                    DefaultInternalTextureFormat = SRGB8_ALPHA8_EXT;
+                b32 ModernContext = false;
+                wgl_create_context_attribs_arb *wglCreateContextAttribsARB
+                    = (wgl_create_context_attribs_arb *)wglGetProcAddress("wglCreateContextAttribsARB");
+                if (wglCreateContextAttribsARB) {
+                    int Attribs[] = {
+                        WGL_CONTEXT_MAJOR_VERSION_ARB, 3, 
+                        WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+                        WGL_CONTEXT_FLAGS_ARB, 0//WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+#if HANDMADE_INTERNAL
+                        |WGL_CONTEXT_DEBUG_BIT_ARB
+#endif
+                        ,
+                        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+                        0,
+                    };
+                    HGLRC ShareContext = 0;
+                    HGLRC ModernGLRC = wglCreateContextAttribsARB(WindowDC, ShareContext, Attribs);
+                    if (ModernGLRC) {
+                        if (wglMakeCurrent(WindowDC, ModernGLRC)) {
+                            ModernContext = true;
+                            wglDeleteContext(OpenglRC);
+                            OpenglRC = ModernGLRC;
+                        }
+                    }
                 }
-                // if ()
-                {
-                    glEnable(GL_FRAMEBUFFER_SRGB);
-                }
-                
+                OpenGLInit(ModernContext);
                 wglSwapInterval = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
                 if (wglSwapInterval) {
                     wglSwapInterval(1);
