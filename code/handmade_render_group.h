@@ -55,10 +55,6 @@ struct render_transform {
 
 struct render_group {
     b32 IsHardware;
-	u32 MaxPushBufferSize;
-	
-	u32 PushBufferSize;
-	u8* PushBufferBase;
 	
 	r32 GlobalAlpha;
 	v2 MonitorHalfDimInMeters;
@@ -70,7 +66,7 @@ struct render_group {
     u32 GenerationID;
     b32 RenderInBackground;
     
-    b32 InsideRender;
+    game_render_commands *Commands;
 };
 
 struct render_entry_clear {

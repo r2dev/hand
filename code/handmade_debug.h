@@ -210,7 +210,7 @@ struct debug_state {
     font_id FontID;
     r32 GlobalWidth;
     r32 GlobalHeight;
-    render_group *RenderGroup;
+    render_group RenderGroup;
     
     loaded_font *Font;
     hha_font *FontInfo;

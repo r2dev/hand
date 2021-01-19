@@ -278,8 +278,9 @@ struct fill_ground_chunk_work {
 };
 
 PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
-    TIMED_FUNCTION();
 	fill_ground_chunk_work* Work = (fill_ground_chunk_work*)Data;
+    
+#if 0    
     loaded_bitmap* Buffer = &Work->GroundBuffer->Bitmap;
     Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
     Buffer->WidthOverHeight = 1.0f;
@@ -331,6 +332,8 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
     Assert(AllResoucePresent(RenderGroup));
 	RenderGroupToOutput(RenderGroup, Buffer);
     EndRender(RenderGroup);
+#endif
+    
 	EndTaskWithMemory(Work->Task);
 }
 
@@ -466,6 +469,16 @@ DEBUGGetGameAsset(game_memory *Memory) {
     game_assets* Result = 0;
     if (TranState && TranState->IsInitialized) {
         Result = TranState->Assets;
+    }
+    return(Result);
+}
+
+internal u32
+DEBUGGetMainGenerationID(game_memory *Memory) {
+    transient_state* TranState = (transient_state*)Memory->TransientStorage;
+    u32 Result = 0;
+    if (TranState && TranState->IsInitialized) {
+        Result = TranState->MainGenerationID;
     }
     return(Result);
 }
@@ -708,6 +721,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		TranState->IsInitialized = true;
 	}
     
+    if (TranState->MainGenerationID) {
+        EndGeneration(TranState->Assets, TranState->MainGenerationID);
+    }
+    TranState->MainGenerationID = BeginGeneration(TranState->Assets);
+    
+    
     DEBUG_IF(GroundChunk_ReGenGroundChunkOnReload)
     {
         if (Memory->ExecutableReloaded) {
@@ -788,17 +807,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
 	temporary_memory RenderMemory = BeginTemporaryMemory(&TranState->TranArena);
     
-	loaded_bitmap DrawBuffer_ = {};
-	loaded_bitmap* DrawBuffer = &DrawBuffer_;
-	DrawBuffer->Height = Buffer->Height;
-	DrawBuffer->Width = Buffer->Width;
-    DrawBuffer->Pitch = Buffer->Pitch;
-	DrawBuffer->Memory = Buffer->Memory;
+    // TODO(NAME): remove this
+    
+    loaded_bitmap DrawBuffer_ = {};
+    DrawBuffer_.Width = RenderCommands->Width;
+    DrawBuffer_.Height = RenderCommands->Height;
+    
+    loaded_bitmap* DrawBuffer = &DrawBuffer_;
+    
     
     v2 MouseP = {Input->MouseX, Input->MouseY};
-	render_group* RenderGroup = AllocateRenderGroup(TranState->Assets, &TranState->TranArena, 
-                                                    Megabytes(4), false);
-    BeginRender(RenderGroup);
+	render_group RenderGroup_ = BeginRenderGroup(TranState->Assets, RenderCommands, TranState->MainGenerationID, false);
+    render_group *RenderGroup = &RenderGroup_;
     
     r32 FocalLength = 0.6f;
 	r32 DistanceAboveTarget = 9.0f;
@@ -1274,8 +1294,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
     rectangle2i d = {4, 4, 120, 120};
     
-    RenderToOutput(TranState->HighPriorityQueue, RenderGroup, DrawBuffer);
-    EndRender(RenderGroup);
+    EndRenderGroup(RenderGroup);
     
     EndSim(SimRegion, GameState);
     EndTemporaryMemory(SimMemory);

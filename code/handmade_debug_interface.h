@@ -7,7 +7,7 @@
 extern "C" {
 #endif
     struct debug_table;
-#define DEBUG_FRAME_END(name) debug_table *name(game_memory* Memory, game_input* Input, game_offscreen_buffer* Buffer)
+#define DEBUG_FRAME_END(name) debug_table *name(game_memory* Memory, game_input* Input, game_render_commands *RenderCommands)
     typedef DEBUG_FRAME_END(debug_game_frame_end);
     
     struct debug_id {

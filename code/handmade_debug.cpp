@@ -115,7 +115,7 @@ DEBUGTextOp(debug_text_op Op, debug_state* DebugState, v2 P, char* String, v4 Co
     rectangle2 Result = InvertedInfinityRectangle2();
     if (DebugState && DebugState->Font) {
         
-        render_group *RenderGroup = DebugState->RenderGroup;
+        render_group *RenderGroup = &DebugState->RenderGroup;
         
         loaded_font* Font = DebugState->Font;
         hha_font* FontInfo = DebugState->FontInfo;
@@ -443,7 +443,7 @@ DEBUG_REQUESTED(debug_id ID) {
 
 internal void
 DrawProfile(debug_state *DebugState, rectangle2 ProfileRect, v2 MouseP) {
-    PushRect(DebugState->RenderGroup, ProfileRect, 0, V4(0, 0, 0, 0.25f));
+    PushRect(&DebugState->RenderGroup, ProfileRect, 0, V4(0, 0, 0, 0.25f));
     
     r32 BarSpacing = 4.0f;
     r32 LaneHeight = 0.0f;
@@ -579,11 +579,11 @@ EndElement(layout_element *Element) {
     v2 MaxCorner = TotalMinCorner + *Element->Dim;
     Element->Bounds = RectMinMax(MinCorner, MaxCorner);
     
-    PushRect(DebugState->RenderGroup, RectMinMax(v2{TotalMinCorner.x, MinCorner.y}, v2{MinCorner.x, MaxCorner.y}), 0.0f, v4{0, 0, 0, 1});
-    PushRect(DebugState->RenderGroup, RectMinMax(v2{MaxCorner.x, MinCorner.y}, v2{TotalMaxCorner.x, MaxCorner.y}), 0.0f, v4{0, 0, 0, 1});
+    PushRect(&DebugState->RenderGroup, RectMinMax(v2{TotalMinCorner.x, MinCorner.y}, v2{MinCorner.x, MaxCorner.y}), 0.0f, v4{0, 0, 0, 1});
+    PushRect(&DebugState->RenderGroup, RectMinMax(v2{MaxCorner.x, MinCorner.y}, v2{TotalMaxCorner.x, MaxCorner.y}), 0.0f, v4{0, 0, 0, 1});
     
-    PushRect(DebugState->RenderGroup, RectMinMax(v2{MinCorner.x, MaxCorner.y}, v2{MaxCorner.x, TotalMaxCorner.y}), 0.0f, v4{0, 0, 0, 1});
-    PushRect(DebugState->RenderGroup, RectMinMax(v2{MinCorner.x, TotalMinCorner.y}, v2{MaxCorner.x, MinCorner.y}), 0.0f, v4{0, 0, 0, 1});
+    PushRect(&DebugState->RenderGroup, RectMinMax(v2{MinCorner.x, MaxCorner.y}, v2{MaxCorner.x, TotalMaxCorner.y}), 0.0f, v4{0, 0, 0, 1});
+    PushRect(&DebugState->RenderGroup, RectMinMax(v2{MinCorner.x, TotalMinCorner.y}, v2{MaxCorner.x, MinCorner.y}), 0.0f, v4{0, 0, 0, 1});
     
     if (Element->Interaction.Type && IsInRectangle(Element->Bounds, Layout->MouseP)) {
         DebugState->NextHotInteraction = Element->Interaction;
@@ -596,7 +596,7 @@ EndElement(layout_element *Element) {
         debug_interaction SizeInteraction = {};
         SizeInteraction.Type = DebugInteraction_Resize;
         SizeInteraction.P = Element->Size;
-        PushRect(DebugState->RenderGroup, SizeRect, 0.0f, 
+        PushRect(&DebugState->RenderGroup, SizeRect, 0.0f, 
                  (InteractionIsHot(DebugState, SizeInteraction))? v4{1, 1, 0, 1}: v4{1, 1, 1, 1});
         if (IsInRectangle(SizeRect, Layout->MouseP)) {
             DebugState->NextHotInteraction = SizeInteraction;
@@ -642,7 +642,7 @@ GetDebugViewFor(debug_state *DebugState, debug_id ID) {
 internal void
 DEBUGDrawEvent(layout *Layout, debug_stored_event* StoredEvent, debug_id ID) {
     debug_state *DebugState = Layout->DebugState;
-    render_group* RenderGroup = DebugState->RenderGroup;
+    render_group* RenderGroup = &DebugState->RenderGroup;
     if (StoredEvent) {
         debug_event *Event = &StoredEvent->Event;
         debug_interaction AutoInteraction = EventInteraction(ID, DebugInteraction_AutoModifyVariable, Event);
@@ -667,8 +667,8 @@ DEBUGDrawEvent(layout *Layout, debug_stored_event* StoredEvent, debug_id ID) {
                 SetElementSizable(&Element);
                 SetElementDefaultInteraction(&Element, TearInteraction);
                 EndElement(&Element);
-                PushRect(DebugState->RenderGroup, Element.Bounds, 0.0f, v4{0, 0, 0, 1.0f});
-                PushBitmap(DebugState->RenderGroup, Event->Value_bitmap_id, BitmapScale, V3(GetMinCorner(Element.Bounds), 0.0f), v4{1, 1, 1, 1}, 0.0f);
+                PushRect(RenderGroup, Element.Bounds, 0.0f, v4{0, 0, 0, 1.0f});
+                PushBitmap(RenderGroup, Event->Value_bitmap_id, BitmapScale, V3(GetMinCorner(Element.Bounds), 0.0f), v4{1, 1, 1, 1}, 0.0f);
             } break;
             default: {
                 char Text[256];
@@ -804,7 +804,7 @@ DEBUGDrawMainMenu(debug_state* DebugState, render_group* RenderGroup, v2 MouseP)
             MoveInteraction.P = &Tree->UIP;
             
             rectangle2 MoveRect = RectMinDim(Tree->UIP - v2{5.0f, 5.0f}, v2{5.0f, 5.0f});
-            PushRect(DebugState->RenderGroup, MoveRect, 0.0f, 
+            PushRect(RenderGroup, MoveRect, 0.0f, 
                      InteractionIsHot(DebugState, MoveInteraction)? v4{1, 1, 0, 1}: v4{1, 1, 1, 1});
             
             if (IsInRectangle(MoveRect, MouseP)) {
@@ -1394,7 +1394,7 @@ DEBUGDumpStruct(u32 MemberCount, member_definition *MemberDefs, void *StructPtr,
 }
 
 internal void
-DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) {
+DEBUGStart(debug_state* DebugState, game_render_commands *Commands, game_assets *Assets, u32 MainGenerationID, u32 Width, u32 Height) {
     TIMED_FUNCTION();
     if(!DebugState->IsInitialized) {
         
@@ -1464,7 +1464,7 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
         
         
         DebugState->HighPriorityQueue = DebugGlobalMemory->HighPriorityQueue;
-        DebugState->RenderGroup = AllocateRenderGroup(Assets, &DebugState->DebugArena, Megabytes(16), false);
+        
         
         DebugState->IsInitialized = true;
         DebugState->Paused = false;
@@ -1473,7 +1473,7 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
         DLIST_INIT(&DebugState->TreeSentinal);
         DEBUGAddTree(DebugState, DebugState->RootGroup, v2{-0.5f * (r32)Width, 0.5f * (r32)Height});
     }
-    BeginRender(DebugState->RenderGroup);
+    DebugState->RenderGroup = BeginRenderGroup(Assets, Commands, MainGenerationID, false);
     
     DebugState->GlobalWidth = (r32)Width;
     DebugState->GlobalHeight = (r32)Height;
@@ -1482,12 +1482,12 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
     WeightVector.E[Tag_FontType] = 1.0f;
     MatchVector.E[Tag_FontType] = (r32)FontType_Debug;
     
-    Orthographic(DebugState->RenderGroup, Width, Height, 1.0f);
+    Orthographic(&DebugState->RenderGroup, Width, Height, 1.0f);
     
     DebugState->FontID = GetBestMatchFontFrom(Assets, Asset_Font, &MatchVector, &WeightVector);
     DebugState->FontScale = 1.0f;
-    DebugState->Font = PushFont(DebugState->RenderGroup, DebugState->FontID);
-    DebugState->FontInfo = GetFontInfo(DebugState->RenderGroup->Assets, DebugState->FontID);
+    DebugState->Font = PushFont(&DebugState->RenderGroup, DebugState->FontID);
+    DebugState->FontInfo = GetFontInfo(DebugState->RenderGroup.Assets, DebugState->FontID);
     
     DebugState->LeftEdge = -0.5f * (r32)Width;
     DebugState->RightEdge = 0.5f * (r32)Width;
@@ -1495,16 +1495,16 @@ DEBUGStart(debug_state* DebugState, game_assets *Assets, u32 Width, u32 Height) 
 }
 
 internal void
-DEBUGEnd(debug_state* DebugState, game_input* Input, loaded_bitmap* DrawBuffer) {
+DEBUGEnd(debug_state* DebugState, game_input* Input) {
     TIMED_FUNCTION();
     
-    render_group* RenderGroup = DebugState->RenderGroup;
+    render_group* RenderGroup = &DebugState->RenderGroup;
     
     debug_event* HotEvent = 0;
     // mouse Position
-    v2 MouseP = Unproject(DebugState->RenderGroup, V2(Input->MouseX, Input->MouseY)).xy;
+    v2 MouseP = Unproject(&DebugState->RenderGroup, V2(Input->MouseX, Input->MouseY)).xy;
     
-    DEBUGDrawMainMenu(DebugState, DebugState->RenderGroup, MouseP);
+    DEBUGDrawMainMenu(DebugState, &DebugState->RenderGroup, MouseP);
     DEBUGInteract(DebugState, Input, MouseP);
     
     if (DebugState->Compiling) {
@@ -1596,8 +1596,7 @@ DEBUGEnd(debug_state* DebugState, game_input* Input, loaded_bitmap* DrawBuffer) 
         }
     }
     
-    RenderToOutput(DebugState->HighPriorityQueue, DebugState->RenderGroup, DrawBuffer);
-    EndRender(DebugState->RenderGroup);
+    EndRenderGroup(&DebugState->RenderGroup);
     
     ZeroStruct(DebugState->NextHotInteraction);
 }
@@ -1616,15 +1615,10 @@ extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
     debug_state *DebugState = (debug_state *)Memory->DebugStorage;
     if (DebugState) {
         game_assets *Assets = DEBUGGetGameAsset(Memory);
-        DEBUGStart(DebugState, Assets, Buffer->Width, Buffer->Height);
+        u32 MainGenerationID = DEBUGGetMainGenerationID(Memory);
+        DEBUGStart(DebugState, RenderCommands, Assets, MainGenerationID, RenderCommands->Width, RenderCommands->Height);
         CollateDebugRecords(DebugState, EventCount, GlobalDebugTable->Events[EventArrayIndex]);
-        
-        loaded_bitmap DrawBuffer = {};
-        DrawBuffer.Height = SafeTruncateToUInt16(Buffer->Height);
-        DrawBuffer.Width = SafeTruncateToUInt16(Buffer->Width);
-        DrawBuffer.Pitch = SafeTruncateToUInt16(Buffer->Pitch);
-        DrawBuffer.Memory = Buffer->Memory;
-        DEBUGEnd(DebugState, Input, &DrawBuffer);
+        DEBUGEnd(DebugState, Input);
     }
     
     return(GlobalDebugTable);

@@ -3,15 +3,15 @@
 struct win32_offscreen_buffer {
 	BITMAPINFO Info;
 	void* Memory;
-	int Width;
-	int Height;
-	int Pitch;
-	int BytesPerPixel;
+    u32 Width;
+    u32 Height;
+    u32 Pitch;
+    u32 BytesPerPixel;
 };
 
 struct win32_window_dimension {
-	int Width;
-	int Height;
+    u32 Width;
+    u32 Height;
 };
 
 struct win32_sound_output

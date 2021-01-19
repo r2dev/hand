@@ -277,7 +277,7 @@ struct task_with_memory {
 struct transient_state {
 	b32 IsInitialized;
 	memory_arena TranArena;
-    
+    u32 MainGenerationID;
 	task_with_memory Tasks[4];
 	u32 GroundBufferCount;
 	ground_buffer* GroundBuffers;

@@ -8,8 +8,9 @@
 #include <dsound.h>
 #include <gl/gl.h>
 
-#include "win32_handmade.h"
+global_variable platform_api Platform;
 
+#include "win32_handmade.h"
 global_variable b32 GlobalRunning;
 global_variable b32 GlobalPause;
 global_variable win32_offscreen_buffer GlobalBackbuffer;
@@ -19,8 +20,9 @@ global_variable b32 DEBUGGlobalShowCursor;
 global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
 global_variable GLint DefaultInternalTextureFormat;
 
-#include "handmade_opengl.cpp"
 
+#include "handmade_opengl.cpp"
+#include "handmade_render.cpp"
 
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
 typedef X_INPUT_GET_STATE(x_input_get_state);
@@ -448,92 +450,57 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
 
 global_variable GLuint BlitTextureHandle;
 internal void
-Win32DisplayBufferInWindow(win32_offscreen_buffer* Buffer,
-                           HDC DeviceContext, int WindowWidth, int WindowHeight) {
+Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_commands* Commands,
+                           HDC DeviceContext, u32 WindowWidth, u32 WindowHeight) {
     
-#if 0    
-    if (WindowWidth >= Buffer->Width * 2 && WindowHeight >= Buffer->Height * 2) {
-        StretchDIBits(DeviceContext,
-                      0, 0, Buffer->Width * 2, Buffer->Height * 2,
-                      0, 0, Buffer->Width, Buffer->Height,
-                      Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
-    }
-    else {
+    // TODO(NAME): sort command
+    
+    b32 InHardware = true;
+    b32 DisplayWithWin32Blit = true;
+    
+    if (InHardware) {
+        OpenGLRenderCommands(Commands, WindowWidth, WindowHeight);
+        
+        SwapBuffers(DeviceContext);
+        
+    } else {
+        loaded_bitmap OutputTarget;
+        OutputTarget.Memory = GlobalBackbuffer.Memory;
+        OutputTarget.Width = GlobalBackbuffer.Width;
+        OutputTarget.Height = GlobalBackbuffer.Height;
+        OutputTarget.Pitch = GlobalBackbuffer.Pitch;
+        SoftwareRenderCommands(RenderQueue, Commands, &OutputTarget);
+        if (DisplayWithWin32Blit) {
+            
+            if (WindowWidth >= GlobalBackbuffer.Width * 2 && WindowHeight >= GlobalBackbuffer.Height * 2) {
+                StretchDIBits(DeviceContext,
+                              0, 0, GlobalBackbuffer.Width * 2, GlobalBackbuffer.Height * 2,
+                              0, 0, GlobalBackbuffer.Width, GlobalBackbuffer.Height,
+                              GlobalBackbuffer.Memory, &GlobalBackbuffer.Info, DIB_RGB_COLORS, SRCCOPY);
+            }
+            else {
 #if 0
-        int OffsetX = 10;
-        int OffsetY = 10;
-        PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
-        PatBlt(DeviceContext, 0, OffsetY + Buffer->Height, WindowWidth, WindowHeight, BLACKNESS);
-        PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
-        PatBlt(DeviceContext, OffsetX + Buffer->Width, 0, WindowWidth, WindowHeight, BLACKNESS);
+                int OffsetX = 10;
+                int OffsetY = 10;
+                PatBlt(DeviceContext, 0, 0, WindowWidth, OffsetY, BLACKNESS);
+                PatBlt(DeviceContext, 0, OffsetY + GlobalBackbuffer.Height, WindowWidth, WindowHeight, BLACKNESS);
+                PatBlt(DeviceContext, 0, 0, OffsetX, WindowHeight, BLACKNESS);
+                PatBlt(DeviceContext, OffsetX + GlobalBackbuffer.Width, 0, WindowWidth, WindowHeight, BLACKNESS);
 #else
-        int OffsetX = 0;
-        int OffsetY = 0;
+                int OffsetX = 0;
+                int OffsetY = 0;
 #endif
-        StretchDIBits(DeviceContext,
-                      OffsetX, OffsetY, Buffer->Width, Buffer->Height,
-                      0, 0, Buffer->Width, Buffer->Height,
-                      Buffer->Memory, &Buffer->Info, DIB_RGB_COLORS, SRCCOPY);
+                StretchDIBits(DeviceContext,
+                              OffsetX, OffsetY, GlobalBackbuffer.Width, GlobalBackbuffer.Height,
+                              0, 0, GlobalBackbuffer.Width, GlobalBackbuffer.Height,
+                              GlobalBackbuffer.Memory, &GlobalBackbuffer.Info, DIB_RGB_COLORS, SRCCOPY);
+            }
+        } else {
+            OpenGLDisplayBitmap(GlobalBackbuffer.Width, GlobalBackbuffer.Height, GlobalBackbuffer.Memory, GlobalBackbuffer.Pitch, WindowWidth, WindowHeight);
+            SwapBuffers(DeviceContext);
+            
+        }
     }
-#else
-    
-#if 0
-    glViewport(0, 0, WindowWidth, WindowHeight);
-    
-    glBindTexture(GL_TEXTURE_2D, BlitTextureHandle);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Buffer->Width, Buffer->Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Buffer->Memory);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    
-    glEnable(GL_TEXTURE_2D);
-    
-    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    
-    glMatrixMode(GL_TEXTURE);
-    glLoadIdentity();
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-    glMatrixMode(GL_PROJECTION);
-    
-    r32 Proj[] = {
-        SafeRatio1(2.0f, (r32)Buffer->Width), 0, 0, 0,
-        0, SafeRatio1(2.0f, (r32)Buffer->Height), 0, 0,
-        0, 0, 1.0f, 0,
-        -1.0f, -1.0f, 0, 1.0f,
-    };
-    glLoadMatrixf(Proj);
-    
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    v2 MinP = {0, 0};
-    v2 MaxP = {(r32)Buffer->Width, (r32)Buffer->Height};
-    glBegin(GL_TRIANGLES);
-    
-    glTexCoord2f(0, 0);
-    glVertex2f(MinP.x, MinP.y);
-    glTexCoord2f(1.0f, 0);
-    glVertex2f(MaxP.x, MinP.y);
-    glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(MaxP.x, MaxP.y);
-    
-    glTexCoord2f(0, 0);
-    glVertex2f(MinP.x, MinP.y);
-    glTexCoord2f(1.0f, 1.0f);
-    glVertex2f(MaxP.x, MaxP.y);
-    glTexCoord2f(0, 1.0f);
-    glVertex2f(MinP.x, MaxP.y);
-    
-    glEnd();
-#endif
-    
-    SwapBuffers(DeviceContext);
-#endif
-    
 }
 
 internal void
@@ -779,8 +746,10 @@ Win32MainWindowCallback(
         case WM_PAINT: {
             PAINTSTRUCT Paint;
             HDC DeviceContext = BeginPaint(Window, &Paint);
+#if 0            
             win32_window_dimension Dimension = Win32GetWindowDimension(Window);
             Win32DisplayBufferInWindow(&GlobalBackbuffer, DeviceContext, Dimension.Width, Dimension.Height);
+#endif
             EndPaint(Window, &Paint);
         } break;
         case WM_SYSKEYDOWN:
@@ -1194,7 +1163,8 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             GameMemory.PlatformAPI.FileError = Win32FileError;
             GameMemory.PlatformAPI.AllocateMemory = Win32AllocateMemory;
             GameMemory.PlatformAPI.DeallocateMemory = Win32DeallocateMemory;
-            GameMemory.PlatformAPI.RenderToOpenGL = OpenGLRenderGroupToOutput;
+            
+            Platform = GameMemory.PlatformAPI;
             
             Win32State.TotalSize = (GameMemory.PermanentStorageSize + 
                                     GameMemory.TransientStorageSize +
@@ -1231,6 +1201,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 b32 SoundIsValid = false;
                 
                 win32_game_code Game = Win32LoadGameCode(SourceGameCodeDLLFullPath, TempGameCodeDLLFullPath, GameCodeLockFullPath);
+                
+                u32 PushBufferSize = Megabytes(4);
+                void *PushBuffer = Win32AllocateMemory(PushBufferSize);
                 
                 while (GlobalRunning) {
                     ///
@@ -1384,6 +1357,8 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     ///
                     BEGIN_BLOCK(GameUpdate);
                     
+                    game_render_commands RenderCommands = RenderCommandStruct(PushBufferSize, (u8 *)PushBuffer, GlobalBackbuffer.Width, GlobalBackbuffer.Height);
+                    
                     game_offscreen_buffer Buffer = {};
                     Buffer.Memory = GlobalBackbuffer.Memory;
                     Buffer.Height = GlobalBackbuffer.Height;
@@ -1404,7 +1379,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                             NewInput->MouseZ = Temp.MouseZ;
                         }
                         if (Game.UpdateAndRender) {
-                            Game.UpdateAndRender(&GameMemory, NewInput, &Buffer);
+                            Game.UpdateAndRender(&GameMemory, NewInput, &RenderCommands);
                             //HandleDebugCycleCounters(&GameMemory);
                         }
                         
@@ -1490,7 +1465,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
 #if HANDMADE_INTERNAL
                     BEGIN_BLOCK(DebugCollation);
                     if (Game.DEBUGFrameEnd) {
-                        GlobalDebugTable = Game.DEBUGFrameEnd(&GameMemory, NewInput, &Buffer);
+                        GlobalDebugTable = Game.DEBUGFrameEnd(&GameMemory, NewInput, &RenderCommands);
                     }
                     GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
                     END_BLOCK(DebugCollation);
@@ -1536,7 +1511,13 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     win32_window_dimension Dimension = Win32GetWindowDimension(Window);
                     
                     HDC DeviceContext = GetDC(Window);
-                    Win32DisplayBufferInWindow(&GlobalBackbuffer, DeviceContext, Dimension.Width, Dimension.Height);
+                    
+                    // sort temp memory allocation
+                    //if (CurrentSortMemorySize < NeededSortMemorySize) {
+                    //SortMemory = ;
+                    //}
+                    
+                    Win32DisplayBufferInWindow(&HighPriorityQueue, &RenderCommands, DeviceContext, Dimension.Width, Dimension.Height);
                     ReleaseDC(Window, DeviceContext);
                     
                     // note music syncing

@@ -66,6 +66,7 @@ extern "C" {
     typedef real64 r64;
     
     typedef size_t memory_index;
+    typedef u64 umm;
     
     union v2 {
         struct {
@@ -222,6 +223,17 @@ extern "C" {
     
 #define BITMAP_BYTE_PER_PIXEL 4
     
+    struct game_render_commands {
+        u32 Width;
+        u32 Height;
+        
+        u32 MaxPushBufferSize;
+        u32 PushBufferSize;
+        u8* PushBufferBase;
+    };
+#define RenderCommandStruct(MaxPushBufferSize, PushBuffer, Width, Height) \
+{Width, Height, MaxPushBufferSize, 0, PushBuffer}
+    
     struct game_offscreen_buffer {
         void* Memory;
         int Width;
@@ -339,7 +351,6 @@ extern "C" {
 #define PLATFORM_DEALLOCATE_MEMORY(name) void name(void* Memory)
     typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory);
     
-    typedef void platform_opengl_render(struct render_group* RenderGroup, struct loaded_bitmap* OutputTarget);
     typedef void platform_add_entry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data);
     typedef void platform_complete_all_work(platform_work_queue* Queue);
     
@@ -356,9 +367,6 @@ extern "C" {
         
         platform_allocate_memory *AllocateMemory;
         platform_deallocate_memory *DeallocateMemory;
-        
-        platform_opengl_render *RenderToOpenGL;
-        
 #if HANDMADE_INTERNAL
         debug_platform_read_entire_file* DEBUGReadEntireFile;
         debug_platform_write_entire_file* DEBUGWriteEntireFile;
@@ -387,7 +395,7 @@ extern "C" {
     } game_memory;
     
     
-#define GAME_UPDATE_AND_RENDER(name) void name(game_memory* Memory, game_input* Input, game_offscreen_buffer* Buffer)
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory* Memory, game_input* Input, game_render_commands *RenderCommands)
     typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
     
 #define GAME_GET_SOUND_SAMPLES(name) void name(game_memory* Memory, game_sound_output_buffer* SoundBuffer)
