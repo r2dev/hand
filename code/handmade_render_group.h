@@ -10,7 +10,7 @@ struct loaded_bitmap {
 	s32 Pitch;
     
     // opengl handle texture
-    u32 Handle;
+    u32 TextureHandle;
 };
 
 struct environment_map {

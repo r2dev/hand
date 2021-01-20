@@ -3,6 +3,7 @@
 enum finalize_asset_operation {
     FinalizeAsset_None,
     FinalizeAsset_Font,
+    FinalizeAsset_Bitmap,
 };
 
 struct load_asset_work {
@@ -34,7 +35,10 @@ LoadAssetWorkDirectly(load_asset_work* Work) {
                     Assert((u32)(u16)GlyphIndex == GlyphIndex);
                     Font->UnicodeMap[Glyph->UnicodeCodePoint] = (u16)GlyphIndex;
                 }
-                
+            } break;
+            case FinalizeAsset_Bitmap: {
+                loaded_bitmap *Bitmap = &Work->Asset->Header->Bitmap;
+                Bitmap->TextureHandle = Platform.AllocateTexture(Bitmap->Width, Bitmap->Height, Bitmap->Memory);
             } break;
         }
     }
@@ -156,7 +160,7 @@ GenerationHasCompleted(game_assets* Assets, u32 CheckID) {
 }
 
 internal asset_memory_header*
-AcquireAssetMemory(game_assets *Assets, u32 Size, u32 AssetIndex) {
+AcquireAssetMemory(game_assets *Assets, u32 Size, u32 AssetIndex, asset_header_type AssetHeaderType) {
     TIMED_FUNCTION();
     asset_memory_header* Result = 0;
     BeginAssetLock(Assets);
@@ -189,7 +193,9 @@ AcquireAssetMemory(game_assets *Assets, u32 Size, u32 AssetIndex) {
                     Assert(Asset->State == AssetState_Loaded);
                     
                     RemoveAssetHeaderFromList(Header);
-                    
+                    if (Asset->Header->AssetHeaderType == AssetType_Bitmap) {
+                        Platform.DeallocateTexture(Asset->Header->Bitmap.TextureHandle);
+                    }
                     
                     Block = (asset_memory_block* )Asset->Header - 1;
                     Block->Flags &= ~AssetMemory_Used;
@@ -210,6 +216,7 @@ AcquireAssetMemory(game_assets *Assets, u32 Size, u32 AssetIndex) {
     if (Result) {
         Result->AssetIndex = AssetIndex;
         Result->TotalSize = Size;
+        Result->AssetHeaderType = AssetHeaderType;
         InsertAssetHeaderAtFront(Assets, Result);
     }
     EndAssetLock(Assets);
@@ -236,7 +243,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
                 Size.Data = Size.Section * Info->Dim[1];
                 Size.Total = Size.Data + sizeof(asset_memory_header);
                 
-                Asset->Header = AcquireAssetMemory(Assets, Size.Total, ID.Value);
+                Asset->Header = AcquireAssetMemory(Assets, Size.Total, ID.Value, AssetType_Bitmap);
                 loaded_bitmap* Bitmap = &Asset->Header->Bitmap;
                 
                 Bitmap->Width = SafeTruncateToUInt16(Info->Dim[0]);
@@ -244,7 +251,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
                 
                 Bitmap->WidthOverHeight = SafeRatio1((r32)Bitmap->Width, (r32)Bitmap->Height);
                 Bitmap->AlignPercentage = v2{Info->AlignPercentage[0], Info->AlignPercentage[1]};
-                Bitmap->Handle = 0;
+                Bitmap->TextureHandle = 0;
                 
                 Bitmap->Pitch = SafeTruncateToUInt16(Size.Section);
                 Bitmap->Memory = (Asset->Header + 1);
@@ -256,7 +263,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
                 Work.Size = Size.Data;
                 Work.Offset = Asset->HHA.DataOffset;
                 Work.Task = Task;
-                Work.FinalizeOperation = FinalizeAsset_None;
+                Work.FinalizeOperation = FinalizeAsset_Bitmap;
                 
                 Work.Destination = Bitmap->Memory;
                 Work.FinalState = (AssetState_Loaded);
@@ -302,7 +309,7 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
                 u32 UnicodeMapSize = sizeof(u16) * Info->OnePastHighestCodePoint;
                 u32 SizeTotal = SizeData + sizeof(asset_memory_header) + UnicodeMapSize;
                 
-                Asset->Header = AcquireAssetMemory(Assets, SizeTotal, ID.Value);
+                Asset->Header = AcquireAssetMemory(Assets, SizeTotal, ID.Value, AssetType_Font);
                 
                 loaded_font* Font = &Asset->Header->Font;
                 Font->BitmapIDOffset = GetFile(Assets, Asset->FileIndex)->FontBitmapIDOffset;
@@ -356,7 +363,7 @@ LoadSound(game_assets* Assets, sound_id ID) {
             Size.Data = Size.Section * Info->ChannelCount;
             Size.Total = Size.Data + sizeof(asset_memory_header);
             
-            Asset->Header = AcquireAssetMemory(Assets, Size.Total, ID.Value);
+            Asset->Header = AcquireAssetMemory(Assets, Size.Total, ID.Value, AssetType_Sound);
             
             loaded_sound* Sound = &Asset->Header->Sound;
             Sound->SampleCount = Info->SampleCount;

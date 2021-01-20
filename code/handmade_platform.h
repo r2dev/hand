@@ -351,6 +351,13 @@ extern "C" {
 #define PLATFORM_DEALLOCATE_MEMORY(name) void name(void* Memory)
     typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory);
     
+#define PLATFORM_ALLOCATE_TEXTURE(name) u32 name(u32 Width, u32 Height, void* Data)
+    typedef PLATFORM_ALLOCATE_TEXTURE(platform_allocate_texture);
+    
+#define PLATFORM_DEALLOCATE_TEXTURE(name) void name(u32 Texture)
+    typedef PLATFORM_DEALLOCATE_TEXTURE(platform_deallocate_texture);
+    
+    
     typedef void platform_add_entry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data);
     typedef void platform_complete_all_work(platform_work_queue* Queue);
     
@@ -367,6 +374,9 @@ extern "C" {
         
         platform_allocate_memory *AllocateMemory;
         platform_deallocate_memory *DeallocateMemory;
+        
+        platform_allocate_texture *AllocateTexture;
+        platform_deallocate_texture *DeallocateTexture;
 #if HANDMADE_INTERNAL
         debug_platform_read_entire_file* DEBUGReadEntireFile;
         debug_platform_write_entire_file* DEBUGWriteEntireFile;

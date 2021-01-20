@@ -33,6 +33,13 @@ struct loaded_font {
     u16 *UnicodeMap;
 };
 
+enum asset_header_type {
+    AssetType_None,
+    AssetType_Bitmap,
+    AssetType_Sound,
+    AssetType_Font,
+};
+
 struct asset_memory_header {
     asset_memory_header *Next;
     asset_memory_header *Prev;
@@ -40,6 +47,7 @@ struct asset_memory_header {
     u32 AssetIndex;
     u32 TotalSize;
     u32 GenerationID;
+    u32 AssetHeaderType;
     
     union { 
 		loaded_bitmap Bitmap; 

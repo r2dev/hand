@@ -19,6 +19,8 @@ global_variable b32 DEBUGGlobalShowCursor;
 global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
 global_variable GLint DefaultInternalTextureFormat;
 
+global_variable HDC GlobalDC;
+global_variable HGLRC GlobalOpenGLRC;
 
 #include "handmade_opengl.cpp"
 #include "handmade_render.cpp"
@@ -43,6 +45,7 @@ typedef BOOL WINAPI wgl_swap_interval_ext(int intervel);
 global_variable wgl_swap_interval_ext *wglSwapInterval;
 
 typedef HGLRC WINAPI wgl_create_context_attribs_arb(HDC hDC, HGLRC hshareContext, const int *attribList);
+global_variable wgl_create_context_attribs_arb *wglCreateContextAttribsARB;
 
 internal void
 CatStrings(size_t SourceACount, char* SourceA,
@@ -425,6 +428,18 @@ Win32GetWindowDimension(HWND Window) {
     return(Result);
 }
 
+int Win32OpenGLAttribs[] = {
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 3, 
+    WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+    WGL_CONTEXT_FLAGS_ARB, 0 //WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+#if HANDMADE_INTERNAL
+    |WGL_CONTEXT_DEBUG_BIT_ARB
+#endif
+    ,
+    WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+    0,
+};
+
 internal void
 Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
     if (Buffer->Memory) {
@@ -449,7 +464,64 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
     Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
-global_variable GLuint BlitTextureHandle;
+
+internal void
+Win32CreateOpenGLContextForWorkerThread() {
+    if (wglCreateContextAttribsARB) {
+        HDC WindowDC = GlobalDC;
+        HGLRC ShareContext = GlobalOpenGLRC;
+        HGLRC ModernGLRC = wglCreateContextAttribsARB(WindowDC, ShareContext, Win32OpenGLAttribs);
+        if (ModernGLRC) {
+            if (wglMakeCurrent(WindowDC, ModernGLRC)) {
+                
+            }
+        } else {
+            InvalidCodePath;
+        }
+    }
+}
+
+internal HGLRC
+Win32InitOpenGL(HDC WindowDC) {
+    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+    DesiredPixelFormat.nVersion = 1;
+    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
+    DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
+    DesiredPixelFormat.cColorBits = 32; 
+    DesiredPixelFormat.cAlphaBits = 8;
+    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+    
+    int PixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+    PIXELFORMATDESCRIPTOR SuggestPixelFormat = {};
+    DescribePixelFormat(WindowDC, PixelFormatIndex, sizeof(SuggestPixelFormat), &SuggestPixelFormat);
+    SetPixelFormat(WindowDC, PixelFormatIndex, &SuggestPixelFormat);
+    HGLRC OpenGLRC = wglCreateContext(WindowDC);
+    if (wglMakeCurrent(WindowDC, OpenGLRC)) {
+        b32 ModernContext = false;
+        wglCreateContextAttribsARB = (wgl_create_context_attribs_arb *)wglGetProcAddress("wglCreateContextAttribsARB");
+        if (wglCreateContextAttribsARB) {
+            HGLRC ShareContext = 0;
+            HGLRC ModernGLRC = wglCreateContextAttribsARB(WindowDC, ShareContext, Win32OpenGLAttribs);
+            if (ModernGLRC) {
+                if (wglMakeCurrent(WindowDC, ModernGLRC)) {
+                    ModernContext = true;
+                    wglDeleteContext(OpenGLRC);
+                    OpenGLRC = ModernGLRC;
+                }
+            }
+        }
+        OpenGLInit(ModernContext);
+        wglSwapInterval = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
+        if (wglSwapInterval) {
+            wglSwapInterval(1);
+        }
+    } else {
+        InvalidCodePath;
+    }
+    return(OpenGLRC);
+}
+
 internal void
 Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_commands* Commands,
                            HDC DeviceContext, u32 WindowWidth, u32 WindowHeight) {
@@ -657,9 +729,12 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
                     else if (VKCode == VK_SPACE) {
                         Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
                     }
+                    
+#if 0                    
                     else if (VKCode == VK_ESCAPE) {
                         Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
                     }
+#endif
 #if HANDMADE_INTERNAL
                     else if (VKCode == 'P') {
                         if (IsDown) {
@@ -686,9 +761,10 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
 #endif
                     if (IsDown) {
                         b32 AltKeyWasDown = (Message.lParam & (1 << 29));
-                        if ((VKCode == VK_F4) && AltKeyWasDown) {
+                        if ((VKCode == VK_F4) && AltKeyWasDown || VKCode == VK_ESCAPE) {
                             GlobalRunning = false;
                         }
+                        
                         if ((VKCode == VK_RETURN) && AltKeyWasDown) {
                             if (Message.hwnd) {
                                 ToggleFullScreen(Message.hwnd);
@@ -822,7 +898,10 @@ struct platform_work_queue {
     volatile u32 NextEntryToRead;
     
     platform_work_queue_entry Entries[256];
+    
     HANDLE SemaphoreHandle;
+    
+    b32 NeedOpenGL;
 };
 
 internal void
@@ -876,6 +955,9 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(DoWorkerWork) {
 
 DWORD WINAPI ThreadProc(LPVOID lparam) {
     platform_work_queue* Queue = (platform_work_queue*)(lparam);
+    if (Queue->NeedOpenGL) {
+        Win32CreateOpenGLContextForWorkerThread();
+    }
     
     for (;;) {
         if (Win32DoNextQueueEntry(Queue)) {
@@ -885,11 +967,12 @@ DWORD WINAPI ThreadProc(LPVOID lparam) {
 }
 
 internal void
-Win32MakeQueue(platform_work_queue* Queue, u32 ThreadCount) {
+Win32MakeQueue(platform_work_queue* Queue, u32 ThreadCount, b32 NeedOpenGL = false) {
     Queue->CompletedCount = 0;
     Queue->CompletedGoal = 0;
     Queue->NextEntryToRead = 0;
     Queue->NextEntryToWrite = 0;
+    Queue->NeedOpenGL = NeedOpenGL;
     u32 InitialCount = 0;
     Queue->SemaphoreHandle = CreateSemaphoreEx(0, InitialCount, ThreadCount, 0, 0, SEMAPHORE_ALL_ACCESS);
     for (u32 ThreadIndex = 0; ThreadIndex < ThreadCount; ++ThreadIndex) {
@@ -996,79 +1079,19 @@ PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
     void* Result = VirtualAlloc(0, Size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     return(Result);
 }
+
 PLATFORM_DEALLOCATE_MEMORY(Win32DeallocateMemory) {
     if (Memory) {
         VirtualFree(Memory, 0, MEM_RELEASE);
     }
 }
+
 #if HANDMADE_INTERNAL
 global_variable debug_table GlobalDebugTable_;
 debug_table* GlobalDebugTable = &GlobalDebugTable_;
 #endif
 
-internal void
-Win32InitOpenGL(HWND Window) {
-    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
-    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
-    DesiredPixelFormat.nVersion = 1;
-    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
-    DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
-    DesiredPixelFormat.cColorBits = 32; 
-    DesiredPixelFormat.cAlphaBits = 8;
-    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
-    HDC WindowDC = GetDC(Window);
-    int PixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-    if (PixelFormatIndex) {
-        PIXELFORMATDESCRIPTOR SuggestPixelFormat = {};
-        DescribePixelFormat(WindowDC, PixelFormatIndex, sizeof(SuggestPixelFormat), &SuggestPixelFormat);
-        if (SetPixelFormat(WindowDC, PixelFormatIndex, &SuggestPixelFormat)) {
-            HGLRC OpenglRC = wglCreateContext(WindowDC);
-            if (wglMakeCurrent(WindowDC, OpenglRC)) {
-                b32 ModernContext = false;
-                wgl_create_context_attribs_arb *wglCreateContextAttribsARB
-                    = (wgl_create_context_attribs_arb *)wglGetProcAddress("wglCreateContextAttribsARB");
-                if (wglCreateContextAttribsARB) {
-                    int Attribs[] = {
-                        WGL_CONTEXT_MAJOR_VERSION_ARB, 3, 
-                        WGL_CONTEXT_MINOR_VERSION_ARB, 0,
-                        WGL_CONTEXT_FLAGS_ARB, 0//WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-#if HANDMADE_INTERNAL
-                        |WGL_CONTEXT_DEBUG_BIT_ARB
-#endif
-                        ,
-                        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-                        0,
-                    };
-                    HGLRC ShareContext = 0;
-                    HGLRC ModernGLRC = wglCreateContextAttribsARB(WindowDC, ShareContext, Attribs);
-                    if (ModernGLRC) {
-                        if (wglMakeCurrent(WindowDC, ModernGLRC)) {
-                            ModernContext = true;
-                            wglDeleteContext(OpenglRC);
-                            OpenglRC = ModernGLRC;
-                        }
-                    }
-                }
-                OpenGLInit(ModernContext);
-                wglSwapInterval = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
-                if (wglSwapInterval) {
-                    wglSwapInterval(1);
-                }
-            } else {
-                InvalidCodePath;
-            }
-            ReleaseDC(Window, WindowDC);
-        }
-    }
-}
-
-
 int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int showCode) {
-    
-    platform_work_queue HighPriorityQueue;
-    Win32MakeQueue(&HighPriorityQueue, 6);
-    platform_work_queue LowPriorityQueue;
-    Win32MakeQueue(&LowPriorityQueue, 2);
     
     win32_state Win32State = {};
     LARGE_INTEGER PerfCountFrequencyResult;
@@ -1104,7 +1127,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
     WNDCLASS WindowClass = {};
     //Win32ResizeDIBSection(&GlobalBackbuffer, 960, 540);
     Win32ResizeDIBSection(&GlobalBackbuffer, 1920, 1080);
-    WindowClass.style = CS_HREDRAW | CS_VREDRAW;
+    WindowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
     WindowClass.lpfnWndProc = Win32MainWindowCallback;
     WindowClass.hInstance = Instance;
     WindowClass.lpszClassName = "HandmadeHeroWindowClass";
@@ -1116,10 +1139,17 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                                      "Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
         
         if (Window) {
-            
             ToggleFullScreen(Window);
+            GlobalDC = GetDC(Window);
+            GlobalOpenGLRC = Win32InitOpenGL(GlobalDC);
+            
+            // create queue
+            platform_work_queue HighPriorityQueue;
+            Win32MakeQueue(&HighPriorityQueue, 6);
+            platform_work_queue LowPriorityQueue;
+            Win32MakeQueue(&LowPriorityQueue, 1, true);
+            
             GlobalRunning = true;
-            Win32InitOpenGL(Window);
             win32_sound_output SoundOutput = {};
             int MonitorRefreshHz = 60;
             HDC RefreshDC = GetDC(Window);
@@ -1176,6 +1206,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             GameMemory.PlatformAPI.FileError = Win32FileError;
             GameMemory.PlatformAPI.AllocateMemory = Win32AllocateMemory;
             GameMemory.PlatformAPI.DeallocateMemory = Win32DeallocateMemory;
+            
+            GameMemory.PlatformAPI.AllocateTexture = Win32AllocateTexture;
+            GameMemory.PlatformAPI.DeallocateTexture = Win32DeallocateTexture;
             
             Platform = GameMemory.PlatformAPI;
             
