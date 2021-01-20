@@ -59,6 +59,7 @@ OpenGLGetInfo(b32 ModernContext) {
 
 internal void
 OpenGLInit(b32 ModernContext) {
+    // check extension and things
     opengl_info Info = OpenGLGetInfo(ModernContext);
     
     DefaultInternalTextureFormat = GL_RGBA8;
@@ -151,6 +152,9 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
     glEnable(GL_TEXTURE_2D);
     
     glEnable(GL_BLEND);
+    // if its not premultiple alpha image
+    // GL_SOURCE_ALPHA, GL_ONE_MINUS_SRC_ALPHA
+    
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     
     glMatrixMode(GL_TEXTURE);
@@ -223,7 +227,6 @@ PLATFORM_ALLOCATE_TEXTURE(Win32AllocateTexture) {
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     
     glBindTexture(GL_TEXTURE_2D, 0);
-    
     // Assert(sizeof(Handle) <= sizeof(void *));
     return(Handle);
 }

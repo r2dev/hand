@@ -19,6 +19,15 @@ global_variable b32 DEBUGGlobalShowCursor;
 global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
 global_variable GLint DefaultInternalTextureFormat;
 
+#define WGL_DRAW_TO_WINDOW_ARB                  0x2001
+#define WGL_ACCELERATION_ARB                    0x2003
+#define WGL_SUPPORT_OPENGL_ARB                  0x2010
+#define WGL_DOUBLE_BUFFER_ARB                   0x2011
+#define WGL_PIXEL_TYPE_ARB                      0x2013
+#define WGL_FULL_ACCELERATION_ARB               0x2027
+#define WGL_TYPE_RGBA_ARB                       0x202B
+#define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        0x20A9
+
 global_variable HDC GlobalDC;
 global_variable HGLRC GlobalOpenGLRC;
 
@@ -46,6 +55,12 @@ global_variable wgl_swap_interval_ext *wglSwapInterval;
 
 typedef HGLRC WINAPI wgl_create_context_attribs_arb(HDC hDC, HGLRC hshareContext, const int *attribList);
 global_variable wgl_create_context_attribs_arb *wglCreateContextAttribsARB;
+
+
+// srgb format
+typedef BOOL WINAPI wgl_choose_pixel_format_arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+global_variable wgl_choose_pixel_format_arb *wglChoosePixelFormatARB;
+
 
 internal void
 CatStrings(size_t SourceACount, char* SourceA,
@@ -475,50 +490,102 @@ Win32CreateOpenGLContextForWorkerThread() {
             if (wglMakeCurrent(WindowDC, ModernGLRC)) {
                 
             }
-        } else {
-            InvalidCodePath;
         }
     }
 }
 
+internal void
+Win32SetPixelFormat(HDC WindowDC) {
+    int SuggestPixelFormatIndex = 0;
+    GLuint ExtendedPick = 0;
+    
+    if (wglChoosePixelFormatARB) {
+        GLint IntAttribList[] = {
+            WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
+            WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+            WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
+            WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
+            WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+            WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, GL_TRUE,
+            0,
+        };
+        
+        GLfloat FloatAttribList[] = {0};
+        wglChoosePixelFormatARB(WindowDC, IntAttribList, FloatAttribList, 1, &SuggestPixelFormatIndex, &ExtendedPick);
+    }
+    
+    if (!ExtendedPick) {
+        PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+        DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+        DesiredPixelFormat.nVersion = 1;
+        DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
+        DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
+        DesiredPixelFormat.cColorBits = 32; 
+        DesiredPixelFormat.cAlphaBits = 8;
+        DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+        SuggestPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+    }
+    
+    PIXELFORMATDESCRIPTOR SuggestPixelFormat = {};
+    DescribePixelFormat(WindowDC, SuggestPixelFormatIndex, sizeof(SuggestPixelFormat), &SuggestPixelFormat);
+    SetPixelFormat(WindowDC, SuggestPixelFormatIndex, &SuggestPixelFormat);
+    HGLRC OpenGLRC = wglCreateContext(WindowDC);
+    
+}
+
+internal void
+Win32LoadWGLExtensions() {
+    // create a new window and load the wgl extension
+    WNDCLASS WindowClass = {};
+    WindowClass.lpfnWndProc = DefWindowProc;
+    WindowClass.hInstance = GetModuleHandle(0);
+    WindowClass.lpszClassName = "WGLLoader";
+    
+    if (RegisterClass(&WindowClass)) {
+        HWND Window = CreateWindowEx(0, WindowClass.lpszClassName, "w", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, WindowClass.hInstance, 0);
+        HDC WindowDC = GetDC(Window);
+        Win32SetPixelFormat(WindowDC);
+        HGLRC OpenGLRC = wglCreateContext(WindowDC);
+        if (wglMakeCurrent(WindowDC, OpenGLRC)) {
+            wglChoosePixelFormatARB = (wgl_choose_pixel_format_arb *)wglGetProcAddress("wglChoosePixelFormatARB");
+            wglCreateContextAttribsARB = (wgl_create_context_attribs_arb *)wglGetProcAddress("wglCreateContextAttribsARB");
+            wglSwapInterval = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
+            wglMakeCurrent(0, 0);
+        }
+        
+        wglDeleteContext(OpenGLRC);
+        ReleaseDC(Window, WindowDC);
+        DestroyWindow(Window);
+    }
+    
+}
+
 internal HGLRC
 Win32InitOpenGL(HDC WindowDC) {
-    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
-    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
-    DesiredPixelFormat.nVersion = 1;
-    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL|PFD_DRAW_TO_WINDOW|PFD_DOUBLEBUFFER;
-    DesiredPixelFormat.iPixelType = PFD_TYPE_RGBA;
-    DesiredPixelFormat.cColorBits = 32; 
-    DesiredPixelFormat.cAlphaBits = 8;
-    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+    // load wgl extension in another window
+    Win32LoadWGLExtensions();
     
-    int PixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-    PIXELFORMATDESCRIPTOR SuggestPixelFormat = {};
-    DescribePixelFormat(WindowDC, PixelFormatIndex, sizeof(SuggestPixelFormat), &SuggestPixelFormat);
-    SetPixelFormat(WindowDC, PixelFormatIndex, &SuggestPixelFormat);
-    HGLRC OpenGLRC = wglCreateContext(WindowDC);
+    b32 ModernContext = true;
+    HGLRC OpenGLRC = 0;
+    Win32SetPixelFormat(WindowDC);
+    if (wglCreateContextAttribsARB) {
+        OpenGLRC = wglCreateContextAttribsARB(WindowDC, 0, Win32OpenGLAttribs);
+    }
+    
+    if (!OpenGLRC) {
+        ModernContext = false;
+        OpenGLRC = wglCreateContext(WindowDC);
+    }
+    
+    
+    
     if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-        b32 ModernContext = false;
-        wglCreateContextAttribsARB = (wgl_create_context_attribs_arb *)wglGetProcAddress("wglCreateContextAttribsARB");
-        if (wglCreateContextAttribsARB) {
-            HGLRC ShareContext = 0;
-            HGLRC ModernGLRC = wglCreateContextAttribsARB(WindowDC, ShareContext, Win32OpenGLAttribs);
-            if (ModernGLRC) {
-                if (wglMakeCurrent(WindowDC, ModernGLRC)) {
-                    ModernContext = true;
-                    wglDeleteContext(OpenGLRC);
-                    OpenGLRC = ModernGLRC;
-                }
-            }
-        }
         OpenGLInit(ModernContext);
-        wglSwapInterval = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
         if (wglSwapInterval) {
             wglSwapInterval(1);
         }
-    } else {
-        InvalidCodePath;
     }
+    
     return(OpenGLRC);
 }
 
@@ -818,7 +885,6 @@ Win32MainWindowCallback(
                 SetLayeredWindowAttributes(Window, RGB(0, 0, 0), 64, LWA_ALPHA);
             }
 #endif
-            
         } break;
         case WM_PAINT: {
             PAINTSTRUCT Paint;
@@ -1147,13 +1213,13 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             platform_work_queue HighPriorityQueue;
             Win32MakeQueue(&HighPriorityQueue, 6);
             platform_work_queue LowPriorityQueue;
-            Win32MakeQueue(&LowPriorityQueue, 1, true);
+            Win32MakeQueue(&LowPriorityQueue, 2, true);
             
             GlobalRunning = true;
             win32_sound_output SoundOutput = {};
             int MonitorRefreshHz = 60;
             HDC RefreshDC = GetDC(Window);
-            int Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
+            int Win32RefreshRate = GetDeviceCaps(GlobalDC, VREFRESH);
             ReleaseDC(Window, RefreshDC);
             if (Win32RefreshRate > 1) {
                 MonitorRefreshHz = Win32RefreshRate;
