@@ -28,9 +28,6 @@ global_variable GLint DefaultInternalTextureFormat;
 #define WGL_TYPE_RGBA_ARB                       0x202B
 #define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        0x20A9
 
-global_variable HDC GlobalDC;
-global_variable HGLRC GlobalOpenGLRC;
-
 #include "handmade_opengl.cpp"
 #include "handmade_render.cpp"
 
@@ -50,8 +47,10 @@ X_INPUT_SET_STATE(XInputSetStateStub) {
 global_variable x_input_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
+global_variable b32 OpenGLSupportSRGBFrameBuffer = false;
+
 typedef BOOL WINAPI wgl_swap_interval_ext(int intervel);
-global_variable wgl_swap_interval_ext *wglSwapInterval;
+global_variable wgl_swap_interval_ext *wglSwapIntervalEXT;
 
 typedef HGLRC WINAPI wgl_create_context_attribs_arb(HDC hDC, HGLRC hshareContext, const int *attribList);
 global_variable wgl_create_context_attribs_arb *wglCreateContextAttribsARB;
@@ -60,6 +59,9 @@ global_variable wgl_create_context_attribs_arb *wglCreateContextAttribsARB;
 // srgb format
 typedef BOOL WINAPI wgl_choose_pixel_format_arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 global_variable wgl_choose_pixel_format_arb *wglChoosePixelFormatARB;
+
+typedef char * WINAPI wgl_get_extensions_string_ext(void);
+global_variable wgl_get_extensions_string_ext *wglGetExtensionsStringEXT;
 
 
 internal void
@@ -344,12 +346,12 @@ Win32EndInputPlayBack(win32_state* State) {
     State->InputPlayingIndex = 0;
 }
 
-
 internal void
 Win32RecordInput(win32_state* State, game_input* Input) {
     DWORD BytesWritten;
     WriteFile(State->RecordingHandle, Input, sizeof(*Input), &BytesWritten, 0);
 }
+
 internal void
 Win32PlayBackInput(win32_state* State, game_input* Input) {
     DWORD BytesRead = 0;
@@ -361,8 +363,6 @@ Win32PlayBackInput(win32_state* State, game_input* Input) {
         }
     }
 }
-
-
 
 internal void
 Win32LoadXInput() {
@@ -479,21 +479,6 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
     Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
-
-internal void
-Win32CreateOpenGLContextForWorkerThread() {
-    if (wglCreateContextAttribsARB) {
-        HDC WindowDC = GlobalDC;
-        HGLRC ShareContext = GlobalOpenGLRC;
-        HGLRC ModernGLRC = wglCreateContextAttribsARB(WindowDC, ShareContext, Win32OpenGLAttribs);
-        if (ModernGLRC) {
-            if (wglMakeCurrent(WindowDC, ModernGLRC)) {
-                
-            }
-        }
-    }
-}
-
 internal void
 Win32SetPixelFormat(HDC WindowDC) {
     int SuggestPixelFormatIndex = 0;
@@ -510,8 +495,11 @@ Win32SetPixelFormat(HDC WindowDC) {
             0,
         };
         
-        GLfloat FloatAttribList[] = {0};
-        wglChoosePixelFormatARB(WindowDC, IntAttribList, FloatAttribList, 1, &SuggestPixelFormatIndex, &ExtendedPick);
+        if (!OpenGLSupportSRGBFrameBuffer) {
+            IntAttribList[10] = 0;
+        }
+        
+        wglChoosePixelFormatARB(WindowDC, IntAttribList, 0, 1, &SuggestPixelFormatIndex, &ExtendedPick);
     }
     
     if (!ExtendedPick) {
@@ -549,7 +537,26 @@ Win32LoadWGLExtensions() {
         if (wglMakeCurrent(WindowDC, OpenGLRC)) {
             wglChoosePixelFormatARB = (wgl_choose_pixel_format_arb *)wglGetProcAddress("wglChoosePixelFormatARB");
             wglCreateContextAttribsARB = (wgl_create_context_attribs_arb *)wglGetProcAddress("wglCreateContextAttribsARB");
-            wglSwapInterval = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
+            wglSwapIntervalEXT = (wgl_swap_interval_ext *)wglGetProcAddress("wglSwapIntervalEXT");
+            wglGetExtensionsStringEXT = (wgl_get_extensions_string_ext *)wglGetProcAddress("wglGetExtensionsStringEXT");
+            if (wglGetExtensionsStringEXT) {
+                char *Extensions = wglGetExtensionsStringEXT();
+                
+                char *At = Extensions;
+                
+                while(*At) {
+                    while (IsWhiteSpace(*At)) {++At;};
+                    char *End = At;
+                    while(*End && !IsWhiteSpace(*End)) {++End;};
+                    umm Count = End - At;
+                    if (0) {}
+                    else if (StringsAreEqual(Count, At, "WGL_EXT_framebuffer_sRGB")){ 
+                        OpenGLSupportSRGBFrameBuffer = true;
+                    }
+                    
+                    At = End;
+                }
+            }
             wglMakeCurrent(0, 0);
         }
         
@@ -577,12 +584,10 @@ Win32InitOpenGL(HDC WindowDC) {
         OpenGLRC = wglCreateContext(WindowDC);
     }
     
-    
-    
     if (wglMakeCurrent(WindowDC, OpenGLRC)) {
         OpenGLInit(ModernContext);
-        if (wglSwapInterval) {
-            wglSwapInterval(1);
+        if (wglSwapIntervalEXT) {
+            wglSwapIntervalEXT(1);
         }
     }
     
@@ -951,25 +956,6 @@ HandleDebugCycleCounters(game_memory* Memory) {
 }
 #endif
 
-struct platform_work_queue_entry {
-    platform_work_queue_callback* Callback;
-    void* Data;
-};
-
-struct platform_work_queue {
-    volatile u32 CompletedGoal;
-    volatile u32 CompletedCount;
-    
-    volatile u32 NextEntryToWrite;
-    volatile u32 NextEntryToRead;
-    
-    platform_work_queue_entry Entries[256];
-    
-    HANDLE SemaphoreHandle;
-    
-    b32 NeedOpenGL;
-};
-
 internal void
 Win32AddEntry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data) {
     u32 NextNewEntryToWrite = (Queue->NextEntryToWrite + 1) % ArrayCount(Queue->Entries);
@@ -1020,9 +1006,15 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(DoWorkerWork) {
 
 
 DWORD WINAPI ThreadProc(LPVOID lparam) {
-    platform_work_queue* Queue = (platform_work_queue*)(lparam);
-    if (Queue->NeedOpenGL) {
-        Win32CreateOpenGLContextForWorkerThread();
+    win32_thread_startup* StartUp = (win32_thread_startup*)(lparam);
+    platform_work_queue* Queue = StartUp->Queue;
+    if (StartUp->OpenGLRC) {
+        if (wglMakeCurrent(StartUp->WindowDC, StartUp->OpenGLRC)) {
+            
+        } else {
+            DWORD e = GetLastError();
+            InvalidCodePath;
+        }
     }
     
     for (;;) {
@@ -1032,17 +1024,28 @@ DWORD WINAPI ThreadProc(LPVOID lparam) {
     }
 }
 
+internal win32_thread_startup
+Win32PrepareOpenGLContext(HDC WindowDC, HGLRC MainRC) {
+    win32_thread_startup Result = {};
+    Result.WindowDC = WindowDC;
+    if (wglCreateContextAttribsARB) {
+        Result.OpenGLRC = wglCreateContextAttribsARB(WindowDC, MainRC, Win32OpenGLAttribs);
+    }
+    return(Result);
+}
 internal void
-Win32MakeQueue(platform_work_queue* Queue, u32 ThreadCount, b32 NeedOpenGL = false) {
+Win32MakeQueue(HDC WindowDC, platform_work_queue *Queue, u32 ThreadCount, win32_thread_startup *StartUps) {
     Queue->CompletedCount = 0;
     Queue->CompletedGoal = 0;
     Queue->NextEntryToRead = 0;
     Queue->NextEntryToWrite = 0;
-    Queue->NeedOpenGL = NeedOpenGL;
     u32 InitialCount = 0;
     Queue->SemaphoreHandle = CreateSemaphoreEx(0, InitialCount, ThreadCount, 0, 0, SEMAPHORE_ALL_ACCESS);
+    
     for (u32 ThreadIndex = 0; ThreadIndex < ThreadCount; ++ThreadIndex) {
-        HANDLE handle = CreateThread(0, 0, ThreadProc, Queue, 0, 0);
+        win32_thread_startup *StartUp = StartUps + ThreadIndex;
+        StartUp->Queue = Queue;
+        HANDLE handle = CreateThread(0, 0, ThreadProc, StartUps + ThreadIndex, 0, 0);
         CloseHandle(handle);
     }
 }
@@ -1206,20 +1209,26 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
         
         if (Window) {
             ToggleFullScreen(Window);
-            GlobalDC = GetDC(Window);
-            GlobalOpenGLRC = Win32InitOpenGL(GlobalDC);
+            HDC WindowDC = GetDC(Window);
+            HGLRC MainRC = Win32InitOpenGL(WindowDC);
             
             // create queue
+            win32_thread_startup HighPriorityStartUps[6] = {};
             platform_work_queue HighPriorityQueue;
-            Win32MakeQueue(&HighPriorityQueue, 6);
+            Win32MakeQueue(WindowDC, &HighPriorityQueue, ArrayCount(HighPriorityStartUps), HighPriorityStartUps);
+            
+            win32_thread_startup LowPriorityStartUps[2];
+            LowPriorityStartUps[0] = Win32PrepareOpenGLContext(WindowDC, MainRC);
+            LowPriorityStartUps[1] = Win32PrepareOpenGLContext(WindowDC, MainRC);
+            
             platform_work_queue LowPriorityQueue;
-            Win32MakeQueue(&LowPriorityQueue, 2, true);
+            Win32MakeQueue(WindowDC, &LowPriorityQueue, ArrayCount(LowPriorityStartUps), LowPriorityStartUps);
             
             GlobalRunning = true;
             win32_sound_output SoundOutput = {};
             int MonitorRefreshHz = 60;
             HDC RefreshDC = GetDC(Window);
-            int Win32RefreshRate = GetDeviceCaps(GlobalDC, VREFRESH);
+            int Win32RefreshRate = GetDeviceCaps(RefreshDC, VREFRESH);
             ReleaseDC(Window, RefreshDC);
             if (Win32RefreshRate > 1) {
                 MonitorRefreshHz = Win32RefreshRate;
