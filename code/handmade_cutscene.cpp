@@ -21,14 +21,17 @@ RenderCutScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *Dr
     v3 CameraOffset = Lerp(CameraStart, tNormal, CameraEnd);
     
     v4 LayerPlacements[] = {
-        {0.0f, 0.0f, DistanceAboveTarget - 100.0f, 150.0f},
-        {0.0f, 0.0f, -60.0f, 110.0f},
-        {0.0f, 0.0f, -30.0f, 60.0f},
-        {0.0f, 0.0f, -28.0f, 58.0f},
-        {0.0f, -2.0f, -5.0f, 20.0f},
+        {0.0f, 0.0f, -200.0f, 300.0f},
+        {0.0f, 0.0f, -170.0f, 300.0f},
+        {0.0f, 0.0f, -100.0f, 40.0f},
+        {0.0f, 10.0f, -70.0f, 80.0f},
+        {0.0f, 0.0f, -50.0f, 70.0f},
+        {30.0f, 0.0f, -30.0f, 50.0f},
+        {0.0f, -2.0f, -20.0f, 40.0f},
+        {2.0f, -1.0f, -5.0f, 25.0f},
         
     };
-    for(u32 LayerIndex = 1; LayerIndex <= 5; ++LayerIndex) {
+    for(u32 LayerIndex = 1; LayerIndex <= 8; ++LayerIndex) {
         v4 LayerPlacement = LayerPlacements[LayerIndex - 1];
         RenderGroup->Transform.OffsetP = LayerPlacement.xyz - CameraOffset;
         MatchVector.E[Tag_LayerIndex] = (r32)LayerIndex;

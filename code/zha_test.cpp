@@ -1,6 +1,8 @@
 #include "zha_test.h"
 #define STB_TRUETYPE_IMPLEMENTATION 1
 #include "stb_truetype.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 FILE* Out = 0;
 
 struct loaded_sound {
@@ -256,10 +258,48 @@ LoadWAV(char* FileName, u32 FirstSampleIndex, u32 LoadSampleCount) {
 	return(Result);
 }
 
-
 internal loaded_bitmap
-LoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
+LoadImage(char* FileName) {
 	loaded_bitmap Result = {};
+    int n = 0;
+    stbi_set_flip_vertically_on_load(1);
+    Result.Memory = stbi_load(FileName, &Result.Width, &Result.Height, &n, 0);
+    Assert(n == 4);
+#if 1
+    u32* SourceDest = (u32 *)Result.Memory;
+    for (s32 Y = 0;
+         Y < Result.Height;
+         ++Y)
+    {
+        for (s32 X = 0;
+             X < Result.Width;
+             ++X)
+        {
+            
+            // rgba 
+            u32 C = *SourceDest;
+            r32 red = (r32)((C & 0xff) >> 0x0);
+            r32 green = (r32)((C & 0xff00) >> 0x8);
+            r32 blue = (r32)((C & 0xff0000) >> 0x10);
+            r32 alpha = (r32)((C & 0xff000000) >> 0x18);
+            
+            v4 Texel = {
+                red, green, blue, alpha
+            };
+            
+            Texel = SRGBToLinear1(Texel);
+            Texel.rgb *= Texel.a;
+            Texel = Linear1ToSRGB(Texel);
+            
+            *SourceDest++ = ((u32)(Texel.a + 0.5f) << 24) |
+                ((u32)(Texel.r + 0.5f) << 16) |
+                ((u32)(Texel.g + 0.5f) << 8) |
+                ((u32)(Texel.b + 0.5f) << 0);
+        }
+    }
+#endif
+    
+#if 0
 	entire_file ReadResult = ReadEntireFile(FileName);
 	if (ReadResult.ContentsSize != 0) {
         Result.Free = ReadResult.Contents;
@@ -314,11 +354,13 @@ LoadBMP(char* FileName, v2 AlignPercentage = v2{0.5f, 0.5f}) {
 			}
 		}
 	}
-	Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;
+	
 #if 0
 	Result.Pitch = -Result.Width * BITMAP_BYTE_PER_PIXEL;
 	Result.Memory = (u8*)Result.Memory - Result.Pitch * (Result.Height - 1);
 #endif
+#endif
+    Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;
     
 	return(Result);
 }
@@ -648,7 +690,7 @@ WriteHHA(game_assets* Assets, char* FileName) {
                     Bitmap = LoadGlyphBitmap(Source->Glyph.Font, Source->Glyph.Codepoint, Asset);
                 } else {
                     Assert(Source->Type == AssetType_Bitmap);
-                    Bitmap = LoadBMP(Source->Bitmap.FileName);
+                    Bitmap = LoadImage(Source->Bitmap.FileName);
                 }
                 Asset->Bitmap.Dim[0] = Bitmap.Width;
                 Asset->Bitmap.Dim[1] = Bitmap.Height;
@@ -677,21 +719,39 @@ PackCutScene() {
     
     BeginAssetType(Assets, Asset_OpeningCutScene);
     
-    AddBitmapAsset(Assets, "test/test_scene_layer_00.bmp");
-    AddTag(Assets, Tag_ShotIndex, 0);
-    AddTag(Assets, Tag_LayerIndex, 0);
-    AddBitmapAsset(Assets, "test/test_scene_layer_01.bmp");
-    AddTag(Assets, Tag_ShotIndex, 0);
+    AddBitmapAsset(Assets, "cut/shot1_1.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
     AddTag(Assets, Tag_LayerIndex, 1.0f);
-    AddBitmapAsset(Assets, "test/test_scene_layer_02.bmp");
-    AddTag(Assets, Tag_ShotIndex, 0);
+    
+    AddBitmapAsset(Assets, "cut/shot1_2.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
     AddTag(Assets, Tag_LayerIndex, 2.0f);
-    AddBitmapAsset(Assets, "test/test_scene_layer_03.bmp");
-    AddTag(Assets, Tag_ShotIndex, 0);
+    
+    AddBitmapAsset(Assets, "cut/shot1_3.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
     AddTag(Assets, Tag_LayerIndex, 3.0f);
-    AddBitmapAsset(Assets, "test/test_scene_layer_04.bmp");
-    AddTag(Assets, Tag_ShotIndex, 0);
+    
+    AddBitmapAsset(Assets, "cut/shot1_4.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
     AddTag(Assets, Tag_LayerIndex, 4.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot1_5.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
+    AddTag(Assets, Tag_LayerIndex, 5.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot1_6.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
+    AddTag(Assets, Tag_LayerIndex, 6.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot1_7.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
+    AddTag(Assets, Tag_LayerIndex, 7.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot1_8.png");
+    AddTag(Assets, Tag_ShotIndex, 1);
+    AddTag(Assets, Tag_LayerIndex, 8.0f);
+    
+    
     
     EndAssetType(Assets);
     

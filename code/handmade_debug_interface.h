@@ -284,6 +284,8 @@ inline debug_id DEBUG_POINTER_ID(void *Pointer) {debug_id NullID = {}; return(Nu
 #define DEBUG_IF__(Path) if(GlobalConstants_##Path)
 #define DEBUG_VARIABLE__(Type, Path, Variable) Type Variable = GlobalConstants_##Path##_##Variable;
 
+
+
 #endif
 
 #define DEBUG_IF_(Path) DEBUG_IF__(Path)

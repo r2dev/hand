@@ -3,6 +3,7 @@
 #define ONE_PAST_MAX_FONT_CODEPOINT (0x10FFFF + 1)
 enum asset_type_id {
 	Asset_none,
+    
 	Asset_Shadow,
 	Asset_Tree,
 	Asset_Sword,
@@ -21,9 +22,16 @@ enum asset_type_id {
 	Asset_Music,
     //Asset_Forget,
 	Asset_Bloop,
+    
+    Asset_1,
+    Asset_2,
+    Asset_3,
+    Asset_4,
+    Asset_5,
+    
     Asset_OpeningCutScene,
     
-    Asset_Count
+    Asset_Count,
 };
 
 enum asset_font_type {
