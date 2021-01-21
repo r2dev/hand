@@ -1,21 +1,9 @@
 #include "handmade_render_group.h"
 
+
 #define SRGB8_ALPHA8_EXT 0x8C43
 #define GL_FRAMEBUFFER_SRGB 0x8DB9
-
 #define GL_SHADING_LANGUAGE_VERSION             0x8B8C
-
-#define WGL_CONTEXT_MAJOR_VERSION_ARB           0x2091
-#define WGL_CONTEXT_MINOR_VERSION_ARB           0x2092
-#define WGL_CONTEXT_LAYER_PLANE_ARB             0x2093
-#define WGL_CONTEXT_FLAGS_ARB                   0x2094
-#define WGL_CONTEXT_PROFILE_MASK_ARB            0x9126
-
-#define WGL_CONTEXT_DEBUG_BIT_ARB               0x0001
-#define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB  0x0002
-
-#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB        0x00000001
-#define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
 
 struct opengl_info {
     char *Vendor;

@@ -5,7 +5,61 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <dsound.h>
+
+#if OPENGL_ENABLED
 #include <gl/gl.h>
+#define WGL_DRAW_TO_WINDOW_ARB                  0x2001
+#define WGL_ACCELERATION_ARB                    0x2003
+#define WGL_SUPPORT_OPENGL_ARB                  0x2010
+#define WGL_DOUBLE_BUFFER_ARB                   0x2011
+#define WGL_PIXEL_TYPE_ARB                      0x2013
+#define WGL_FULL_ACCELERATION_ARB               0x2027
+#define WGL_TYPE_RGBA_ARB                       0x202B
+#define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        0x20A9
+#define WGL_CONTEXT_MAJOR_VERSION_ARB           0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB           0x2092
+#define WGL_CONTEXT_LAYER_PLANE_ARB             0x2093
+#define WGL_CONTEXT_FLAGS_ARB                   0x2094
+#define WGL_CONTEXT_PROFILE_MASK_ARB            0x9126
+
+#define WGL_CONTEXT_DEBUG_BIT_ARB               0x0001
+#define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB  0x0002
+
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB        0x00000001
+#define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
+
+global_variable GLint DefaultInternalTextureFormat;
+
+#include "handmade_opengl.cpp"
+
+typedef BOOL WINAPI wgl_swap_interval_ext(int intervel);
+global_variable wgl_swap_interval_ext *wglSwapIntervalEXT;
+
+typedef HGLRC WINAPI wgl_create_context_attribs_arb(HDC hDC, HGLRC hshareContext, const int *attribList);
+global_variable wgl_create_context_attribs_arb *wglCreateContextAttribsARB;
+
+
+// srgb format
+typedef BOOL WINAPI wgl_choose_pixel_format_arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
+global_variable wgl_choose_pixel_format_arb *wglChoosePixelFormatARB;
+
+typedef char * WINAPI wgl_get_extensions_string_ext(void);
+global_variable wgl_get_extensions_string_ext *wglGetExtensionsStringEXT;
+
+int Win32OpenGLAttribs[] = {
+    WGL_CONTEXT_MAJOR_VERSION_ARB, 3, 
+    WGL_CONTEXT_MINOR_VERSION_ARB, 0,
+    WGL_CONTEXT_FLAGS_ARB, 0 //WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+#if HANDMADE_INTERNAL
+    |WGL_CONTEXT_DEBUG_BIT_ARB
+#endif
+    ,
+    WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+    0,
+};
+
+
+#endif
 
 global_variable platform_api Platform;
 
@@ -17,18 +71,8 @@ global_variable LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 global_variable s64 GlobalPerfCountFrequency;
 global_variable b32 DEBUGGlobalShowCursor;
 global_variable WINDOWPLACEMENT GlobalWindowPosition = { sizeof(GlobalWindowPosition) };
-global_variable GLint DefaultInternalTextureFormat;
 
-#define WGL_DRAW_TO_WINDOW_ARB                  0x2001
-#define WGL_ACCELERATION_ARB                    0x2003
-#define WGL_SUPPORT_OPENGL_ARB                  0x2010
-#define WGL_DOUBLE_BUFFER_ARB                   0x2011
-#define WGL_PIXEL_TYPE_ARB                      0x2013
-#define WGL_FULL_ACCELERATION_ARB               0x2027
-#define WGL_TYPE_RGBA_ARB                       0x202B
-#define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        0x20A9
 
-#include "handmade_opengl.cpp"
 #include "handmade_render.cpp"
 
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
@@ -48,20 +92,6 @@ global_variable x_input_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
 global_variable b32 OpenGLSupportSRGBFrameBuffer = false;
-
-typedef BOOL WINAPI wgl_swap_interval_ext(int intervel);
-global_variable wgl_swap_interval_ext *wglSwapIntervalEXT;
-
-typedef HGLRC WINAPI wgl_create_context_attribs_arb(HDC hDC, HGLRC hshareContext, const int *attribList);
-global_variable wgl_create_context_attribs_arb *wglCreateContextAttribsARB;
-
-
-// srgb format
-typedef BOOL WINAPI wgl_choose_pixel_format_arb(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
-global_variable wgl_choose_pixel_format_arb *wglChoosePixelFormatARB;
-
-typedef char * WINAPI wgl_get_extensions_string_ext(void);
-global_variable wgl_get_extensions_string_ext *wglGetExtensionsStringEXT;
 
 
 internal void
@@ -443,17 +473,6 @@ Win32GetWindowDimension(HWND Window) {
     return(Result);
 }
 
-int Win32OpenGLAttribs[] = {
-    WGL_CONTEXT_MAJOR_VERSION_ARB, 3, 
-    WGL_CONTEXT_MINOR_VERSION_ARB, 0,
-    WGL_CONTEXT_FLAGS_ARB, 0 //WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-#if HANDMADE_INTERNAL
-    |WGL_CONTEXT_DEBUG_BIT_ARB
-#endif
-    ,
-    WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
-    0,
-};
 
 internal void
 Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
