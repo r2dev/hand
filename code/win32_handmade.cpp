@@ -1224,10 +1224,11 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
     if (RegisterClass(&WindowClass)) {
         HWND Window = CreateWindowEx(
                                      0, WindowClass.lpszClassName,
-                                     "Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
+                                     //"Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
+                                     "Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, 0, 0, Instance, 0);
         
         if (Window) {
-            ToggleFullScreen(Window);
+            //ToggleFullScreen(Window);
             HDC WindowDC = GetDC(Window);
             HGLRC MainRC = Win32InitOpenGL(WindowDC);
             

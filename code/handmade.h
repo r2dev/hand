@@ -240,6 +240,8 @@ struct game_state {
 	audio_state AudioState;
     
 	playing_sound* Music;
+    
+    r32 CutSceneTime;
 };
 
 struct task_with_memory {
