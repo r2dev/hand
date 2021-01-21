@@ -227,6 +227,7 @@ PLATFORM_ALLOCATE_TEXTURE(Win32AllocateTexture) {
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     
     glBindTexture(GL_TEXTURE_2D, 0);
+    glFlush();
     // Assert(sizeof(Handle) <= sizeof(void *));
     return(Handle);
 }
