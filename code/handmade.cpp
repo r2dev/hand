@@ -1305,8 +1305,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     render_group *RenderGroup = &RenderGroup_;
     //UpdateAndRenderGame(GameState, TranState, Input, RenderGroup, DrawBuffer);
     RenderCutScene(TranState->Assets, RenderGroup, DrawBuffer, GameState->CutSceneTime);
-    //GameState->CutSceneTime += Input->dtForFrame;
-    if (GameState->CutSceneTime >= 5.0f) {
+    GameState->CutSceneTime += Input->dtForFrame;
+    if (GameState->CutSceneTime >= 20.0f) {
         GameState->CutSceneTime = 0;
     }
     

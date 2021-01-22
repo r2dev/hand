@@ -256,7 +256,7 @@ ParseIntrospectable(tokenizer *Tokenizer) {
             ParseStruct(Tokenizer);
         } else if (TokenEqual(TypeToken, "union")) {
         } else {
-            fprintf(stderr, "Error: Introspect only support struct");
+            fprintf(stderr, "Error: Introspect only support struct \n");
         }
     } else {
         fprintf(stderr, "Error: Missing parentheses. \n");

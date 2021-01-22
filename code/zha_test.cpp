@@ -264,6 +264,7 @@ LoadImage(char* FileName) {
     int n = 0;
     stbi_set_flip_vertically_on_load(1);
     Result.Memory = stbi_load(FileName, &Result.Width, &Result.Height, &n, 0);
+    Result.Free = Result.Memory;
     Assert(n == 4);
 #if 1
     u32* SourceDest = (u32 *)Result.Memory;
@@ -298,7 +299,6 @@ LoadImage(char* FileName) {
         }
     }
 #endif
-    
 #if 0
 	entire_file ReadResult = ReadEntireFile(FileName);
 	if (ReadResult.ContentsSize != 0) {
@@ -751,6 +751,78 @@ PackCutScene() {
     AddTag(Assets, Tag_ShotIndex, 1);
     AddTag(Assets, Tag_LayerIndex, 8.0f);
     
+    
+    AddBitmapAsset(Assets, "cut/shot2_1.png");
+    AddTag(Assets, Tag_ShotIndex, 2);
+    AddTag(Assets, Tag_LayerIndex, 1.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot2_2.png");
+    AddTag(Assets, Tag_ShotIndex, 2);
+    AddTag(Assets, Tag_LayerIndex, 2.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot2_3.png");
+    AddTag(Assets, Tag_ShotIndex, 2);
+    AddTag(Assets, Tag_LayerIndex, 3.0f);
+    
+    
+    AddBitmapAsset(Assets, "cut/shot3_1.png");
+    AddTag(Assets, Tag_ShotIndex, 3);
+    AddTag(Assets, Tag_LayerIndex, 1.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot3_2.png");
+    AddTag(Assets, Tag_ShotIndex, 3);
+    AddTag(Assets, Tag_LayerIndex, 2.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot3_3.png");
+    AddTag(Assets, Tag_ShotIndex, 3);
+    AddTag(Assets, Tag_LayerIndex, 3.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot3_4.png");
+    AddTag(Assets, Tag_ShotIndex, 3);
+    AddTag(Assets, Tag_LayerIndex, 4.0f);
+    
+    
+    AddBitmapAsset(Assets, "cut/shot4_1.png");
+    AddTag(Assets, Tag_ShotIndex, 4);
+    AddTag(Assets, Tag_LayerIndex, 1.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot4_2.png");
+    AddTag(Assets, Tag_ShotIndex, 4);
+    AddTag(Assets, Tag_LayerIndex, 2.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot4_3.png");
+    AddTag(Assets, Tag_ShotIndex, 4);
+    AddTag(Assets, Tag_LayerIndex, 3.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot4_4.png");
+    AddTag(Assets, Tag_ShotIndex, 4);
+    AddTag(Assets, Tag_LayerIndex, 4.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot4_5.png");
+    AddTag(Assets, Tag_ShotIndex, 4);
+    AddTag(Assets, Tag_LayerIndex, 5.0f);
+    
+    
+    
+    AddBitmapAsset(Assets, "cut/shot5_1.png");
+    AddTag(Assets, Tag_ShotIndex, 5);
+    AddTag(Assets, Tag_LayerIndex, 1.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot5_2.png");
+    AddTag(Assets, Tag_ShotIndex, 5);
+    AddTag(Assets, Tag_LayerIndex, 2.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot5_3.png");
+    AddTag(Assets, Tag_ShotIndex, 5);
+    AddTag(Assets, Tag_LayerIndex, 3.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot5_4.png");
+    AddTag(Assets, Tag_ShotIndex, 5);
+    AddTag(Assets, Tag_LayerIndex, 4.0f);
+    
+    AddBitmapAsset(Assets, "cut/shot5_5.png");
+    AddTag(Assets, Tag_ShotIndex, 5);
+    AddTag(Assets, Tag_LayerIndex, 5.0f);
     
     
     EndAssetType(Assets);

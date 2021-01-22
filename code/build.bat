@@ -8,10 +8,8 @@ rem DirectX11
 rem set RendererFlag=-DDirect11_ENABLED=0
 rem set RendererLib=
 
-
 set CommonCompilerFlags=-MTd -nologo -Zo -Od -Gm- -GR- -EHa- -WX -W4 -Gm- -GR- -EHa- -wd4201 -wd4100 -wd4189 -wd4505 -wd4127 -wd4302 -wd4311 -WX 
 set CommonCompilerFlags=-DHANDMADE_WIN32=1 -DHANDMADE_SLOW=1 -DHANDMADE_INTERNAL=1 %RendererFlag% -Z7 -FC -D_CRT_SECURE_NO_WARNINGS %CommonCompilerFlags% 
-
 set CommonLinkerFlags=-incremental:no -opt:ref user32.lib gdi32.lib winmm.lib %RendererLib%
 
 
