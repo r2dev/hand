@@ -2,7 +2,7 @@
 
 #define ONE_PAST_MAX_FONT_CODEPOINT (0x10FFFF + 1)
 enum asset_type_id {
-	Asset_none,
+	Asset_None,
     
 	Asset_Shadow,
 	Asset_Tree,

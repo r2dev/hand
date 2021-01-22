@@ -620,7 +620,7 @@ Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_command
     // TODO(NAME): sort command
     
     b32 InHardware = true;
-    b32 DisplayWithWin32Blit = true;
+    b32 DisplayWithWin32Blit = false;
     
     if (InHardware) {
         OpenGLRenderCommands(Commands, WindowWidth, WindowHeight);
@@ -1220,15 +1220,17 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
     WindowClass.hInstance = Instance;
     WindowClass.lpszClassName = "HandmadeHeroWindowClass";
     WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
+    WindowClass.hbrBackground = (HBRUSH)(GetStockObject(BLACK_BRUSH));
     
     if (RegisterClass(&WindowClass)) {
         HWND Window = CreateWindowEx(
                                      0, WindowClass.lpszClassName,
                                      //"Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
-                                     "Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, 0, 0, Instance, 0);
+                                     "Test", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, 0, 0, Instance, 0);
         
         if (Window) {
             //ToggleFullScreen(Window);
+            ShowWindow(Window, SW_SHOW);
             HDC WindowDC = GetDC(Window);
             HGLRC MainRC = Win32InitOpenGL(WindowDC);
             

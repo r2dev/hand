@@ -26,7 +26,7 @@ pushd ..\handmade\code
 popd
 
 REM Asset builder 
-cl %CommonCompilerFlags% ..\handmade\code\zha_test.cpp /link %CommonLinkerFlags% 
+rem cl %CommonCompilerFlags% ..\handmade\code\zha_test.cpp /link %CommonLinkerFlags% 
 
 REM 32-bit build
 REM cl %CommonCompilerFlags% -DHANDMADE_INTERNAL=1 -Z7 -FC -Fmwin32_handmade.map ..\handmade\code\win32_handmade.cpp /link -subsystem:windows %CommonLinkerFlags% 

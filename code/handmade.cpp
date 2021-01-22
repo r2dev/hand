@@ -1168,7 +1168,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 		TranState->HighPriorityQueue = Memory->HighPriorityQueue;
 		TranState->LowPriorityQueue = Memory->LowPriorityQueue;
         
-		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(256), TranState);
+		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(512), TranState);
 		
 		TranState->GroundBufferCount = 256;
 		TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);
@@ -1303,12 +1303,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
 	render_group RenderGroup_ = BeginRenderGroup(TranState->Assets, RenderCommands, TranState->MainGenerationID, false);
     render_group *RenderGroup = &RenderGroup_;
-    //UpdateAndRenderGame(GameState, TranState, Input, RenderGroup, DrawBuffer);
-    RenderCutScene(TranState->Assets, RenderGroup, DrawBuffer, GameState->CutSceneTime);
+    UpdateAndRenderGame(GameState, TranState, Input, RenderGroup, DrawBuffer);
+    // RenderCutScene(TranState->Assets, RenderGroup, DrawBuffer, &GameState->CutSceneTime);
     GameState->CutSceneTime += Input->dtForFrame;
-    if (GameState->CutSceneTime >= 20.0f) {
-        GameState->CutSceneTime = 0;
-    }
     
     EndTemporaryMemory(RenderMemory);
     EndRenderGroup(RenderGroup);

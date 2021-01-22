@@ -406,6 +406,9 @@ LoadSound(game_assets* Assets, sound_id ID) {
 inline void
 PrefetchSound(game_assets* Assets, sound_id ID) { LoadSound(Assets, ID); }
 
+inline void
+PrefetchBitmap(game_assets* Assets, bitmap_id ID) { LoadBitmap(Assets, ID, false); }
+
 hha_sound* GetSoundInfo(game_assets* Assets, sound_id ID) {
     Assert(ID.Value <= Assets->AssetCount);
     hha_sound* Result = &Assets->Assets[ID.Value].HHA.Sound;

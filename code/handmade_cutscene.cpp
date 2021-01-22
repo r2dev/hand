@@ -2,7 +2,9 @@
 internal void
 RenderLayerScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, layered_scene *Scene, r32 tNormal) {
     r32 FocalLength = 0.6f;
-    Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, FocalLength, 0);
+    if (RenderGroup) {
+        Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, FocalLength, 0);
+    }
     asset_vector MatchVector = {};
     asset_vector WeightVector = {};
     WeightVector.E[Tag_ShotIndex] = 10.0f;
@@ -13,130 +15,117 @@ RenderLayerScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *
     v3 CameraStart = Scene->CameraStart;
     v3 CameraEnd = Scene->CameraEnd;
     v3 CameraOffset = Lerp(CameraStart, tNormal, CameraEnd);
-    
+    if (Scene->LayerCount == 0) {
+        Clear(RenderGroup, v4{0, 0, 0, 0});
+    }
     for(u32 LayerIndex = 1; LayerIndex <= Scene->LayerCount; ++LayerIndex) {
         scene_layer *Layer = Scene->Layers + (LayerIndex - 1);
         b32 Active = true;
         if ((Layer->Flags & SceneLayerFlag_Transient)) {
             Active = (tNormal >= Layer->Params.x && tNormal < Layer->Params.y);
         }
-        
-        
         if (Active) {
-            v3 P = Layer->P;
-            if (Layer->Flags & SceneLayerFlag_AtInfinity) {
-                P.z += CameraOffset.z;
-            }
-            
-            if (Layer->Flags & SceneLayerFlag_CounterCameraX) {
-                RenderGroup->Transform.OffsetP.x = P.x + CameraOffset.x;
-            } else {
-                RenderGroup->Transform.OffsetP.x = P.x - CameraOffset.x;
-            }
-            
-            if (Layer->Flags & SceneLayerFlag_CounterCameraY) {
-                RenderGroup->Transform.OffsetP.y = P.y + CameraOffset.y;
-            } else {
-                RenderGroup->Transform.OffsetP.y = P.y - CameraOffset.y;
-            }
-            
-            RenderGroup->Transform.OffsetP.z = P.z - CameraOffset.z;
             MatchVector.E[Tag_LayerIndex] = (r32)LayerIndex;
             bitmap_id LayerImage = GetBestMatchBitmapFrom(Assets, Scene->AssetType, &MatchVector, &WeightVector);
-            PushBitmap(RenderGroup, LayerImage, Layer->Height, v3{ 0, 0, 0 });
+            if (RenderGroup) {
+                v3 P = Layer->P;
+                if (Layer->Flags & SceneLayerFlag_AtInfinity) {
+                    P.z += CameraOffset.z;
+                }
+                
+                if (Layer->Flags & SceneLayerFlag_CounterCameraX) {
+                    RenderGroup->Transform.OffsetP.x = P.x + CameraOffset.x;
+                } else {
+                    RenderGroup->Transform.OffsetP.x = P.x - CameraOffset.x;
+                }
+                
+                if (Layer->Flags & SceneLayerFlag_CounterCameraY) {
+                    RenderGroup->Transform.OffsetP.y = P.y + CameraOffset.y;
+                } else {
+                    RenderGroup->Transform.OffsetP.y = P.y - CameraOffset.y;
+                }
+                
+                RenderGroup->Transform.OffsetP.z = P.z - CameraOffset.z;
+                
+                PushBitmap(RenderGroup, LayerImage, Layer->Height, v3{ 0, 0, 0 });
+            } else {
+                PrefetchBitmap(Assets, LayerImage);
+            }
         }
     }
     
 }
 
-internal void
-RenderCutScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, r32 tCutScene) {
-    r32 tStart = 0.0f;
-    r32 tEnd = 20.0f;
-    r32 tNormal =  Clamp01MapToRange(tStart, tCutScene, tEnd);
-    if (0)
-    {
-        layered_scene Scene = {};
-        Scene.LayerCount = 8;
-        Scene.ShotIndex = 1;
-        scene_layer Layers[] = {
-            {{0.0f, 0.0f, -100.0f}, 150.0f, SceneLayerFlag_AtInfinity},
-            {{0.0f, 0.0f, -60.0f}, 110.0f},
-            {{0.0f, 0.0f, -40.0f}, 60.0f},
-            {{0.0f, 0.0f, -38.0f}, 58.0f},
-            {{0.0f, -2.0f, -30.0f}, 50.0f},
-            
-            {{30.0f, 0.0f, -20.0f}, 30.0f},
-            {{0.0f, -2.0f, -19.0f}, 40.0f},
-            {{2.0f, -1.0f, -5.0f}, 25.0f},
-        };
-        Scene.Layers = Layers;
-        Scene.CameraStart = {0.0f, 0.0f, 10.0f};
-        Scene.CameraEnd = {-4.0f, -5.0f, 5.0f};
-        Scene.AssetType = Asset_OpeningCutScene;
-        
-        RenderLayerScene(Assets, RenderGroup, DrawBuffer, &Scene, tNormal);
+global_variable scene_layer IntroLayers1[] = {
+    {{0.0f, 0.0f, -100.0f}, 150.0f, SceneLayerFlag_AtInfinity},
+    {{0.0f, 0.0f, -60.0f}, 110.0f},
+    {{0.0f, 0.0f, -40.0f}, 60.0f},
+    {{0.0f, 0.0f, -38.0f}, 58.0f},
+    {{0.0f, -2.0f, -30.0f}, 50.0f},
+    
+    {{30.0f, 0.0f, -20.0f}, 30.0f},
+    {{0.0f, -2.0f, -19.0f}, 40.0f},
+    {{2.0f, -1.0f, -5.0f}, 25.0f},
+};
+
+global_variable scene_layer IntroLayers2[] = {
+    {{0.0f, 0.0f, -10.0f}, 15.0f},
+    {{0.0f, 0.0f, -8.0f}, 13.0f},
+    {{0.0f, 0.0f, -3.0f}, 4.5f},
+};
+
+global_variable scene_layer IntroLayers3[] = {
+    {{0.0f, 0.0f, -50.0f}, 150.0f, SceneLayerFlag_CounterCameraY},
+    {{0.0f, -10.0f, -30.0f}, 80.0f, SceneLayerFlag_CounterCameraY},
+    {{0.0f, 0.0f, -4.0f}, 20.0f, SceneLayerFlag_CounterCameraY},
+    {{0.0f, -4.0f, -3.0f}, 7.0f},
+};
+
+global_variable scene_layer IntroLayers4[] = {
+    {{0.0f, 0.0f, -3.0f}, 5.0f},
+    {{-0.8f, -0.4f, -3.0f}, 3.0f, SceneLayerFlag_Transient, {0.0f, 0.5}},
+    {{-0.8f, -0.4f, -3.0f}, 3.0f, SceneLayerFlag_Transient, {0.5, 1.0f}},
+    {{3.0f, -1.4f, -3.0f}, 1.5f},
+    {{0.0f, 0.2f, -1.0f}, 1.0f},
+};
+#define CUT_SCENE_WARMUP_TIME 2
+#define INTRO_SCENE(Index) Asset_OpeningCutScene, ArrayCount(IntroLayers##Index), Index, IntroLayers##Index
+global_variable layered_scene IntroCutScenes[] = {
+    {Asset_None, 0, 0, 0, CUT_SCENE_WARMUP_TIME},
+    {INTRO_SCENE(1), 20.0f, {0.0f, 0.0f, 10.0f}, {-4.0f, -5.0f, 5.0f}},
+    {INTRO_SCENE(2), 20.0f, {0.0f, 0.0f, 0.0f}, {0.5f, 0.5f, -1.5f}},
+    {INTRO_SCENE(3), 20.0f, {0.0f, 0.0f, 0.0f}, {0.0f, 6.0f, 0.0f}},
+    {INTRO_SCENE(4), 20.0f, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -0.5f}},
+};
+
+internal b32
+RenderCutSceneAtTime(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, r32 tCutScene) {
+    b32 Result = false;
+    r32 tBase = 0.0f;
+    for (u32 ShotIndex = 0; ShotIndex < ArrayCount(IntroCutScenes); ++ShotIndex) {
+        layered_scene *CutScene = IntroCutScenes + ShotIndex;
+        r32 tStart = tBase;
+        r32 tEnd = tBase + CutScene->Duration;
+        if (tCutScene >= tStart && tCutScene < tEnd) {
+            r32 tNormal = Clamp01MapToRange(tStart, tCutScene, tEnd);
+            RenderLayerScene(Assets, RenderGroup, DrawBuffer, CutScene, tNormal);
+            Result = true;
+            break;
+        }
+        tBase = tEnd;
     }
+    return(Result);
+}
+
+internal b32
+RenderCutScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, r32 *tCutScene) {
     
-    if (0)
-    {
-        layered_scene Scene = {};
-        Scene.LayerCount = 3;
-        Scene.ShotIndex = 2;
-        scene_layer Layers[] = {
-            {{0.0f, 0.0f, -10.0f}, 15.0f},
-            {{0.0f, 0.0f, -8.0f}, 13.0f},
-            {{0.0f, 0.0f, -3.0f}, 4.5f},
-            
-        };
-        Scene.Layers = Layers;
-        Scene.CameraStart = {0.0f, 0.0f, 0.0f};
-        Scene.CameraEnd = {0.5f, 0.5f, -1.5f};
-        Scene.AssetType = Asset_OpeningCutScene;
-        
-        RenderLayerScene(Assets, RenderGroup, DrawBuffer, &Scene, tNormal);
+    RenderCutSceneAtTime(Assets, 0, DrawBuffer, *tCutScene + CUT_SCENE_WARMUP_TIME);
+    b32 CutSceneCompleted = RenderCutSceneAtTime(Assets, RenderGroup, DrawBuffer, *tCutScene);
+    if (!CutSceneCompleted) {
+        // loop the cutscene
+        *tCutScene = 0;
     }
-    
-    if (0){
-        layered_scene Scene = {};
-        Scene.LayerCount = 4;
-        Scene.ShotIndex = 3;
-        scene_layer Layers[] = {
-            {{0.0f, 0.0f, -50.0f}, 150.0f, SceneLayerFlag_CounterCameraY},
-            {{0.0f, -10.0f, -30.0f}, 80.0f, SceneLayerFlag_CounterCameraY},
-            {{0.0f, 0.0f, -4.0f}, 20.0f, SceneLayerFlag_CounterCameraY},
-            {{0.0f, -4.0f, -3.0f}, 7.0f},
-            
-        };
-        Scene.Layers = Layers;
-        Scene.CameraStart = {0.0f, 0.0f, 0.0f};
-        Scene.CameraEnd = {0.0f, 6.0f, 0.0f};
-        Scene.AssetType = Asset_OpeningCutScene;
-        
-        RenderLayerScene(Assets, RenderGroup, DrawBuffer, &Scene, tNormal);
-    }
-    
-    {
-        layered_scene Scene = {};
-        Scene.LayerCount = 5;
-        Scene.ShotIndex = 4;
-        r32 ShotChangeTime = 0.5f;
-        scene_layer Layers[] = {
-            {{0.0f, 0.0f, -3.0f}, 5.0f},
-            {{-0.8f, -0.4f, -3.0f}, 3.0f, SceneLayerFlag_Transient, {0.0f, ShotChangeTime}},
-            {{-0.8f, -0.4f, -3.0f}, 3.0f, SceneLayerFlag_Transient, {ShotChangeTime, 1.0f}},
-            {{3.0f, -1.4f, -3.0f}, 1.5f},
-            {{0.0f, 0.2f, -1.0f}, 1.0f},
-        };
-        Scene.Layers = Layers;
-        Scene.CameraStart = {0.0f, 0.0f, 0.0f};
-        Scene.CameraEnd = {0.0f, 0.0f, -0.5f};
-        Scene.AssetType = Asset_OpeningCutScene;
-        
-        RenderLayerScene(Assets, RenderGroup, DrawBuffer, &Scene, tNormal);
-    }
-    
-    
-    
+    return(CutSceneCompleted);
     
 }

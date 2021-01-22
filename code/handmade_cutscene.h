@@ -17,13 +17,16 @@ struct scene_layer {
 };
 
 struct layered_scene {
+    asset_type_id AssetType;
     u32 LayerCount;
     u32 ShotIndex;
     scene_layer *Layers;
     
+    r32 Duration;
+    
     v3 CameraStart;
     v3 CameraEnd;
-    asset_type_id AssetType;
+    
 };
 
 
