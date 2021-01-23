@@ -820,12 +820,9 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
                     else if (VKCode == VK_SPACE) {
                         Win32ProcessKeyboardMessage(&KeyboardController->Start, IsDown);
                     }
-                    
-#if 0                    
                     else if (VKCode == VK_ESCAPE) {
                         Win32ProcessKeyboardMessage(&KeyboardController->Back, IsDown);
                     }
-#endif
 #if HANDMADE_INTERNAL
                     else if (VKCode == 'P') {
                         if (IsDown) {
@@ -852,7 +849,7 @@ Win32ProcessPendingMessages(win32_state* State, game_controller_input* KeyboardC
 #endif
                     if (IsDown) {
                         b32 AltKeyWasDown = (Message.lParam & (1 << 29));
-                        if ((VKCode == VK_F4) && AltKeyWasDown || VKCode == VK_ESCAPE) {
+                        if ((VKCode == VK_F4) && AltKeyWasDown) {
                             GlobalRunning = false;
                         }
                         
@@ -1523,6 +1520,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         }
                         if (Game.UpdateAndRender) {
                             Game.UpdateAndRender(&GameMemory, NewInput, &RenderCommands);
+                            if (GameMemory.QuitRequested) {
+                                GlobalRunning = false;
+                            }
                             //HandleDebugCycleCounters(&GameMemory);
                         }
                         

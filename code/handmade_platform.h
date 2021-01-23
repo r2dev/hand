@@ -401,7 +401,7 @@ extern "C" {
         
         platform_api PlatformAPI;
         b32 ExecutableReloaded;
-        
+        b32 QuitRequested;
     } game_memory;
     
     

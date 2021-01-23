@@ -156,6 +156,7 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
 #include "handmade_audio.h"
+#include "handmade_cutscene.h"
 
 struct low_entity {
 	world_position P;
@@ -230,6 +231,7 @@ struct game_state {
     
     u32 NextParticle;
     particle Particle[256];
+    
 #define PARTICEL_CEL_DIM 16
     particle_cel ParticleCels[PARTICEL_CEL_DIM][PARTICEL_CEL_DIM];
     
@@ -240,8 +242,8 @@ struct game_state {
 	audio_state AudioState;
     
 	playing_sound* Music;
+    playing_cutscene CurrentCutScene;
     
-    r32 CutSceneTime;
 };
 
 struct task_with_memory {

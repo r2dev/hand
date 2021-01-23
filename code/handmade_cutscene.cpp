@@ -1,4 +1,3 @@
-#include "handmade_cutscene.h"
 internal void
 RenderLayerScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, layered_scene *Scene, r32 tNormal) {
     r32 FocalLength = 0.6f;
@@ -88,7 +87,7 @@ global_variable scene_layer IntroLayers4[] = {
     {{3.0f, -1.4f, -3.0f}, 1.5f},
     {{0.0f, 0.2f, -1.0f}, 1.0f},
 };
-#define CUT_SCENE_WARMUP_TIME 2
+#define CUT_SCENE_WARMUP_TIME 1
 #define INTRO_SCENE(Index) Asset_OpeningCutScene, ArrayCount(IntroLayers##Index), Index, IntroLayers##Index
 global_variable layered_scene IntroCutScenes[] = {
     {Asset_None, 0, 0, 0, CUT_SCENE_WARMUP_TIME},
@@ -99,16 +98,16 @@ global_variable layered_scene IntroCutScenes[] = {
 };
 
 internal b32
-RenderCutSceneAtTime(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, r32 tCutScene) {
+RenderCutSceneAtTime(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, playing_cutscene *CutScene, r32 tCutScene) {
     b32 Result = false;
     r32 tBase = 0.0f;
-    for (u32 ShotIndex = 0; ShotIndex < ArrayCount(IntroCutScenes); ++ShotIndex) {
-        layered_scene *CutScene = IntroCutScenes + ShotIndex;
+    for (u32 ShotIndex = 0; ShotIndex < CutScene->SceneCount; ++ShotIndex) {
+        layered_scene *Scene = CutScene->Scenes + ShotIndex;
         r32 tStart = tBase;
-        r32 tEnd = tBase + CutScene->Duration;
+        r32 tEnd = tBase + Scene->Duration;
         if (tCutScene >= tStart && tCutScene < tEnd) {
-            r32 tNormal = Clamp01MapToRange(tStart, tCutScene, tEnd);
-            RenderLayerScene(Assets, RenderGroup, DrawBuffer, CutScene, tNormal);
+            r32 tNormal = Clamp01MapToRange(tStart, CutScene->t, tEnd);
+            RenderLayerScene(Assets, RenderGroup, DrawBuffer, Scene, tNormal);
             Result = true;
             break;
         }
@@ -118,14 +117,27 @@ RenderCutSceneAtTime(game_assets *Assets, render_group *RenderGroup, loaded_bitm
 }
 
 internal b32
-RenderCutScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, r32 *tCutScene) {
+RenderCutScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *DrawBuffer, playing_cutscene *CutScene) {
     
-    RenderCutSceneAtTime(Assets, 0, DrawBuffer, *tCutScene + CUT_SCENE_WARMUP_TIME);
-    b32 CutSceneCompleted = RenderCutSceneAtTime(Assets, RenderGroup, DrawBuffer, *tCutScene);
+    RenderCutSceneAtTime(Assets, 0, DrawBuffer, CutScene, CutScene->t + CUT_SCENE_WARMUP_TIME);
+    b32 CutSceneCompleted = RenderCutSceneAtTime(Assets, RenderGroup, DrawBuffer, CutScene, CutScene->t);
     if (!CutSceneCompleted) {
         // loop the cutscene
-        *tCutScene = 0;
+        CutScene->t = 0;
     }
     return(CutSceneCompleted);
     
+}
+
+internal playing_cutscene
+MakeIntroCutScene() {
+    playing_cutscene Result = {};
+    Result.SceneCount = ArrayCount(IntroCutScenes);
+    Result.Scenes = IntroCutScenes;
+    return(Result);
+}
+
+inline void
+AdvanceCutScene(playing_cutscene *CutScene, r32 dt) {
+    CutScene->t += dt;
 }

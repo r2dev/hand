@@ -77,6 +77,11 @@ AddLowEntity(game_state* GameState, entity_type Type, world_position P) {
 	return(Result);
 }
 
+inline void
+DeleteLowEntity(game_state* GameState, u32 Index) {
+    // TODO(NAME): 
+}
+
 inline add_low_entity_result
 AddGroundedEntity(game_state* GameState, entity_type Type, world_position P, sim_entity_collision_volume_group * Collision) {
 	add_low_entity_result Entity = AddLowEntity(GameState, Type, P);
@@ -1203,7 +1208,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         
 		GameState->Music = 0; //PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 		//ChangePitch(GameState->Music, 0.8f);
-        
+        GameState->CurrentCutScene = MakeIntroCutScene();
 		TranState->IsInitialized = true;
 	}
     
@@ -1224,17 +1229,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
     
 	world* World = GameState->World;
-    
+    b32 HeroExist = false;
+    b32 QuitRequested = false;
 	for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
 		game_controller_input* Controller = GetController(Input, ControllerIndex);
 		controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
 		if (ConHero->EntityIndex == 0) {
-			if (Controller->Start.EndedDown) {
+            if (WasPressed(&Controller->Back)) {
+                QuitRequested = true;
+            }
+			else if (Controller->Start.EndedDown) {
 				*ConHero = {};
 				ConHero->EntityIndex = AddPlayer(GameState).LowIndex;
 			}
 		}
 		else {
+            HeroExist = true;
 			ConHero->ddP = {};
 			ConHero->dZ = 0.0f;
 			ConHero->dSword = {};
@@ -1256,6 +1266,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				if (Controller->MoveRight.EndedDown) {
 					ConHero->ddP.x = 1.0f;
 				}
+                
 			}
 			if (Controller->Start.EndedDown) {
 				ConHero->dZ = 3.0f;
@@ -1267,18 +1278,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 				ConHero->dSword = v2{ 0.0f, 1.0f };
 				ChangeVolume(GameState->Music, v2{ 1, 1 }, 2.0f);
 			}
-			else if (Controller->ActionDown.EndedDown) {
+			if (Controller->ActionDown.EndedDown) {
 				ConHero->dSword = v2{ 0.0f, -1.0f };
 				ChangeVolume(GameState->Music, v2{ 0, 0 }, 2.0f);
 			}
-			else if (Controller->ActionLeft.EndedDown) {
+			if (Controller->ActionLeft.EndedDown) {
 				ChangeVolume(GameState->Music, v2{ 1, 0 }, 2.0f);
 				ConHero->dSword = v2{ -1.0f, 0.0f };
 			}
-			else if (Controller->ActionRight.EndedDown) {
+			if (Controller->ActionRight.EndedDown) {
 				ChangeVolume(GameState->Music, v2{ 0, 1 }, 2.0f);
 				ConHero->dSword = v2{ 1.0f, 0.0f };
 			}
+            if (WasPressed(&Controller->Back)) {
+                DeleteLowEntity(GameState, ConHero->EntityIndex);
+                ConHero->EntityIndex = 0;
+            }
 #else
 			r32 ZoomRate = 0.0f;
 			if (Controller->ActionUp.EndedDown) {
@@ -1303,13 +1318,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
 	render_group RenderGroup_ = BeginRenderGroup(TranState->Assets, RenderCommands, TranState->MainGenerationID, false);
     render_group *RenderGroup = &RenderGroup_;
-    UpdateAndRenderGame(GameState, TranState, Input, RenderGroup, DrawBuffer);
-    // RenderCutScene(TranState->Assets, RenderGroup, DrawBuffer, &GameState->CutSceneTime);
-    GameState->CutSceneTime += Input->dtForFrame;
+    
+    if (!HeroExist) {
+        RenderCutScene(TranState->Assets, RenderGroup, DrawBuffer, &GameState->CurrentCutScene);
+        AdvanceCutScene(&GameState->CurrentCutScene, Input->dtForFrame);
+    } else {
+        UpdateAndRenderGame(GameState, TranState, Input, RenderGroup, DrawBuffer);
+    }
     
     EndTemporaryMemory(RenderMemory);
+    
     EndRenderGroup(RenderGroup);
-    //EvictAssetsAsNecessary(TranState->Assets);
+    
+    if (QuitRequested && !HeroExist) {
+        Memory->QuitRequested = true;
+    }
+    
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->WorldArena);
 }
