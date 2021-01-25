@@ -39,8 +39,8 @@ struct game_mode_titlescreen {
     r32 t;
 };
 struct game_state;
-internal void PlayIntroCutScene(game_state *GameState);
-internal void PlayTitleScreen(game_state *GameState);
+internal void PlayIntroCutScene(game_state *GameState, transient_state *);
+internal void PlayTitleScreen(game_state *GameState, transient_state *TranState);
 
 
 #endif //HANDMADE_CUTSCENE_H

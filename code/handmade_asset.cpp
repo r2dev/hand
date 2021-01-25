@@ -231,7 +231,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
         if (AtomicCompareExchangeUInt32((u32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
             task_with_memory* Task = 0;
             if (!Immediate) {
-                Task = BeginTaskWithMemory(Assets->TranState);
+                Task = BeginTaskWithMemory(Assets->TranState, false);
             }
             if (Immediate || Task) {
                 
@@ -296,7 +296,7 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
         if (AtomicCompareExchangeUInt32((u32 *)&Asset->State, AssetState_Queued, AssetState_Unloaded) == AssetState_Unloaded) {
             task_with_memory* Task = 0;
             if (!Immediate) {
-                Task = BeginTaskWithMemory(Assets->TranState);
+                Task = BeginTaskWithMemory(Assets->TranState, false);
             }
             if (Immediate || Task) {
                 
@@ -354,7 +354,7 @@ LoadSound(game_assets* Assets, sound_id ID) {
     asset *Asset = Assets->Assets + ID.Value;
     if (ID.Value &&
         _InterlockedCompareExchange((long volatile*)&Asset->State, AssetState_Unloaded, AssetState_Queued) == AssetState_Unloaded) {
-        task_with_memory* Task = BeginTaskWithMemory(Assets->TranState);
+        task_with_memory* Task = BeginTaskWithMemory(Assets->TranState, false);
         if (Task) {
             
             hha_sound* Info = &Asset->HHA.Sound;

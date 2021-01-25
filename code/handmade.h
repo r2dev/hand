@@ -176,6 +176,8 @@ struct controlled_hero {
 };
 
 enum game_mode {
+    GameMode_None,
+    
     GameMode_TitleScreen,
     GameMode_CutScrene,
     GameMode_World,
@@ -205,6 +207,7 @@ struct game_state {
 
 struct task_with_memory {
 	b32 BeingUsed;
+    b32 DependOnGameMode;
 	memory_arena Arena;
 	temporary_memory MemoryFlush;
 };
@@ -230,10 +233,10 @@ struct transient_state {
 };
 
 
-internal task_with_memory* BeginTaskWithMemory(transient_state* TranState);
+internal task_with_memory* BeginTaskWithMemory(transient_state* TranState, b32 DependOnGameMode);
 inline void EndTaskWithMemory(task_with_memory* Task);
-internal void SetGameMode(game_state *GameState, game_mode GameMode);
-internal b32 CheckForMetaInput(game_state *GameState, game_input *Input);
+internal void SetGameMode(game_state *GameState, transient_state *TranState, game_mode GameMode);
+internal b32 CheckForMetaInput(game_state *GameState, transient_state *TranState, game_input *Input);
 global_variable platform_api Platform;
 
 

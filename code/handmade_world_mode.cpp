@@ -309,7 +309,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
 
 internal void
 FillGroundChunk(transient_state *TranState, game_mode_world* GameWorld, ground_buffer* GroundBuffer, world_position *ChunkP) {
-	task_with_memory* AvailableTask = BeginTaskWithMemory(TranState);
+	task_with_memory* AvailableTask = BeginTaskWithMemory(TranState, true);
 	if (AvailableTask) {
 		fill_ground_chunk_work* Work = PushStruct(&AvailableTask->Arena, fill_ground_chunk_work);
 		Work->Task = AvailableTask;
@@ -341,8 +341,8 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 
 
 internal void
-EnterWorld(game_state *GameState) {
-    SetGameMode(GameState, GameMode_World);
+EnterWorld(game_state *GameState, transient_state *TranState) {
+    SetGameMode(GameState, TranState, GameMode_World);
     game_mode_world *GameWorld = PushStruct(&GameState->ModeArena, game_mode_world);
     
     GameWorld->TypicalFloorHeight = 3.0f;
@@ -1064,8 +1064,8 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
     EndTemporaryMemory(SimMemory);
     
     if (!HeroExist) {
-        PlayIntroCutScene(GameState);
-        //PlayTitleScreen(GameState);
+        //PlayIntroCutScene(GameState, TranState);
+        PlayTitleScreen(GameState, TranState);
     }
     
     return(Result);

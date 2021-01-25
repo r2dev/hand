@@ -17,7 +17,7 @@
 #include "handmade_cutscene.cpp"
 
 internal task_with_memory*
-BeginTaskWithMemory(transient_state* TranState) {
+BeginTaskWithMemory(transient_state* TranState, b32 DependOnGameMode) {
 	task_with_memory* FoundTask = 0;
     
 	for (u32 TaskIndex = 0; TaskIndex < ArrayCount(TranState->Tasks); ++TaskIndex) {
@@ -26,6 +26,7 @@ BeginTaskWithMemory(transient_state* TranState) {
 			Task->BeingUsed = true;
 			FoundTask = Task;
 			Task->MemoryFlush = BeginTemporaryMemory(&Task->Arena);
+            Task->DependOnGameMode = DependOnGameMode;
 			break;
 		}
 	}
@@ -155,13 +156,24 @@ DEBUGGetMainGenerationID(game_memory *Memory) {
 
 
 internal void
-SetGameMode(game_state *GameState, game_mode GameMode) {
+SetGameMode(game_state *GameState, transient_state *TranState, game_mode GameMode) {
+    b32 WaitOnTask = false;
+    for (u32 TaskIndex = 0; TaskIndex < ArrayCount(TranState->Tasks); ++TaskIndex) {
+        task_with_memory *Task = TranState->Tasks + TaskIndex;
+        if (Task->BeingUsed && Task->DependOnGameMode) {
+            WaitOnTask = true;
+            break;
+        }
+    }
+    if (WaitOnTask) {
+        Platform.CompleteAllWork(TranState->LowPriorityQueue);
+    }
     Clear(&GameState->ModeArena);
     GameState->GameMode = GameMode;
 }
 
 internal b32
-CheckForMetaInput(game_state *GameState, game_input *Input) {
+CheckForMetaInput(game_state *GameState, transient_state *TranState, game_input *Input) {
     b32 Rerun = false;
     for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
 		game_controller_input* Controller = GetController(Input, ControllerIndex);
@@ -171,7 +183,7 @@ CheckForMetaInput(game_state *GameState, game_input *Input) {
             break;
         }
         else if (WasPressed(&Controller->Start)) {
-            EnterWorld(GameState);
+            EnterWorld(GameState, TranState);
             Rerun = true;
             break;
         }
@@ -199,14 +211,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         memory_arena TotalArena;
         InitializeArena(&TotalArena, Memory->PermanentStorageSize - sizeof(game_state),
                         (u8*)Memory->PermanentStorage + sizeof(game_state));
-        
-        
         SubArena(&GameState->AudioState.AudioArena, &TotalArena, Megabytes(1));
 		InitializeAudioState(&GameState->AudioState);
-        
         SubArena(&GameState->ModeArena, &TotalArena, GetArenaSizeRemaining(&TotalArena));
         
-        PlayIntroCutScene(GameState);
 		GameState->IsInitialized = true;
         
 	}
@@ -262,8 +270,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         
 		GameState->Music = 0; //PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Music));
 		//ChangePitch(GameState->Music, 0.8f);
-        
-        
 		TranState->IsInitialized = true;
 	}
     
@@ -271,6 +277,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         EndGeneration(TranState->Assets, TranState->MainGenerationID);
     }
     TranState->MainGenerationID = BeginGeneration(TranState->Assets);
+    
+    if(GameState->GameMode == GameMode_None) {
+        PlayIntroCutScene(GameState, TranState);
+    }
     
     
     DEBUG_IF(GroundChunk_ReGenGroundChunkOnReload)
@@ -301,10 +311,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     do {
         switch (GameState->GameMode) {
             case GameMode_TitleScreen: {
-                Rerun = UpdateAndRenderTitleScreen(GameState, TranState->Assets, RenderGroup, DrawBuffer, GameState->TitleScreen, Input);
+                Rerun = UpdateAndRenderTitleScreen(GameState, TranState, RenderGroup, DrawBuffer, GameState->TitleScreen, Input);
             } break;
             case GameMode_CutScrene: {
-                Rerun = UpdateAndRenderCutScene(GameState, TranState->Assets, RenderGroup, DrawBuffer, GameState->CutScene, Input);
+                Rerun = UpdateAndRenderCutScene(GameState, TranState, RenderGroup, DrawBuffer, GameState->CutScene, Input);
             } break;
             case GameMode_World: {
                 Rerun = UpdateAndRenderWorld(GameState, GameWorld, TranState, Input, RenderGroup, DrawBuffer);
