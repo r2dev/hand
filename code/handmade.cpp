@@ -160,6 +160,28 @@ SetGameMode(game_state *GameState, game_mode GameMode) {
     GameState->GameMode = GameMode;
 }
 
+internal b32
+CheckForMetaInput(game_state *GameState, game_input *Input) {
+    b32 Rerun = false;
+    for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
+		game_controller_input* Controller = GetController(Input, ControllerIndex);
+        if (WasPressed(&Controller->Back)) {
+            Input->QuitRequested = true;
+            Rerun = false;
+            break;
+        }
+        else if (WasPressed(&Controller->Start)) {
+            EnterWorld(GameState);
+            Rerun = true;
+            break;
+        }
+    }
+    
+    return(Rerun);
+}
+
+
+
 #if HANDMADE_INTERNAL
 game_memory* DebugGlobalMemory;
 #endif
@@ -262,83 +284,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
     
 	game_mode_world* GameWorld = GameState->WorldMode;
-    b32 HeroExist = false;
-    b32 QuitRequested = false;
-	for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
-		game_controller_input* Controller = GetController(Input, ControllerIndex);
-		controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
-		if (ConHero->EntityIndex == 0) {
-            if (WasPressed(&Controller->Back)) {
-                QuitRequested = true;
-            }
-			else if (Controller->Start.EndedDown) {
-                EnterWorld(GameState);
-				*ConHero = {};
-				ConHero->EntityIndex = AddPlayer(GameWorld).LowIndex;
-			}
-		}
-		else {
-            HeroExist = true;
-			ConHero->ddP = {};
-			ConHero->dZ = 0.0f;
-			ConHero->dSword = {};
-            
-			if (Controller->IsAnalog) {
-				ConHero->ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
-			}
-			else {
-                
-				if (Controller->MoveUp.EndedDown) {
-					ConHero->ddP.y = 1.0f;
-				}
-				if (Controller->MoveDown.EndedDown) {
-					ConHero->ddP.y = -1.0f;
-				}
-				if (Controller->MoveLeft.EndedDown) {
-					ConHero->ddP.x = -1.0f;
-				}
-				if (Controller->MoveRight.EndedDown) {
-					ConHero->ddP.x = 1.0f;
-				}
-                
-			}
-			if (Controller->Start.EndedDown) {
-				ConHero->dZ = 3.0f;
-			}
-            
-			ConHero->dSword = {};
-#if 1
-			if (Controller->ActionUp.EndedDown) {
-				ConHero->dSword = v2{ 0.0f, 1.0f };
-				ChangeVolume(GameState->Music, v2{ 1, 1 }, 2.0f);
-			}
-			if (Controller->ActionDown.EndedDown) {
-				ConHero->dSword = v2{ 0.0f, -1.0f };
-				ChangeVolume(GameState->Music, v2{ 0, 0 }, 2.0f);
-			}
-			if (Controller->ActionLeft.EndedDown) {
-				ChangeVolume(GameState->Music, v2{ 1, 0 }, 2.0f);
-				ConHero->dSword = v2{ -1.0f, 0.0f };
-			}
-			if (Controller->ActionRight.EndedDown) {
-				ChangeVolume(GameState->Music, v2{ 0, 1 }, 2.0f);
-				ConHero->dSword = v2{ 1.0f, 0.0f };
-			}
-            if (WasPressed(&Controller->Back)) {
-                DeleteLowEntity(GameState, ConHero->EntityIndex);
-                ConHero->EntityIndex = 0;
-            }
-#else
-			r32 ZoomRate = 0.0f;
-			if (Controller->ActionUp.EndedDown) {
-				ZoomRate = 1.0f;
-			}
-			else if (Controller->ActionDown.EndedDown) {
-				ZoomRate = -1.0f;
-			}
-#endif
-		}
-	}
     
 	temporary_memory RenderMemory = BeginTemporaryMemory(&TranState->TranArena);
     
@@ -352,32 +297,31 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
 	render_group RenderGroup_ = BeginRenderGroup(TranState->Assets, RenderCommands, TranState->MainGenerationID, false);
     render_group *RenderGroup = &RenderGroup_;
-    
-    switch (GameState->GameMode) {
-        case GameMode_TitleScreen: {
-            UpdateAndRenderTitleScreen(TranState->Assets, RenderGroup, DrawBuffer, GameState->TitleScreen, Input);
-        } break;
-        case GameMode_CutScrene: {
-            UpdateAndRenderCutScene(TranState->Assets, RenderGroup, DrawBuffer, GameState->CutScene, Input);
-        } break;
-        case GameMode_World: {
-            UpdateAndRenderWorld(GameState, GameWorld, TranState, Input, RenderGroup, DrawBuffer);
-        } break;
-        InvalidDefaultCase;
-    }
-    if (!HeroExist) {
-        
-    } else {
-        
-    }
+    b32 Rerun = true;
+    do {
+        switch (GameState->GameMode) {
+            case GameMode_TitleScreen: {
+                Rerun = UpdateAndRenderTitleScreen(GameState, TranState->Assets, RenderGroup, DrawBuffer, GameState->TitleScreen, Input);
+            } break;
+            case GameMode_CutScrene: {
+                Rerun = UpdateAndRenderCutScene(GameState, TranState->Assets, RenderGroup, DrawBuffer, GameState->CutScene, Input);
+            } break;
+            case GameMode_World: {
+                Rerun = UpdateAndRenderWorld(GameState, GameWorld, TranState, Input, RenderGroup, DrawBuffer);
+            } break;
+            InvalidDefaultCase;
+        }
+    } while(Rerun);
     
     EndTemporaryMemory(RenderMemory);
     
     EndRenderGroup(RenderGroup);
     
+#if 0    
     if (QuitRequested && !HeroExist) {
         Memory->QuitRequested = true;
     }
+#endif
     
     CheckArena(&TranState->TranArena);
     CheckArena(&GameState->ModeArena);

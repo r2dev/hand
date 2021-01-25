@@ -342,19 +342,16 @@ GetCameraRectAtTarget(render_group* RenderGroup) {
 
 internal void
 EnterWorld(game_state *GameState) {
-    
     SetGameMode(GameState, GameMode_World);
     game_mode_world *GameWorld = PushStruct(&GameState->ModeArena, game_mode_world);
-    
     
     GameWorld->TypicalFloorHeight = 3.0f;
     
     r32 PixelsToMeters = 1.0f / 42.0f;
     v3 WorldChunkDimMeters = { PixelsToMeters * GroundBufferWidth, PixelsToMeters * GroundBufferHeight, GameWorld->TypicalFloorHeight };
-    GameWorld->World = PushStruct(&GameState->ModeArena, world);
+    GameWorld->World = CreateWorld(WorldChunkDimMeters, &GameState->ModeArena);
+    GameWorld->CameraFollowingEntityIndex = 0;
     world* World = GameWorld->World;
-    InitializeWorld(World, WorldChunkDimMeters, &GameState->ModeArena);
-    
     s32 TileSideInPixels = 60;
     
     AddLowEntity(GameWorld, EntityType_Null, NullPosition());
@@ -507,137 +504,213 @@ EnterWorld(game_state *GameState) {
 
 
 
-internal void
+internal b32
 UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transient_state *TranState, game_input *Input, render_group *RenderGroup, loaded_bitmap *DrawBuffer)
 {
     
+    b32 Result = false;
     world *World = GameWorld->World;
     v2 MouseP = {Input->MouseX, Input->MouseY};
     r32 FocalLength = 0.6f;
-	r32 DistanceAboveTarget = 9.0f;
+    r32 DistanceAboveTarget = 9.0f;
     
-	Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, FocalLength, DistanceAboveTarget);
+    Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, FocalLength, DistanceAboveTarget);
     Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 1.0f });
-	
-	v2 ScreenCenter = v2{ 0.5f * DrawBuffer->Width, 0.5f * DrawBuffer->Height };
     
-	rectangle2 ScreenBound = GetCameraRectAtTarget(RenderGroup);
+    v2 ScreenCenter = v2{ 0.5f * DrawBuffer->Width, 0.5f * DrawBuffer->Height };
     
-	rectangle3 CameraBoundsInMeters = RectMinMax(V3(ScreenBound.Min, 0.0f), V3( ScreenBound.Max, 0.0f));
-	CameraBoundsInMeters.Min.z = -2.0f * GameWorld->TypicalFloorHeight;
-	CameraBoundsInMeters.Max.z = 1.0f * GameWorld->TypicalFloorHeight;
-	
+    rectangle2 ScreenBound = GetCameraRectAtTarget(RenderGroup);
     
-#if 1
-	for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
+    rectangle3 CameraBoundsInMeters = RectMinMax(V3(ScreenBound.Min, 0.0f), V3( ScreenBound.Max, 0.0f));
+    CameraBoundsInMeters.Min.z = -2.0f * GameWorld->TypicalFloorHeight;
+    CameraBoundsInMeters.Max.z = 1.0f * GameWorld->TypicalFloorHeight;
+    
+    
+#if 0
+    for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
         
-		ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
+        ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
         
-		if (IsValid(GroundBuffer->P)) {
-			loaded_bitmap* Bitmap = &GroundBuffer->Bitmap;
-			v3 Delta = Subtract(GameWorld->World, &GroundBuffer->P, &GameWorld->CameraP);
-			if (Delta.z >= -1.0f && Delta.z < 1.0f) {
-				PushBitmap(RenderGroup, Bitmap, World->ChunkDimInMeters.y, Delta);
+        if (IsValid(GroundBuffer->P)) {
+            loaded_bitmap* Bitmap = &GroundBuffer->Bitmap;
+            v3 Delta = Subtract(GameWorld->World, &GroundBuffer->P, &GameWorld->CameraP);
+            if (Delta.z >= -1.0f && Delta.z < 1.0f) {
+                PushBitmap(RenderGroup, Bitmap, World->ChunkDimInMeters.y, Delta);
                 DEBUG_IF(GroundChunk_ShowGroundChunkOutlines)
                 {
                     PushRectOutline(RenderGroup, Delta, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 1.0f, 1.0f });
                 }
-			}
-		}
-	}
+            }
+        }
+    }
     
-	{
-		world_position MinChunkP = MapIntoChunkSpace(World, GameWorld->CameraP, GetMinCorner(CameraBoundsInMeters));
-		world_position MaxChunkP = MapIntoChunkSpace(World, GameWorld->CameraP, GetMaxCorner(CameraBoundsInMeters));
+    {
+        world_position MinChunkP = MapIntoChunkSpace(World, GameWorld->CameraP, GetMinCorner(CameraBoundsInMeters));
+        world_position MaxChunkP = MapIntoChunkSpace(World, GameWorld->CameraP, GetMaxCorner(CameraBoundsInMeters));
         
-		for (s32 ChunkZ = MinChunkP.ChunkZ; ChunkZ <= MaxChunkP.ChunkZ; ++ChunkZ) {
-			for (s32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY) {
-				for (s32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX) {
-					world_position ChunkCenterP = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
-					v3 RelP = Subtract(World, &ChunkCenterP, &GameWorld->CameraP);
-					r32 FurthestBufferLengthSq = 0.0f;
-					ground_buffer* FurthestBuffer = 0;
-					for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
-						ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-						if (AreInSameChunk(World, &GroundBuffer->P, &ChunkCenterP)) {
-							FurthestBuffer = 0;
-							break;
-						}
-						else if (IsValid(GroundBuffer->P)) {
-							v3 RelativeP = Subtract(World, &GroundBuffer->P, &GameWorld->CameraP);
+        for (s32 ChunkZ = MinChunkP.ChunkZ; ChunkZ <= MaxChunkP.ChunkZ; ++ChunkZ) {
+            for (s32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY) {
+                for (s32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX) {
+                    world_position ChunkCenterP = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
+                    v3 RelP = Subtract(World, &ChunkCenterP, &GameWorld->CameraP);
+                    r32 FurthestBufferLengthSq = 0.0f;
+                    ground_buffer* FurthestBuffer = 0;
+                    for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
+                        ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
+                        if (AreInSameChunk(World, &GroundBuffer->P, &ChunkCenterP)) {
+                            FurthestBuffer = 0;
+                            break;
+                        }
+                        else if (IsValid(GroundBuffer->P)) {
+                            v3 RelativeP = Subtract(World, &GroundBuffer->P, &GameWorld->CameraP);
                             
-							r32 BufferLengthSq = LengthSq(RelativeP.xy);
-							if (FurthestBufferLengthSq < BufferLengthSq) {
-								FurthestBufferLengthSq = BufferLengthSq;
-								FurthestBuffer = GroundBuffer;
-							}
-						}
-						else {
-							FurthestBufferLengthSq = Real32Maximum;
-							FurthestBuffer = GroundBuffer;
-						}
-					}
+                            r32 BufferLengthSq = LengthSq(RelativeP.xy);
+                            if (FurthestBufferLengthSq < BufferLengthSq) {
+                                FurthestBufferLengthSq = BufferLengthSq;
+                                FurthestBuffer = GroundBuffer;
+                            }
+                        }
+                        else {
+                            FurthestBufferLengthSq = Real32Maximum;
+                            FurthestBuffer = GroundBuffer;
+                        }
+                    }
                     
-					if (FurthestBuffer) {
-						FillGroundChunk(TranState, GameWorld, FurthestBuffer, &ChunkCenterP);
-					}
-				}
-			}
-		}
-	}
+                    if (FurthestBuffer) {
+                        FillGroundChunk(TranState, GameWorld, FurthestBuffer, &ChunkCenterP);
+                    }
+                }
+            }
+        }
+    }
 #endif
+    b32 HeroExist = false;
+    b32 QuitRequested = false;
+    for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
+        game_controller_input* Controller = GetController(Input, ControllerIndex);
+        controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
+        if (ConHero->EntityIndex == 0) {
+            if (WasPressed(&Controller->Back)) {
+                QuitRequested = true;
+            }
+            else if (WasPressed(&Controller->Start)) {
+                *ConHero = {};
+                ConHero->EntityIndex = AddPlayer(GameWorld).LowIndex;
+            }
+        }
+        if (ConHero->EntityIndex) {
+            HeroExist = true;
+            ConHero->ddP = {};
+            ConHero->dZ = 0.0f;
+            ConHero->dSword = {};
+            
+            if (Controller->IsAnalog) {
+                ConHero->ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
+            }
+            else {
+                
+                if (Controller->MoveUp.EndedDown) {
+                    ConHero->ddP.y = 1.0f;
+                }
+                if (Controller->MoveDown.EndedDown) {
+                    ConHero->ddP.y = -1.0f;
+                }
+                if (Controller->MoveLeft.EndedDown) {
+                    ConHero->ddP.x = -1.0f;
+                }
+                if (Controller->MoveRight.EndedDown) {
+                    ConHero->ddP.x = 1.0f;
+                }
+                
+            }
+            if (Controller->Start.EndedDown) {
+                ConHero->dZ = 3.0f;
+            }
+            
+            ConHero->dSword = {};
+#if 1
+            if (Controller->ActionUp.EndedDown) {
+                ConHero->dSword = v2{ 0.0f, 1.0f };
+                ChangeVolume(GameState->Music, v2{ 1, 1 }, 2.0f);
+            }
+            if (Controller->ActionDown.EndedDown) {
+                ConHero->dSword = v2{ 0.0f, -1.0f };
+                ChangeVolume(GameState->Music, v2{ 0, 0 }, 2.0f);
+            }
+            if (Controller->ActionLeft.EndedDown) {
+                ChangeVolume(GameState->Music, v2{ 1, 0 }, 2.0f);
+                ConHero->dSword = v2{ -1.0f, 0.0f };
+            }
+            if (Controller->ActionRight.EndedDown) {
+                ChangeVolume(GameState->Music, v2{ 0, 1 }, 2.0f);
+                ConHero->dSword = v2{ 1.0f, 0.0f };
+            }
+            if (WasPressed(&Controller->Back)) {
+                DeleteLowEntity(GameState, ConHero->EntityIndex);
+                ConHero->EntityIndex = 0;
+            }
+#else
+            r32 ZoomRate = 0.0f;
+            if (Controller->ActionUp.EndedDown) {
+                ZoomRate = 1.0f;
+            }
+            else if (Controller->ActionDown.EndedDown) {
+                ZoomRate = -1.0f;
+            }
+#endif
+        }
+    }
+    v3 SimBoundsExpansion = { 15.0f, 15.0f, 0 };
+    rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundsExpansion);
     
-	v3 SimBoundsExpansion = { 15.0f, 15.0f, 0 };
-	rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundsExpansion);
+    temporary_memory SimMemory = BeginTemporaryMemory(&TranState->TranArena);
     
-	temporary_memory SimMemory = BeginTemporaryMemory(&TranState->TranArena);
+    world_position SimCenterP = GameWorld->CameraP;
     
-	world_position SimCenterP = GameWorld->CameraP;
-    
-	sim_region* SimRegion = BeginSim(&TranState->TranArena, GameWorld, GameWorld->World,
+    sim_region* SimRegion = BeginSim(&TranState->TranArena, GameWorld, GameWorld->World,
                                      SimCenterP, SimBounds, Input->dtForFrame);
-	v3 CameraP = Subtract(World, &GameWorld->CameraP, &SimCenterP);
+    v3 CameraP = Subtract(World, &GameWorld->CameraP, &SimCenterP);
     
-	PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
+    PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
     
-	PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
-	PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
+    PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
+    PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
     
-	sim_entity* Entity = SimRegion->Entities;
-	for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
-		if (Entity->Updatable) {
+    sim_entity* Entity = SimRegion->Entities;
+    for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
+        if (Entity->Updatable) {
             
-			r32 dt = Input->dtForFrame;
+            r32 dt = Input->dtForFrame;
             
-			r32 ShadowAlpha = 1.0f - 0.5f * Entity->P.z;
-			if (ShadowAlpha < 0) {
-				ShadowAlpha = 0.0f;
-			}
+            r32 ShadowAlpha = 1.0f - 0.5f * Entity->P.z;
+            if (ShadowAlpha < 0) {
+                ShadowAlpha = 0.0f;
+            }
             
-			move_spec MoveSpec = DefaultMoveSpec();
-			v3 ddP = {};
+            move_spec MoveSpec = DefaultMoveSpec();
+            v3 ddP = {};
             
-			v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
-			r32 FadeTopEnd = 0.75f * GameWorld->TypicalFloorHeight;
-			r32 FadeTopStart = 0.5f * GameWorld->TypicalFloorHeight;
+            v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
+            r32 FadeTopEnd = 0.75f * GameWorld->TypicalFloorHeight;
+            r32 FadeTopStart = 0.5f * GameWorld->TypicalFloorHeight;
             
-			r32 FadeBottomStart = -2.0f * GameWorld->TypicalFloorHeight;
-			r32 FadeBottomEnd = -2.25f * GameWorld->TypicalFloorHeight;
+            r32 FadeBottomStart = -2.0f * GameWorld->TypicalFloorHeight;
+            r32 FadeBottomEnd = -2.25f * GameWorld->TypicalFloorHeight;
             
-			RenderGroup->GlobalAlpha = 1.0f;
+            RenderGroup->GlobalAlpha = 1.0f;
             
             
-			if (CameraRelativeGroundP.z > FadeTopStart) {
+            if (CameraRelativeGroundP.z > FadeTopStart) {
                 
-				RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeTopStart, CameraRelativeGroundP.z, FadeTopEnd);
+                RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeTopStart, CameraRelativeGroundP.z, FadeTopEnd);
                 
-			}
-			else if (CameraRelativeGroundP.z < FadeBottomStart) {
-				RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
-			}
+            }
+            else if (CameraRelativeGroundP.z < FadeBottomStart) {
+                RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
+            }
             
             //hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
-			switch (Entity->Type) {
+            switch (Entity->Type) {
                 case EntityType_Hero: {
                     
                     for (u32 ControlIndex = 0; ControlIndex < ArrayCount(GameState->ControlledHeroes); ++ControlIndex) {
@@ -707,19 +780,19 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     MoveSpec.Speed = 50.0f;
                     MoveSpec.Drag = 0.2f;
                 }
-			}
-			if (!IsSet(Entity, EntityFlag_Nonspatial) && IsSet(Entity, EntityFlag_Moveable)) {
-				MoveEntity(GameWorld, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
-			}			
+            }
+            if (!IsSet(Entity, EntityFlag_Nonspatial) && IsSet(Entity, EntityFlag_Moveable)) {
+                MoveEntity(GameWorld, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
+            }			
             
-			RenderGroup->Transform.OffsetP = GetEntityGroundPoint(Entity);
-			
-			asset_vector MatchVector = {};
-			MatchVector.E[Tag_FaceDirection] = (r32)Entity->FacingDirection;
-			asset_vector WeightVector = {};
-			WeightVector.E[Tag_FaceDirection] = 1.0f;
+            RenderGroup->Transform.OffsetP = GetEntityGroundPoint(Entity);
             
-			switch (Entity->Type) {
+            asset_vector MatchVector = {};
+            MatchVector.E[Tag_FaceDirection] = (r32)Entity->FacingDirection;
+            asset_vector WeightVector = {};
+            WeightVector.E[Tag_FaceDirection] = 1.0f;
+            
+            switch (Entity->Type) {
                 case EntityType_Hero: {
                     r32 HeroSizeC = 2.5f;
                     PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
@@ -989,5 +1062,11 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
     
     EndSim(SimRegion, GameWorld);
     EndTemporaryMemory(SimMemory);
+    
+    if (!HeroExist) {
+        PlayIntroCutScene(GameState);
+        //PlayTitleScreen(GameState);
+    }
+    
+    return(Result);
 }
-

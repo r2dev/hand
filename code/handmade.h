@@ -40,15 +40,15 @@ GetAlignmentOffset(memory_arena* Arena, memory_index Alignment = 4) {
 	}
 	return(Offset);
 }
-
+#define DEFAULT_MEMORY_ALIGNMENT 4
 
 inline memory_index
-GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment = 4) {
+GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
 	memory_index Result = Arena->Size - (Arena->Used + GetAlignmentOffset(Arena, Alignment));
 	return(Result);
 }
 
-#define DEFAULT_MEMORY_ALIGNMENT 4
+
 #define PushStruct(Arena, type, ...) (type*) _PushSize(Arena, sizeof(type), ## __VA_ARGS__)
 #define PushArray(Arena, Count, type, ...) (type*) _PushSize(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
 #define PushSize(Arena, Size, ...) _PushSize(Arena, Size, ## __VA_ARGS__)
@@ -70,9 +70,19 @@ ArenaHasRoomFor(memory_arena* Arena, memory_index SizeInit, memory_index Alignme
     return ((Arena->Used + Size) <= Arena->Size);
 }
 
+#define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
+#define ZeroArray(Count, Pointer) ZeroSize(Count * sizeof((Pointer)[0]), Pointer)
+inline void
+ZeroSize(memory_index Size, void* Ptr) {
+	u8* Byte = (u8 *)Ptr;
+	while(Size--) {
+		*Byte++ = 0;  // should be *Byte++ = 0
+	}
+}
+
 inline void*
-_PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
-    
+_PushSize(memory_arena* Arena, memory_index SizeInit, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
+    memory_index Size = GetEffectiveSizeFor(Arena, SizeInit, Alignment);
 	memory_index Pointer = (memory_index)Arena->Base + Arena->Used;
 	memory_index AlignmentMask = Alignment - 1;
 	memory_index Offset = GetAlignmentOffset(Arena, Alignment);
@@ -81,8 +91,11 @@ _PushSize(memory_arena* Arena, memory_index Size, memory_index Alignment = DEFAU
 	Arena->Used += Size;
     
 	void* Result = (void*)(Pointer + Offset);
-	
-	return(Result);
+    
+    // performance
+    //ZeroSize(SizeInit, Result);
+    
+    return(Result);
 }
 
 inline char*
@@ -100,7 +113,7 @@ PushString(memory_arena* Arena, char* Content) {
 }
 
 inline void 
-SubArena(memory_arena* Result, memory_arena *Arena, memory_index Size, memory_index Alignment = 4) {
+SubArena(memory_arena* Result, memory_arena *Arena, memory_index Size, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
 	Result->Size = Size;
 	Result->Base = (u8*)_PushSize(Arena, Size, Alignment);
 	Result->TempCount = 0;
@@ -133,16 +146,6 @@ Clear(memory_arena *Arena) {
 inline void
 CheckArena(memory_arena* Arena) {
 	Assert(Arena->TempCount == 0);
-}
-
-#define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
-#define ZeroArray(Count, Pointer) ZeroSize(Count * sizeof((Pointer)[0]), Pointer)
-inline void
-ZeroSize(memory_index Size, void* Ptr) {
-	u8* Byte = (u8 *)Ptr;
-	while(Size--) {
-		*Byte++ = 0;  // should be *Byte++ = 0
-	}
 }
 
 inline void*
@@ -230,6 +233,7 @@ struct transient_state {
 internal task_with_memory* BeginTaskWithMemory(transient_state* TranState);
 inline void EndTaskWithMemory(task_with_memory* Task);
 internal void SetGameMode(game_state *GameState, game_mode GameMode);
+internal b32 CheckForMetaInput(game_state *GameState, game_input *Input);
 global_variable platform_api Platform;
 
 

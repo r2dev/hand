@@ -4,6 +4,25 @@
 #define SRGB8_ALPHA8_EXT 0x8C43
 #define GL_FRAMEBUFFER_SRGB 0x8DB9
 #define GL_SHADING_LANGUAGE_VERSION             0x8B8C
+#define WGL_DRAW_TO_WINDOW_ARB                  0x2001
+#define WGL_ACCELERATION_ARB                    0x2003
+#define WGL_SUPPORT_OPENGL_ARB                  0x2010
+#define WGL_DOUBLE_BUFFER_ARB                   0x2011
+#define WGL_PIXEL_TYPE_ARB                      0x2013
+#define WGL_FULL_ACCELERATION_ARB               0x2027
+#define WGL_TYPE_RGBA_ARB                       0x202B
+#define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        0x20A9
+#define WGL_CONTEXT_MAJOR_VERSION_ARB           0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB           0x2092
+#define WGL_CONTEXT_LAYER_PLANE_ARB             0x2093
+#define WGL_CONTEXT_FLAGS_ARB                   0x2094
+#define WGL_CONTEXT_PROFILE_MASK_ARB            0x9126
+
+#define WGL_CONTEXT_DEBUG_BIT_ARB               0x0001
+#define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB  0x0002
+
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB        0x00000001
+#define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
 
 struct opengl_info {
     char *Vendor;
@@ -61,13 +80,18 @@ OpenGLInit(b32 ModernContext) {
 
 inline void 
 OpenGLSetScreenSpace(s32 Width, s32 Height) {
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    
     glMatrixMode(GL_PROJECTION);
     
+    r32 a = SafeRatio1(2.0f, (r32)Width);
+    r32 b = SafeRatio1(2.0f, (r32)Height);
     r32 Proj[] = {
-        SafeRatio1(2.0f, (r32)Width), 0, 0, 0,
-        0, SafeRatio1(2.0f, (r32)Height), 0, 0,
-        0, 0, 1.0f, 0,
-        -1.0f, -1.0f, 0, 1.0f,
+        a, 0, 0, 0,
+        0, b, 0, 0,
+        0, 0, 1, 0,
+        -1, -1, 0, 1,
     };
     glLoadMatrixf(Proj);
     
@@ -79,15 +103,19 @@ OpenGLRectangle(v2 MinP, v2 MaxP, v4 Color) {
     
     glTexCoord2f(0, 0);
     glVertex2f(MinP.x, MinP.y);
+    
     glTexCoord2f(1.0f, 0);
     glVertex2f(MaxP.x, MinP.y);
+    
     glTexCoord2f(1.0f, 1.0f);
     glVertex2f(MaxP.x, MaxP.y);
     
     glTexCoord2f(0, 0);
     glVertex2f(MinP.x, MinP.y);
+    
     glTexCoord2f(1.0f, 1.0f);
     glVertex2f(MaxP.x, MaxP.y);
+    
     glTexCoord2f(0, 1.0f);
     glVertex2f(MinP.x, MaxP.y);
     
@@ -115,8 +143,6 @@ OpenGLDisplayBitmap(s32 Width, s32 Height, void *Memory, s32 Pitch, s32 WindowWi
     glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
-    glMatrixMode(GL_TEXTURE);
-    glLoadIdentity();
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     
@@ -200,6 +226,7 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
 		}
 	}
 }
+
 PLATFORM_ALLOCATE_TEXTURE(Win32AllocateTexture) {
     GLuint Handle;
     glGenTextures(1, &Handle);

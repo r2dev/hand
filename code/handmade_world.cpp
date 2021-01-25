@@ -138,14 +138,10 @@ Subtract(world* World, world_position* A, world_position* B) {
 }
 
 
-void
-InitializeWorld(world* World, v3 ChunkDimInMeter, memory_arena* ParentArena) {
-    
-	//World->TileSideInMeters = TileSideInMeter;
-	// = v3{ (r32)TILES_PER_CHUNK * TileSideInMeter, (r32)TILES_PER_CHUNK * TileSideInMeter, (r32)TileDepthInMeter };
-	//World->TileDepthInMeters = (r32)TileDepthInMeter;
-    
-	World->ChunkDimInMeters = ChunkDimInMeter;
+internal world *
+CreateWorld(v3 ChunkDimInMeter, memory_arena* ParentArena) {
+    world *World = PushStruct(ParentArena, world);;
+    World->ChunkDimInMeters = ChunkDimInMeter;
 	World->FirstFree = 0;
     SubArena(&World->Arena, ParentArena, GetArenaSizeRemaining(ParentArena));
     
@@ -153,6 +149,7 @@ InitializeWorld(world* World, v3 ChunkDimInMeter, memory_arena* ParentArena) {
 		World->ChunkHash[ChunkIndex].ChunkX = TILE_CHUNK_UNINITIALIZED;
 		World->ChunkHash[ChunkIndex].FirstBlock.EntityCount = 0;
 	}
+    return(World);
 }
 
 

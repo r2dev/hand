@@ -8,25 +8,6 @@
 
 #if OPENGL_ENABLED
 #include <gl/gl.h>
-#define WGL_DRAW_TO_WINDOW_ARB                  0x2001
-#define WGL_ACCELERATION_ARB                    0x2003
-#define WGL_SUPPORT_OPENGL_ARB                  0x2010
-#define WGL_DOUBLE_BUFFER_ARB                   0x2011
-#define WGL_PIXEL_TYPE_ARB                      0x2013
-#define WGL_FULL_ACCELERATION_ARB               0x2027
-#define WGL_TYPE_RGBA_ARB                       0x202B
-#define WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB        0x20A9
-#define WGL_CONTEXT_MAJOR_VERSION_ARB           0x2091
-#define WGL_CONTEXT_MINOR_VERSION_ARB           0x2092
-#define WGL_CONTEXT_LAYER_PLANE_ARB             0x2093
-#define WGL_CONTEXT_FLAGS_ARB                   0x2094
-#define WGL_CONTEXT_PROFILE_MASK_ARB            0x9126
-
-#define WGL_CONTEXT_DEBUG_BIT_ARB               0x0001
-#define WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB  0x0002
-
-#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB        0x00000001
-#define WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB 0x00000002
 
 global_variable GLint DefaultInternalTextureFormat;
 
@@ -48,8 +29,8 @@ global_variable wgl_get_extensions_string_ext *wglGetExtensionsStringEXT;
 
 int Win32OpenGLAttribs[] = {
     WGL_CONTEXT_MAJOR_VERSION_ARB, 3, 
-    WGL_CONTEXT_MINOR_VERSION_ARB, 0,
-    WGL_CONTEXT_FLAGS_ARB, 0 //WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+    WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+    WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
 #if HANDMADE_INTERNAL
     |WGL_CONTEXT_DEBUG_BIT_ARB
 #endif
@@ -1520,7 +1501,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                         }
                         if (Game.UpdateAndRender) {
                             Game.UpdateAndRender(&GameMemory, NewInput, &RenderCommands);
-                            if (GameMemory.QuitRequested) {
+                            if (NewInput->QuitRequested) {
                                 GlobalRunning = false;
                             }
                             //HandleDebugCycleCounters(&GameMemory);
