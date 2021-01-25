@@ -25,8 +25,8 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
     u32 GenerationID = BeginGeneration(Assets);
     
 	u32 ChunkCount = (u32)(SoundBuffer->SampleCount / 4.0f);
-	__m128* RealChannel0 = PushArray(TempArena, ChunkCount, __m128, 16);
-	__m128* RealChannel1 = PushArray(TempArena, ChunkCount, __m128, 16);
+	__m128* RealChannel0 = PushArray(TempArena, ChunkCount, __m128, AlignNoClear(16));
+	__m128* RealChannel1 = PushArray(TempArena, ChunkCount, __m128, AlignNoClear(16));
 	// clear the channel to 0
 	u32 SamplesPerSecond = SoundBuffer->SamplesPerSecond;
 	r32 SecondsPerSamples = 1.0f / SamplesPerSecond;

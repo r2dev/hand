@@ -230,9 +230,11 @@ extern "C" {
         u32 MaxPushBufferSize;
         u32 PushBufferSize;
         u8* PushBufferBase;
+        u32 PushBufferElementSize;
+        u32 SortEntryAt;
     };
 #define RenderCommandStruct(MaxPushBufferSize, PushBuffer, Width, Height) \
-{Width, Height, MaxPushBufferSize, 0, PushBuffer}
+{Width, Height, MaxPushBufferSize, 0, PushBuffer, 0, MaxPushBufferSize}
     
     struct game_offscreen_buffer {
         void* Memory;

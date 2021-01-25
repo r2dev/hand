@@ -1,5 +1,10 @@
 #pragma once
 
+struct tile_sort_entry {
+    u32 PushBufferOffset;
+    r32 SortKey;
+};
+
 struct loaded_bitmap {
     void* Memory;
 	v2 AlignPercentage;

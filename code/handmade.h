@@ -20,6 +20,47 @@ struct temporary_memory {
 	memory_index Used;
 };
 
+struct arena_push_params {
+    u32 Flags;
+    u32 Alignment;
+};
+
+enum arena_push_flag {
+    ArenaFlag_Clear = 0x1,
+};
+#define DEFAULT_MEMORY_ALIGNMENT 4
+
+inline arena_push_params
+DefaultArenaParams() {
+    arena_push_params Params;
+    Params.Flags = ArenaFlag_Clear;
+    Params.Alignment = 4;
+    return(Params);
+}
+
+inline arena_push_params
+AlignNoClear(u32 Alignment) {
+    arena_push_params Params;
+    Params.Flags = 0;
+    Params.Alignment = Alignment;
+    return(Params);
+}
+
+inline arena_push_params
+NoClear() {
+    arena_push_params Params = DefaultArenaParams();
+    Params.Flags &= ~ArenaFlag_Clear;
+    return(Params);
+}
+
+inline arena_push_params
+Align(u32 Alignment, b32 Clear) {
+    arena_push_params Params;
+    Params.Flags = Clear? ArenaFlag_Clear: 0;
+    Params.Alignment = Alignment;
+    return(Params);
+}
+
 #define Minimum(A, B) ((A < B)? (A): (B))
 #define Maximum(A, B) ((A > B)? (A): (B))
 
@@ -31,7 +72,7 @@ InitializeArena(memory_arena* Arena, memory_index Size, void* Storage) {
 }
 
 inline memory_index
-GetAlignmentOffset(memory_arena* Arena, memory_index Alignment = 4) {
+GetAlignmentOffset(memory_arena* Arena, memory_index Alignment) {
 	memory_index Offset = 0;
 	memory_index ResultPointer = (memory_index)Arena->Base + Arena->Used;
 	memory_index AlignmentMask = Alignment - 1;
@@ -40,14 +81,13 @@ GetAlignmentOffset(memory_arena* Arena, memory_index Alignment = 4) {
 	}
 	return(Offset);
 }
-#define DEFAULT_MEMORY_ALIGNMENT 4
+
 
 inline memory_index
 GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
 	memory_index Result = Arena->Size - (Arena->Used + GetAlignmentOffset(Arena, Alignment));
 	return(Result);
 }
-
 
 #define PushStruct(Arena, type, ...) (type*) _PushSize(Arena, sizeof(type), ## __VA_ARGS__)
 #define PushArray(Arena, Count, type, ...) (type*) _PushSize(Arena, (Count)*sizeof(type), ## __VA_ARGS__)
@@ -81,19 +121,20 @@ ZeroSize(memory_index Size, void* Ptr) {
 }
 
 inline void*
-_PushSize(memory_arena* Arena, memory_index SizeInit, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
-    memory_index Size = GetEffectiveSizeFor(Arena, SizeInit, Alignment);
+_PushSize(memory_arena* Arena, memory_index SizeInit, arena_push_params Params = DefaultArenaParams()) {
+    memory_index Size = GetEffectiveSizeFor(Arena, SizeInit, Params.Alignment);
 	memory_index Pointer = (memory_index)Arena->Base + Arena->Used;
-	memory_index AlignmentMask = Alignment - 1;
-	memory_index Offset = GetAlignmentOffset(Arena, Alignment);
+	memory_index AlignmentMask = Params.Alignment - 1;
+	memory_index Offset = GetAlignmentOffset(Arena, Params.Alignment);
 	Size += Offset;
 	Assert((Arena->Used + Size) <= Arena->Size);
 	Arena->Used += Size;
     
 	void* Result = (void*)(Pointer + Offset);
     
-    // performance
-    //ZeroSize(SizeInit, Result);
+    if (Params.Flags & ArenaFlag_Clear) {
+        ZeroSize(SizeInit, Result);
+    }
     
     return(Result);
 }
@@ -105,7 +146,7 @@ PushString(memory_arena* Arena, char* Content) {
 		++Size;
 	}
     
-	char* Dest = (char*)(_PushSize(Arena, Size));
+	char* Dest = (char*)(PushSize(Arena, Size, NoClear()));
 	for (u32 CharIndex = 0; CharIndex < Size; ++CharIndex) {
 		Dest[CharIndex] = Content[CharIndex];
 	}
@@ -113,9 +154,9 @@ PushString(memory_arena* Arena, char* Content) {
 }
 
 inline void 
-SubArena(memory_arena* Result, memory_arena *Arena, memory_index Size, memory_index Alignment = DEFAULT_MEMORY_ALIGNMENT) {
+SubArena(memory_arena* Result, memory_arena *Arena, memory_index Size, arena_push_params Params = DefaultArenaParams()) {
 	Result->Size = Size;
-	Result->Base = (u8*)_PushSize(Arena, Size, Alignment);
+	Result->Base = (u8*)_PushSize(Arena, Size, Params);
 	Result->TempCount = 0;
 	Result->Used = 0;
 }
@@ -155,9 +196,6 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
     while (Size--) {*Dest++ = *Source++;}
     return(DestInit);
 }
-
-
-
 
 #include "handmade_render_group.h"
 #include "handmade_asset.h"

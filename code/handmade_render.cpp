@@ -1,8 +1,5 @@
 
-
- // TODO(NAME): sortEntries
 #define IGNORED_TIMED_FUNCTION() 
-
 
 internal void
 DrawRectangle(loaded_bitmap* Buffer,

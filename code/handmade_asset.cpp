@@ -268,7 +268,7 @@ LoadBitmap(game_assets* Assets, bitmap_id ID, b32 Immediate) {
                 Work.Destination = Bitmap->Memory;
                 Work.FinalState = (AssetState_Loaded);
                 if (Task) {
-                    load_asset_work* TaskWork = PushStruct(&Task->Arena, load_asset_work);
+                    load_asset_work* TaskWork = PushStruct(&Task->Arena, load_asset_work, NoClear());
                     *TaskWork = Work;
                     Platform.AddEntry(Assets->TranState->LowPriorityQueue, LoadAssetWork, TaskWork);
                 } else {
@@ -329,7 +329,7 @@ LoadFont(game_assets* Assets, font_id ID, b32 Immediate) {
                 Work.Destination = Font->Glyphs;
                 Work.FinalState = (AssetState_Loaded);
                 if (Task) {
-                    load_asset_work* TaskWork = PushStruct(&Task->Arena, load_asset_work);
+                    load_asset_work* TaskWork = PushStruct(&Task->Arena, load_asset_work, NoClear());
                     *TaskWork = Work;
                     Platform.AddEntry(Assets->TranState->LowPriorityQueue, LoadAssetWork, TaskWork);
                 } else {
@@ -506,7 +506,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     Assets->MemorySentinel.Flags = 0;
     Assets->MemorySentinel.Size = 0;
     
-    InsertBlock(&Assets->MemorySentinel, Size, PushSize(Arena, Size));
+    InsertBlock(&Assets->MemorySentinel, Size, PushSize(Arena, Size, NoClear()));
     
     Assets->TranState = TranState;
     
@@ -529,8 +529,9 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
         File->FontBitmapIDOffset = 0;
         File->TagBase = Assets->TagCount;
         File->Handle = Platform.OpenNextFile(&FileGroup);
-        
+        // TODO(NAME): maybe remove 
         ZeroStruct(File->Header);
+        
         Platform.ReadDataFromFile(&File->Handle, 0, sizeof(File->Header), &File->Header);
         u32 AssetTypeArraySize = File->Header.AssetTypeCount * sizeof(hha_asset_type);
         File->AssetTypeArray = (hha_asset_type*)PushSize(Arena, AssetTypeArraySize);

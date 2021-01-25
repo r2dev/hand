@@ -50,6 +50,7 @@ PushRenderElement_(render_group* Group, u32 Size, render_group_entry_type Type) 
 		Header->Type = Type;
 		Result = Header + 1;
 		Commands->PushBufferSize += Size;
+        ++Commands->PushBufferElementSize;
 	}
 	else {
 		InvalidCodePath;

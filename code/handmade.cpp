@@ -40,14 +40,6 @@ EndTaskWithMemory(task_with_memory* Task) {
 	Task->BeingUsed = false;
 }
 
-internal void
-ClearBitmap(loaded_bitmap* Bitmap) {
-	if (Bitmap->Memory) {
-		s32 TotalBitmapSize = Bitmap->Width * Bitmap->Height * BITMAP_BYTE_PER_PIXEL;
-		ZeroSize(TotalBitmapSize, Bitmap->Memory);
-	}
-}
-
 internal loaded_bitmap
 MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, b32 ClearToZero = true) {
 	loaded_bitmap Result = {};
@@ -57,10 +49,7 @@ MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, b32 ClearToZero = tr
     Result.WidthOverHeight = SafeRatio1((r32)Width, (r32)Height);
 	Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;
 	s32 TotalBitmapSize = Width * Height * BITMAP_BYTE_PER_PIXEL;
-	Result.Memory = PushSize(Arena, TotalBitmapSize, 16);
-	if (ClearToZero) {
-		ClearBitmap(&Result);
-	}
+	Result.Memory = PushSize(Arena, TotalBitmapSize, Align(16, ClearToZero));
 	return(Result);
 }
 
@@ -213,10 +202,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
                         (u8*)Memory->PermanentStorage + sizeof(game_state));
         SubArena(&GameState->AudioState.AudioArena, &TotalArena, Megabytes(1));
 		InitializeAudioState(&GameState->AudioState);
-        SubArena(&GameState->ModeArena, &TotalArena, GetArenaSizeRemaining(&TotalArena));
+        SubArena(&GameState->ModeArena, &TotalArena, GetArenaSizeRemaining(&TotalArena), NoClear());
         
 		GameState->IsInitialized = true;
-        
 	}
     
 	Assert(sizeof(transient_state) <= Memory->TransientStorageSize);

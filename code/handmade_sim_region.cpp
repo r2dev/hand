@@ -144,7 +144,6 @@ internal sim_region*
 BeginSim(memory_arena* SimArena, game_mode_world* GameWorld, world* World, world_position Origin, rectangle3 Bounds, r32 dt) {
     TIMED_FUNCTION();
 	sim_region* SimRegion = PushStruct(SimArena, sim_region);
-	ZeroStruct(SimRegion->Hash);
 	SimRegion->MaxEntityRadius = 5.0f;
 	SimRegion->MaxEntityVelocity = 30.0f;
 	r32 UpdateSafetyMargin = SimRegion->MaxEntityRadius + dt * SimRegion->MaxEntityVelocity;

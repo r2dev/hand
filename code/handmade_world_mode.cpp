@@ -350,7 +350,6 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     r32 PixelsToMeters = 1.0f / 42.0f;
     v3 WorldChunkDimMeters = { PixelsToMeters * GroundBufferWidth, PixelsToMeters * GroundBufferHeight, GameWorld->TypicalFloorHeight };
     GameWorld->World = CreateWorld(WorldChunkDimMeters, &GameState->ModeArena);
-    GameWorld->CameraFollowingEntityIndex = 0;
     world* World = GameWorld->World;
     s32 TileSideInPixels = 60;
     
