@@ -1,6 +1,5 @@
 #ifndef HANDMADE_SIM_REGION_H
 #define HANDMADE_SIM_REGION_H
-#include "handmade.h"
 Introspect(category: "sim") struct move_spec {
 	b32 UnitMaxAccelVector;
 	r32 Speed;
@@ -34,7 +33,6 @@ enum sim_entity_flags {
 	EntityFlag_Traversable = (1 << 4),
 	EntityFlag_Simming = (1 << 30),
 };
-
 
 struct sim_entity;
 

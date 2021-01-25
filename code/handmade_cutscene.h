@@ -28,12 +28,15 @@ struct layered_scene {
     v3 CameraEnd;
 };
 
-struct playing_cutscene {
+struct game_mode_cutscene {
     r32 t;
-    
     u32 SceneCount;
     layered_scene *Scenes;
     
+};
+
+struct game_mode_titlescreen {
+    r32 t;
 };
 
 

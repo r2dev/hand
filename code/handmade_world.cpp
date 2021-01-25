@@ -139,7 +139,7 @@ Subtract(world* World, world_position* A, world_position* B) {
 
 
 void
-InitializeWorld(world* World, v3 ChunkDimInMeter) {
+InitializeWorld(world* World, v3 ChunkDimInMeter, memory_arena* ParentArena) {
     
 	//World->TileSideInMeters = TileSideInMeter;
 	// = v3{ (r32)TILES_PER_CHUNK * TileSideInMeter, (r32)TILES_PER_CHUNK * TileSideInMeter, (r32)TileDepthInMeter };
@@ -147,6 +147,7 @@ InitializeWorld(world* World, v3 ChunkDimInMeter) {
     
 	World->ChunkDimInMeters = ChunkDimInMeter;
 	World->FirstFree = 0;
+    SubArena(&World->Arena, ParentArena, GetArenaSizeRemaining(ParentArena));
     
 	for (u32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex) {
 		World->ChunkHash[ChunkIndex].ChunkX = TILE_CHUNK_UNINITIALIZED;

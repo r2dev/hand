@@ -3,6 +3,7 @@
 
 #include "handmade_platform.h"
 #include "handmade_share.h"
+#include "handmade_random.h"
 #include "handmade_file_formats.h"
 #include "handmade_meta.h"
 #include "zha_data_structure.h"
@@ -118,10 +119,15 @@ BeginTemporaryMemory(memory_arena* Arena) {
 inline void
 EndTemporaryMemory(temporary_memory TempMem) {
 	memory_arena* Arena = TempMem.Arena;
-	Assert(Arena->Used >= TempMem.Used)
-        Arena->Used = TempMem.Used;
-	Assert(Arena->TempCount > 0)
-        --Arena->TempCount;
+	Assert(Arena->Used >= TempMem.Used);
+    Arena->Used = TempMem.Used;
+	Assert(Arena->TempCount > 0);
+    --Arena->TempCount;
+}
+
+inline void
+Clear(memory_arena *Arena) {
+    InitializeArena(Arena, Arena->Size, Arena->Base);
 }
 
 inline void
@@ -149,19 +155,15 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 
 
 
-#include "handmade_random.h"
+
 #include "handmade_render_group.h"
 #include "handmade_asset.h"
 #include "handmade_world.h"
 #include "handmade_sim_region.h"
+#include "handmade_world_mode.h"
 #include "handmade_entity.h"
 #include "handmade_audio.h"
 #include "handmade_cutscene.h"
-
-struct low_entity {
-	world_position P;
-	sim_entity Sim;
-};
 
 struct controlled_hero {
 	u32 EntityIndex;
@@ -170,80 +172,32 @@ struct controlled_hero {
 	r32 dZ;
 };
 
-struct pairwise_collision_rule {
-	b32 CanCollide;
-	u32 StorageIndexA;
-	u32 StorageIndexB;
-    
-	pairwise_collision_rule* NextHash;
+enum game_mode {
+    GameMode_TitleScreen,
+    GameMode_CutScrene,
+    GameMode_World,
 };
-
-struct ground_buffer {
-	world_position P;
-	loaded_bitmap Bitmap;
-};
-
-struct particle_cel {
-    r32 Density;
-    v3 VelocityTimesDensity;
-};
-
-struct particle {
-    v3 P;
-    v3 dP;
-    v3 ddP;
-    v4 Color;
-    v4 dColor;
-};
-
-struct game_state;
-internal void AddCollisionRule(game_state* GameState, u32 StorageIndexA, u32 StorageIndexB, b32 ShouldCollide);
-internal void ClearCollisionRulesFor(game_state* GameState, u32 StorageIndex);
 
 struct game_state {
 	b32 IsInitialized;
-	memory_arena WorldArena;
-	world* World;
-    
-	u32 CameraFollowingEntityIndex;
-	world_position CameraP;
-    
+	memory_arena ModeArena;
 	controlled_hero ControlledHeroes[ArrayCount(((game_input*)0)->Controllers)];
     
-	r32 TypicalFloorHeight = 3.0f;
-    
-	u32 LowEntityCount;
-	low_entity LowEntities[100000];
-    
-	pairwise_collision_rule* CollisionRuleHash[256];
-	pairwise_collision_rule* FirstFreeCollisionRule;
-    
-	sim_entity_collision_volume_group* NullCollision;
-	sim_entity_collision_volume_group* SwordCollision;
-	sim_entity_collision_volume_group* StairCollision;
-	sim_entity_collision_volume_group* PlayerCollision;
-	sim_entity_collision_volume_group* MonstarCollision;
-	sim_entity_collision_volume_group* WallCollision;
-	sim_entity_collision_volume_group* FamiliarCollision;
-	sim_entity_collision_volume_group* StandardRoomCollision;
-    
-	r32 time;
-    
-    u32 NextParticle;
-    particle Particle[256];
-    
-#define PARTICEL_CEL_DIM 16
-    particle_cel ParticleCels[PARTICEL_CEL_DIM][PARTICEL_CEL_DIM];
-    
-    random_series EffectEntropy;
-    
-	loaded_bitmap TestDiffuse;
-	loaded_bitmap TestNormal;
 	audio_state AudioState;
     
 	playing_sound* Music;
-    playing_cutscene CurrentCutScene;
     
+    
+	loaded_bitmap TestDiffuse;
+	loaded_bitmap TestNormal;
+    
+    game_mode GameMode;
+    union {
+        //game_mode_world *World;
+        game_mode_titlescreen *TitleScreen;
+        game_mode_cutscene *CutScene;
+        game_mode_world* WorldMode;
+    };
 };
 
 struct task_with_memory {
@@ -272,20 +226,16 @@ struct transient_state {
 	platform_work_queue* LowPriorityQueue;
 };
 
-inline low_entity*
-GetLowEntity(game_state* GameState, u32 Index) {
-	low_entity* Result = 0;
-    
-	if ((Index > 0) && (Index < GameState->LowEntityCount)) {
-		Result = GameState->LowEntities + Index;
-	}
-	return(Result);
-}
-
 
 internal task_with_memory* BeginTaskWithMemory(transient_state* TranState);
 inline void EndTaskWithMemory(task_with_memory* Task);
-
+internal void SetGameMode(game_state *GameState, game_mode GameMode);
 global_variable platform_api Platform;
+
+
+// TODO(NAME): move it
+#define GroundBufferWidth 256
+#define GroundBufferHeight 256
+
 
 #endif

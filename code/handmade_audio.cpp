@@ -229,10 +229,10 @@ OutputPlayingSounds(audio_state* AudioState, game_sound_output_buffer* SoundBuff
 }
 
 internal void
-InitializeAudioState(audio_state* AudioState, memory_arena* Arena) {
+InitializeAudioState(audio_state* AudioState) {
 	AudioState->FirstFreePlayingSound = 0;
 	AudioState->FirstPlayingSound = 0;
-	AudioState->PermArena = Arena;
+	
 	AudioState->MasterVolume = v2{ 0.3f, 0.3f };
 }
 
@@ -240,7 +240,7 @@ internal playing_sound*
 PlaySound(audio_state* AudioState, sound_id ID) {
     TIMED_FUNCTION();
 	if (!AudioState->FirstFreePlayingSound) {
-		AudioState->FirstFreePlayingSound = PushStruct(AudioState->PermArena, playing_sound);
+		AudioState->FirstFreePlayingSound = PushStruct(&AudioState->AudioArena, playing_sound);
 		AudioState->FirstFreePlayingSound->Next = 0;
 	}
 	playing_sound* PlayingSound = AudioState->FirstFreePlayingSound;

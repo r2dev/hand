@@ -8,6 +8,15 @@ struct tile_chunk_position {
 	s32 RelTileY;
 };
 
+Introspect(category: "world") struct world_position {
+	s32 ChunkX;
+	s32 ChunkY;
+	s32 ChunkZ;
+    
+	v3 Offset_;
+};
+
+
 struct world_entity_block {
 	u32 EntityCount;
 	u32 LowEntityIndex[16];
@@ -24,6 +33,7 @@ struct world_chunk {
 	world_chunk* NextInHash;
 };
 
+
 struct world {
     
 	v3 ChunkDimInMeters;
@@ -31,13 +41,6 @@ struct world {
 	world_chunk ChunkHash[4096];
     
 	world_entity_block* FirstFree;
-};
-
-
-Introspect(category: "world") struct world_position {
-	s32 ChunkX;
-	s32 ChunkY;
-	s32 ChunkZ;
     
-	v3 Offset_;
+    memory_arena Arena;
 };
