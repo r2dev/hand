@@ -1,5 +1,7 @@
 #define IGNORED_TIMED_FUNCTION() TIMED_FUNCTION()
 
+
+
 inline entity_basis_p_result
 GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 	entity_basis_p_result Result = {};
@@ -32,23 +34,34 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 		Result.Valid = true;
 		Result.P = Transform->ScreenCenter + Transform->MetersToPixels * P.xy;
 	}
+    // TODO(NAME): 
+    Result.SortKey = 4888 *P.z - P.y;
     
 	return(Result);
 }
 
-#define PushRenderElement(Group, type)(type *)PushRenderElement_(Group, sizeof(type), RenderGroupEntryType_##type)
+#define PushRenderElement(Group, type, SortKey)(type *)PushRenderElement_(Group, sizeof(type), RenderGroupEntryType_##type, SortKey)
 
 
 inline void*
-PushRenderElement_(render_group* Group, u32 Size, render_group_entry_type Type) {
+PushRenderElement_(render_group* Group, u32 Size, render_group_entry_type Type, r32 SortKey) {
     game_render_commands *Commands = Group->Commands;
     
 	void* Result = 0;
 	Size += sizeof(render_group_entry_header);
-	if (Commands->PushBufferSize + Size < Commands->MaxPushBufferSize) {
-		render_group_entry_header* Header = (render_group_entry_header*)(Commands->PushBufferBase + Commands->PushBufferSize);
+	if (Commands->PushBufferSize + Size < Commands->SortEntryAt - sizeof(tile_sort_entry)) {
+        
+        render_group_entry_header* Header = (render_group_entry_header*)(Commands->PushBufferBase + Commands->PushBufferSize);
 		Header->Type = Type;
 		Result = Header + 1;
+        
+        Commands->SortEntryAt -= sizeof(tile_sort_entry);
+        tile_sort_entry *Entry = (tile_sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
+        Entry->SortKey = SortKey;
+        Entry->Type = Type;
+        
+        Entry->PushBufferOffset = Commands->PushBufferSize;
+        
 		Commands->PushBufferSize += Size;
         ++Commands->PushBufferElementSize;
 	}
@@ -73,7 +86,7 @@ inline void
 PushBitmap(render_group* Group, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
 	used_bitmap_dim BitmapDim = GetBitmapDim(Group, Bitmap, Height, Offset, CAlign);
 	if (BitmapDim.Basis.Valid) {
-		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap);
+		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap, BitmapDim.Basis.SortKey);
 		if (Entry) {
 			Entry->P = BitmapDim.Basis.P;
 			Entry->Bitmap = Bitmap;
@@ -123,7 +136,7 @@ PushRect(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
 	v3 P = Offset - V3(0.5f * Dim, 0);
 	entity_basis_p_result Basis = GetRenderEntityBasisP(&Group->Transform, P);
 	if (Basis.Valid) {
-		render_entry_rectangle* Entry = PushRenderElement(Group, render_entry_rectangle);
+		render_entry_rectangle* Entry = PushRenderElement(Group, render_entry_rectangle, Basis.SortKey);
 		if (Entry) {
 			Entry->P = Basis.P;
 			Entry->Color = Color;
@@ -139,8 +152,6 @@ PushRect(render_group* Group, rectangle2 Rect, r32 Z, v4 Color) {
 
 inline void
 PushRectOutline(render_group* Group, v3 Offset, v2 Dim, v4 Color, r32 Thickness = 0.1f) {
-    
-	
 	// top - bottom
 	PushRect(Group, Offset - v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
 	PushRect(Group, Offset + v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
@@ -152,7 +163,7 @@ PushRectOutline(render_group* Group, v3 Offset, v2 Dim, v4 Color, r32 Thickness 
 inline void
 Clear(render_group* Group, v4 Color) {
     
-	render_entry_clear* Piece = PushRenderElement(Group, render_entry_clear);
+	render_entry_clear* Piece = PushRenderElement(Group, render_entry_clear, Real32Minimum);
 	if (Piece) {
 		Piece->Color = Color;
 	}
@@ -161,7 +172,7 @@ Clear(render_group* Group, v4 Color) {
 render_entry_coordinate_system*
 CoordinateSystem(render_group* Group, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, loaded_bitmap* NormalMap,
                  environment_map* Top, environment_map* Middle, environment_map* Bottom) {
-	render_entry_coordinate_system* Entry = PushRenderElement(Group, render_entry_coordinate_system);
+	render_entry_coordinate_system* Entry = PushRenderElement(Group, render_entry_coordinate_system, Real32Minimum);
 	if (Entry) {
 		Entry->AxisX = AxisX;
 		Entry->AxisY = AxisY;

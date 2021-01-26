@@ -1,5 +1,21 @@
-
 #define IGNORED_TIMED_FUNCTION() 
+
+internal void
+SortEntries(game_render_commands *Commands) {
+    for (u32 Outer = 0; Outer < Commands->PushBufferElementSize; ++Outer) {
+        for (u32 Inner = 0; Inner < Commands->PushBufferElementSize - 1; ++Inner) {
+            tile_sort_entry *SortEntries = (tile_sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
+            tile_sort_entry *EntryA = SortEntries + Inner;
+            tile_sort_entry *EntryB = SortEntries + Inner + 1;
+            if (EntryA->SortKey > EntryB->SortKey) {
+                tile_sort_entry Temp = *EntryA;
+                *EntryA = *EntryB;
+                *EntryB = Temp;
+            }
+        }
+    }
+    
+}
 
 internal void
 DrawRectangle(loaded_bitmap* Buffer,

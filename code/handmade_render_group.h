@@ -1,9 +1,5 @@
 #pragma once
 
-struct tile_sort_entry {
-    u32 PushBufferOffset;
-    r32 SortKey;
-};
 
 struct loaded_bitmap {
     void* Memory;
@@ -28,6 +24,14 @@ enum render_group_entry_type {
 	RenderGroupEntryType_render_entry_rectangle,
 	RenderGroupEntryType_render_entry_bitmap,
 	RenderGroupEntryType_render_entry_coordinate_system
+};
+
+struct tile_sort_entry {
+    u32 PushBufferOffset;
+    r32 SortKey;
+#if HANDMADE_INTERNAL
+    render_group_entry_type Type;
+#endif
 };
 
 struct render_group_entry_header {
@@ -110,6 +114,7 @@ struct entity_basis_p_result {
 	v2 P;
 	r32 Scale;
 	b32 Valid;
+    r32 SortKey;
 };
 
 struct used_bitmap_dim {

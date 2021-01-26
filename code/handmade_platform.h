@@ -160,6 +160,7 @@ extern "C" {
 #define Pi32 3.14159265359f
 #define Tau32 6.28318530718f
     
+#define Real32Minimum -FLT_MAX
 #define Real32Maximum FLT_MAX
     
 #if HANDMADE_SLOW

@@ -602,6 +602,7 @@ Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_command
     
     b32 InHardware = true;
     b32 DisplayWithWin32Blit = false;
+    SortEntries(Commands);
     
     if (InHardware) {
         OpenGLRenderCommands(Commands, WindowWidth, WindowHeight);

@@ -178,31 +178,25 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
     
     OpenGLSetScreenSpace(Commands->Width, Commands->Height);
     
-	for (u32 BaseAddress = 0; BaseAddress < Commands->PushBufferSize;) {
-		render_group_entry_header* Header = (render_group_entry_header*)(Commands->PushBufferBase + BaseAddress);
-		BaseAddress += sizeof(*Header);
+    u32 SortEntryCount = Commands->PushBufferElementSize;
+    tile_sort_entry *SortEntries = (tile_sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
+    tile_sort_entry *SortEntry = SortEntries;
+    for (u32 SortEntryIndex = 0; SortEntryIndex < SortEntryCount; ++SortEntryIndex, ++SortEntry) {
+        
+        render_group_entry_header* Header = (render_group_entry_header*)(Commands->PushBufferBase + SortEntry->PushBufferOffset);
 		void* Data = Header + 1;
-        
-		//todo null
-		r32 NullPixelsToMeters = 1.0f;
-        
 		switch (Header->Type) {
             case RenderGroupEntryType_render_entry_clear: {
                 render_entry_clear* Entry = (render_entry_clear*)Data;
-                
                 glClearColor(Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
                 glClear(GL_COLOR_BUFFER_BIT);
-                
-                BaseAddress += sizeof(*Entry);
             } break;
             
             case RenderGroupEntryType_render_entry_rectangle: {
                 render_entry_rectangle* Entry = (render_entry_rectangle*)Data;
                 glDisable(GL_TEXTURE_2D);
-                
                 OpenGLRectangle(Entry->P, Entry->P + Entry->Dim, Entry->Color);
                 glEnable(GL_TEXTURE_2D);
-                BaseAddress += sizeof(*Entry);
             } break;
             case RenderGroupEntryType_render_entry_bitmap: {
                 render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
@@ -216,15 +210,13 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
                 
 				OpenGLRectangle(Entry->P, MaxP, Entry->Color);
                 
-                BaseAddress += sizeof(*Entry);
-                
             } break;
             
             case RenderGroupEntryType_render_entry_coordinate_system: {
             } break;
 			InvalidDefaultCase;
 		}
-	}
+    }
 }
 
 PLATFORM_ALLOCATE_TEXTURE(Win32AllocateTexture) {
