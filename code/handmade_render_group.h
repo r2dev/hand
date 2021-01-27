@@ -48,19 +48,35 @@ struct render_entity_basis {
 	v3 Offset;
 };
 
-struct render_transform {
-	r32 DistanceAboveTarget;
-	r32 FocalLength;
-    
-	r32 Scale;
+struct object_transform {
+    b32 Upright;
+    r32 Scale;
 	v3 OffsetP;
-	v2 ScreenCenter;
-	
-	r32 MetersToPixels;
-    
-	b32 Orthographic;
 };
 
+struct camera_transform {
+    b32 Orthographic;
+    
+	r32 DistanceAboveTarget;
+	r32 FocalLength;
+	r32 MetersToPixels;
+    v2 ScreenCenter;
+};
+
+inline object_transform
+DefaultUprightTransform() {
+    object_transform Result = {};
+	Result.Scale = 1.0f;
+    Result.Upright = true;
+    return Result;
+}
+
+inline object_transform
+DefaultFlatTransform() {
+    object_transform Result = {};
+	Result.Scale = 1.0f;
+    return Result;
+}
 
 struct render_group {
     b32 IsHardware;
@@ -68,7 +84,8 @@ struct render_group {
 	r32 GlobalAlpha;
 	v2 MonitorHalfDimInMeters;
 	
-	render_transform Transform;
+	camera_transform CameraTransform;
+    
 	struct game_assets* Assets;
     
 	u32 MissingResourceCount;

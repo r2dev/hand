@@ -139,7 +139,7 @@ AddFamiliar(game_mode_world* GameWorld, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ
 }
 
 internal void
-DrawHitPoints(sim_entity* Entity, render_group* PieceGroup) {
+DrawHitPoints(sim_entity* Entity, render_group* PieceGroup, object_transform ObjectTransform) {
 	if (Entity->HitPointMax >= 1) {
 		v2 HealthDim = { 0.2f, 0.2f };
 		r32 SpacingX = 1.5f * HealthDim.x;
@@ -151,7 +151,7 @@ DrawHitPoints(sim_entity* Entity, render_group* PieceGroup) {
 			if (HitPoint->FilledAmount == 0) {
 				Color = { 0.2f, 0.2f, 0.2f, 1.0f };
 			}
-			PushRect(PieceGroup, V3(HitP, 0), HealthDim, Color);
+			PushRect(PieceGroup, ObjectTransform, V3(HitP, 0), HealthDim, Color);
 			HitP += dHitP;
 		}
 	}
@@ -326,7 +326,7 @@ FillGroundChunk(transient_state *TranState, game_mode_world* GameWorld, ground_b
 
 inline rectangle2
 GetCameraRectAtDistance(render_group* RenderGroup, r32 CameraDistance) {
-	v2 HalfDimOnTarget = (CameraDistance / RenderGroup->Transform.FocalLength) * RenderGroup->MonitorHalfDimInMeters;
+	v2 HalfDimOnTarget = (CameraDistance / RenderGroup->CameraTransform.FocalLength) * RenderGroup->MonitorHalfDimInMeters;
 	rectangle2 Result = RectCenterHalfDim(v2{ 0, 0 }, HalfDimOnTarget);
 	return(Result);
     
@@ -334,7 +334,7 @@ GetCameraRectAtDistance(render_group* RenderGroup, r32 CameraDistance) {
 
 inline rectangle2
 GetCameraRectAtTarget(render_group* RenderGroup) {
-	rectangle2 Result = GetCameraRectAtDistance(RenderGroup, RenderGroup->Transform.DistanceAboveTarget);
+	rectangle2 Result = GetCameraRectAtDistance(RenderGroup, RenderGroup->CameraTransform.DistanceAboveTarget);
 	return(Result);
 }
 
@@ -670,10 +670,10 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                                      SimCenterP, SimBounds, Input->dtForFrame);
     v3 CameraP = Subtract(World, &GameWorld->CameraP, &SimCenterP);
     
-    PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
+    PushRectOutline(RenderGroup, DefaultFlatTransform(), v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
     
-    PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
-    PushRectOutline(RenderGroup, v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
+    PushRectOutline(RenderGroup, DefaultFlatTransform(), v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
+    PushRectOutline(RenderGroup, DefaultFlatTransform(), v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
     
     sim_entity* Entity = SimRegion->Entities;
     for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
@@ -784,7 +784,8 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 MoveEntity(GameWorld, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
             }			
             
-            RenderGroup->Transform.OffsetP = GetEntityGroundPoint(Entity);
+            object_transform EntityTransform = DefaultUprightTransform();
+            EntityTransform.OffsetP = GetEntityGroundPoint(Entity);
             
             asset_vector MatchVector = {};
             MatchVector.E[Tag_FaceDirection] = (r32)Entity->FacingDirection;
@@ -794,11 +795,11 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
             switch (Entity->Type) {
                 case EntityType_Hero: {
                     r32 HeroSizeC = 2.5f;
-                    PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-                    PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-                    PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-                    DrawHitPoints(Entity, RenderGroup);
+                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+                    DrawHitPoints(Entity, RenderGroup, EntityTransform);
                     DEBUG_IF(Particle_Demo)
                     {
                         for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 2; ++ParticleSpawnIndex) {
@@ -850,7 +851,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                                 for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
                                     particle_cel *Cel = &GameWorld->ParticleCels[Y][X];
                                     r32 Alpha = Clamp01(0.1f * Cel->Density);
-                                    PushRect(RenderGroup, GridScale * v3{(r32)X, (r32)Y, 0} + GridOrigin, GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
+                                    PushRect(RenderGroup, EntityTransform, GridScale * v3{(r32)X, (r32)Y, 0} + GridOrigin, GridScale * v2{1.0f, 1.0f}, v4{Alpha, Alpha, Alpha, 1.0f});
                                 }
                             }
                         }
@@ -913,7 +914,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                             //PushBitmap(RenderGroup, GetBestMatchFontFrom(TranState->Assets, Asset_Font, &MatchV, &WeightV), 0.5f, Particle->P, Color);
                             
                             //PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Font, &GameState->EffectEntropy), 0.5f, Particle->P, Color);
-                            PushBitmap(RenderGroup, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameWorld->EffectEntropy), 1.0f, Particle->P, Color);
+                            PushBitmap(RenderGroup, EntityTransform, GetRandomBitmapFrom(TranState->Assets, Asset_Head, &GameWorld->EffectEntropy), 1.0f, Particle->P, Color);
                             //PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
                             
                         }
@@ -921,27 +922,27 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 } break;
                 case EntityType_Wall: {
                     
-                    PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Tree), 2.5f, v3{ 0, 0, 0 });
+                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Tree), 2.5f, v3{ 0, 0, 0 });
                 } break;
                 case EntityType_Sword: {
-                    PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.4f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Sword), 0.5f, v3{ 0, 0, 0 });
+                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.4f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Sword), 0.5f, v3{ 0, 0, 0 });
                 } break;
                 case EntityType_Familiar: {
-                    PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), 1.0f, v3{ 0, 0, 0 });
+                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), 1.0f, v3{ 0, 0, 0 });
                 }
                 case EntityType_Monster: {
                     
-                    PushBitmap(RenderGroup, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), 1.2f, v3{ 0, 0, 0 });
-                    DrawHitPoints(Entity, RenderGroup);
+                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), 1.2f, v3{ 0, 0, 0 });
+                    DrawHitPoints(Entity, RenderGroup, EntityTransform);
                 } break;
                 
                 case EntityType_Stairwell: {
                     
-                    PushRect(RenderGroup, v3{ 0, 0, 0 }, Entity->WalkableDim, v4{ 1.0f, 0.5f, 0, 1.0f });
-                    PushRect(RenderGroup, v3{ 0, 0, Entity->WalkableHeight }, Entity->WalkableDim, v4{ 1.0f, 1.0f, 0, 1.0f });
+                    PushRect(RenderGroup, EntityTransform, v3{ 0, 0, 0 }, Entity->WalkableDim, v4{ 1.0f, 0.5f, 0, 1.0f });
+                    PushRect(RenderGroup, EntityTransform, v3{ 0, 0, Entity->WalkableHeight }, Entity->WalkableDim, v4{ 1.0f, 1.0f, 0, 1.0f });
                     
                     //PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
                 } break;
@@ -951,7 +952,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     {
                         for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
                             sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                            PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
+                            PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
                         }
                     }
                 } break;
@@ -964,7 +965,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 debug_id EntityDebugID = DEBUG_POINTER_ID(GameWorld->LowEntities + Entity->StorageIndex);
                 for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
                     sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                    v3 WorldMousePoint = Unproject(RenderGroup, MouseP);
+                    v3 WorldMousePoint = Unproject(RenderGroup, EntityTransform, MouseP);
 #if 0
                     PushRect(RenderGroup, V3(WorldMousePoint, 0.0f), v2{1.0f, 1.0f}, v4{1.0f, 0.0f, 1.0f, 1.0f});
 #endif
@@ -975,7 +976,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     }
                     v4 EntityOutlineColor;
                     if (DEBUG_HIGHLIGHTED(EntityDebugID, &EntityOutlineColor)) {
-                        PushRectOutline(RenderGroup, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
+                        PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
                     }
                     
                 }

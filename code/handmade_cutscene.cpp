@@ -27,26 +27,27 @@ RenderLayerScene(game_assets *Assets, render_group *RenderGroup, loaded_bitmap *
             MatchVector.E[Tag_LayerIndex] = (r32)LayerIndex;
             bitmap_id LayerImage = GetBestMatchBitmapFrom(Assets, Scene->AssetType, &MatchVector, &WeightVector);
             if (RenderGroup) {
+                object_transform Transform = DefaultFlatTransform();
                 v3 P = Layer->P;
                 if (Layer->Flags & SceneLayerFlag_AtInfinity) {
                     P.z += CameraOffset.z;
                 }
                 
                 if (Layer->Flags & SceneLayerFlag_CounterCameraX) {
-                    RenderGroup->Transform.OffsetP.x = P.x + CameraOffset.x;
+                    Transform.OffsetP.x = P.x + CameraOffset.x;
                 } else {
-                    RenderGroup->Transform.OffsetP.x = P.x - CameraOffset.x;
+                    Transform.OffsetP.x = P.x - CameraOffset.x;
                 }
                 
                 if (Layer->Flags & SceneLayerFlag_CounterCameraY) {
-                    RenderGroup->Transform.OffsetP.y = P.y + CameraOffset.y;
+                    Transform.OffsetP.y = P.y + CameraOffset.y;
                 } else {
-                    RenderGroup->Transform.OffsetP.y = P.y - CameraOffset.y;
+                    Transform.OffsetP.y = P.y - CameraOffset.y;
                 }
                 
-                RenderGroup->Transform.OffsetP.z = P.z - CameraOffset.z;
+                Transform.OffsetP.z = P.z - CameraOffset.z;
                 
-                PushBitmap(RenderGroup, LayerImage, Layer->Height, v3{ 0, 0, 0 });
+                PushBitmap(RenderGroup, Transform, LayerImage, Layer->Height, v3{ 0, 0, 0 });
             } else {
                 PrefetchBitmap(Assets, LayerImage);
             }

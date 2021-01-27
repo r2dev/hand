@@ -6,11 +6,11 @@
 #include <stdio.h>
 #include <dsound.h>
 
+#include "handmade_render_group.h"
+
 #if OPENGL_ENABLED
 #include <gl/gl.h>
-
 global_variable GLint DefaultInternalTextureFormat;
-
 #include "handmade_opengl.cpp"
 
 typedef BOOL WINAPI wgl_swap_interval_ext(int intervel);
@@ -40,6 +40,11 @@ int Win32OpenGLAttribs[] = {
 };
 
 
+#endif
+
+#if DIRECTX11_ENABLED
+#include "d3d11.h"
+#include "handmade_opengl.cpp"
 #endif
 
 global_variable platform_api Platform;
@@ -479,6 +484,7 @@ Win32ResizeDIBSection(win32_offscreen_buffer* Buffer, int Width, int Height) {
     Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 }
 
+#if OPENGL_ENABLED
 internal void
 Win32SetPixelFormat(HDC WindowDC) {
     int SuggestPixelFormatIndex = 0;
@@ -518,7 +524,6 @@ Win32SetPixelFormat(HDC WindowDC) {
     DescribePixelFormat(WindowDC, SuggestPixelFormatIndex, sizeof(SuggestPixelFormat), &SuggestPixelFormat);
     SetPixelFormat(WindowDC, SuggestPixelFormatIndex, &SuggestPixelFormat);
     HGLRC OpenGLRC = wglCreateContext(WindowDC);
-    
 }
 
 internal void
@@ -594,6 +599,17 @@ Win32InitOpenGL(HDC WindowDC) {
     return(OpenGLRC);
 }
 
+internal win32_thread_startup
+Win32PrepareOpenGLContext(HDC WindowDC, HGLRC MainRC) {
+    win32_thread_startup Result = {};
+    Result.WindowDC = WindowDC;
+    if (wglCreateContextAttribsARB) {
+        Result.OpenGLRC = wglCreateContextAttribsARB(WindowDC, MainRC, Win32OpenGLAttribs);
+    }
+    return(Result);
+}
+
+#endif
 internal void
 Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_commands* Commands,
                            HDC DeviceContext, u32 WindowWidth, u32 WindowHeight) {
@@ -605,9 +621,10 @@ Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_command
     SortEntries(Commands);
     
     if (InHardware) {
+#if OPENGL_ENABLED
         OpenGLRenderCommands(Commands, WindowWidth, WindowHeight);
-        
         SwapBuffers(DeviceContext);
+#endif
         
     } else {
         loaded_bitmap OutputTarget;
@@ -642,7 +659,9 @@ Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_command
                               GlobalBackbuffer.Memory, &GlobalBackbuffer.Info, DIB_RGB_COLORS, SRCCOPY);
             }
         } else {
+#if OPENGL_ENABLED
             OpenGLDisplayBitmap(GlobalBackbuffer.Width, GlobalBackbuffer.Height, GlobalBackbuffer.Memory, GlobalBackbuffer.Pitch, WindowWidth, WindowHeight);
+#endif
             SwapBuffers(DeviceContext);
             
         }
@@ -1022,15 +1041,6 @@ DWORD WINAPI ThreadProc(LPVOID lparam) {
     }
 }
 
-internal win32_thread_startup
-Win32PrepareOpenGLContext(HDC WindowDC, HGLRC MainRC) {
-    win32_thread_startup Result = {};
-    Result.WindowDC = WindowDC;
-    if (wglCreateContextAttribsARB) {
-        Result.OpenGLRC = wglCreateContextAttribsARB(WindowDC, MainRC, Win32OpenGLAttribs);
-    }
-    return(Result);
-}
 internal void
 Win32MakeQueue(HDC WindowDC, platform_work_queue *Queue, u32 ThreadCount, win32_thread_startup *StartUps) {
     Queue->CompletedCount = 0;
@@ -1204,23 +1214,30 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
     if (RegisterClass(&WindowClass)) {
         HWND Window = CreateWindowEx(
                                      0, WindowClass.lpszClassName,
-                                     //"Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
-                                     "Test", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, 0, 0, Instance, 0);
+                                     "Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, Instance, 0);
+        //"Test", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, 0, 0, //Instance, 0);
         
         if (Window) {
             //ToggleFullScreen(Window);
             ShowWindow(Window, SW_SHOW);
             HDC WindowDC = GetDC(Window);
+#if OPENGL_ENABLED
             HGLRC MainRC = Win32InitOpenGL(WindowDC);
-            
+#endif
             // create queue
             win32_thread_startup HighPriorityStartUps[6] = {};
             platform_work_queue HighPriorityQueue;
             Win32MakeQueue(WindowDC, &HighPriorityQueue, ArrayCount(HighPriorityStartUps), HighPriorityStartUps);
             
+#if OPENGL_ENABLED
             win32_thread_startup LowPriorityStartUps[2];
             LowPriorityStartUps[0] = Win32PrepareOpenGLContext(WindowDC, MainRC);
             LowPriorityStartUps[1] = Win32PrepareOpenGLContext(WindowDC, MainRC);
+#endif
+            
+#if DIRECTX11_ENABLED
+            win32_thread_startup LowPriorityStartUps[2] = {};
+#endif
             
             platform_work_queue LowPriorityQueue;
             Win32MakeQueue(WindowDC, &LowPriorityQueue, ArrayCount(LowPriorityStartUps), LowPriorityStartUps);

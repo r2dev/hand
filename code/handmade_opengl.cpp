@@ -1,6 +1,3 @@
-#include "handmade_render_group.h"
-
-
 #define SRGB8_ALPHA8_EXT 0x8C43
 #define GL_FRAMEBUFFER_SRGB 0x8DB9
 #define GL_SHADING_LANGUAGE_VERSION             0x8B8C

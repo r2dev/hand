@@ -3,13 +3,13 @@
 
 
 inline entity_basis_p_result
-GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
+GetRenderEntityBasisP(camera_transform CameraTransform, object_transform ObjectTransform, v3 OriginP) {
 	entity_basis_p_result Result = {};
     
-	v3 P = V3(OriginP.xy, 0.0f) + Transform->OffsetP;
+	v3 P = V3(OriginP.xy, 0.0f) + ObjectTransform.OffsetP;
     
-	if (Transform->Orthographic == false) {
-        r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
+	if (CameraTransform.Orthographic == false) {
+        r32 DistanceAboveTarget = CameraTransform.DistanceAboveTarget;
         
         DEBUG_IF(Renderer_UseDebugCamera)
         {
@@ -22,20 +22,20 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginP) {
 		r32 NearClipPlane = 0.2f;
         
 		if (DistancePz > NearClipPlane) {
-			v3 ProjectedXY = 1.0f / DistancePz * Transform->FocalLength * RawXY;
-			Result.Scale = Transform->MetersToPixels * ProjectedXY.z;
-			v2 EntityGround = Transform->ScreenCenter + Transform->MetersToPixels * ProjectedXY.xy;
+			v3 ProjectedXY = 1.0f / DistancePz * CameraTransform.FocalLength * RawXY;
+			Result.Scale = CameraTransform.MetersToPixels * ProjectedXY.z;
+			v2 EntityGround = CameraTransform.ScreenCenter + CameraTransform.MetersToPixels * ProjectedXY.xy;
 			Result.P = EntityGround;
 			Result.Valid = true;
 		}
 	}
 	else {
-		Result.Scale = Transform->MetersToPixels;
+		Result.Scale = CameraTransform.MetersToPixels;
 		Result.Valid = true;
-		Result.P = Transform->ScreenCenter + Transform->MetersToPixels * P.xy;
+		Result.P = CameraTransform.ScreenCenter + CameraTransform.MetersToPixels * P.xy;
 	}
     // TODO(NAME): 
-    Result.SortKey = 4888 *P.z - P.y;
+    Result.SortKey = 4888.0f *((2.0f * P.z) + (1.0f * (r32)ObjectTransform.Upright)) - P.y;
     
 	return(Result);
 }
@@ -72,19 +72,19 @@ PushRenderElement_(render_group* Group, u32 Size, render_group_entry_type Type, 
 }
 
 inline used_bitmap_dim
-GetBitmapDim(render_group* Group, loaded_bitmap* Bitmap, r32 Height, v3 Offset, r32 CAlign) {
+GetBitmapDim(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, r32 CAlign) {
     used_bitmap_dim Result;
     Result.Size = v2{ Height * Bitmap->WidthOverHeight, Height };
 	Result.Align = CAlign * Hadamard(Result.Size, Bitmap->AlignPercentage);
 	Result.P = Offset - V3(Result.Align, 0);
-	Result.Basis = GetRenderEntityBasisP(&Group->Transform, Result.P);
+	Result.Basis = GetRenderEntityBasisP(Group->CameraTransform, ObjectTransform, Result.P);
     
     return(Result);
 }
 
 inline void
-PushBitmap(render_group* Group, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
-	used_bitmap_dim BitmapDim = GetBitmapDim(Group, Bitmap, Height, Offset, CAlign);
+PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
+	used_bitmap_dim BitmapDim = GetBitmapDim(Group, ObjectTransform, Bitmap, Height, Offset, CAlign);
 	if (BitmapDim.Basis.Valid) {
 		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap, BitmapDim.Basis.SortKey);
 		if (Entry) {
@@ -98,7 +98,7 @@ PushBitmap(render_group* Group, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4
 
 
 inline void
-PushBitmap(render_group* Group, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
+PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
 	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
     
     if (Group->RenderInBackground && !Bitmap) {
@@ -107,7 +107,7 @@ PushBitmap(render_group* Group, bitmap_id ID, r32 Height, v3 Offset, v4 Color = 
         
     }
 	if (Bitmap) {
-		PushBitmap(Group, Bitmap, Height, Offset, Color, CAlign);
+		PushBitmap(Group, ObjectTransform, Bitmap, Height, Offset, Color, CAlign);
 	}
 	else {
         Assert(!Group->RenderInBackground);
@@ -132,9 +132,9 @@ PushFont(render_group* Group, font_id ID) {
 
 
 inline void
-PushRect(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
+PushRect(render_group* Group, object_transform ObjectTransform, v3 Offset, v2 Dim, v4 Color) {
 	v3 P = Offset - V3(0.5f * Dim, 0);
-	entity_basis_p_result Basis = GetRenderEntityBasisP(&Group->Transform, P);
+	entity_basis_p_result Basis = GetRenderEntityBasisP(Group->CameraTransform, ObjectTransform, P);
 	if (Basis.Valid) {
 		render_entry_rectangle* Entry = PushRenderElement(Group, render_entry_rectangle, Basis.SortKey);
 		if (Entry) {
@@ -146,18 +146,18 @@ PushRect(render_group* Group, v3 Offset, v2 Dim, v4 Color) {
 }
 
 inline void
-PushRect(render_group* Group, rectangle2 Rect, r32 Z, v4 Color) {
-	PushRect(Group, V3(GetCenter(Rect), Z), GetDim(Rect), Color);
+PushRect(render_group* Group, object_transform ObjectTransform, rectangle2 Rect, r32 Z, v4 Color) {
+	PushRect(Group, ObjectTransform, V3(GetCenter(Rect), Z), GetDim(Rect), Color);
 }
 
 inline void
-PushRectOutline(render_group* Group, v3 Offset, v2 Dim, v4 Color, r32 Thickness = 0.1f) {
+PushRectOutline(render_group* Group, object_transform ObjectTransform, v3 Offset, v2 Dim, v4 Color, r32 Thickness = 0.1f) {
 	// top - bottom
-	PushRect(Group, Offset - v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
-	PushRect(Group, Offset + v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
+	PushRect(Group, ObjectTransform, Offset - v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
+	PushRect(Group, ObjectTransform, Offset + v3{ 0, 0.5f * Dim.y, 0 }, v2{ Dim.x, Thickness }, Color);
     
-	PushRect(Group, Offset - v3{ 0.5f * Dim.x, 0, 0 }, v2{ Thickness, Dim.y }, Color);
-	PushRect(Group, Offset + v3{ 0.5f * Dim.x, 0, 0 }, v2{ Thickness, Dim.y }, Color);
+	PushRect(Group, ObjectTransform, Offset - v3{ 0.5f * Dim.x, 0, 0 }, v2{ Thickness, Dim.y }, Color);
+	PushRect(Group, ObjectTransform, Offset + v3{ 0.5f * Dim.x, 0, 0 }, v2{ Thickness, Dim.y }, Color);
 }
 
 inline void
@@ -192,34 +192,31 @@ Perspective(render_group* RenderGroup, u32 PixelWidth, u32 PixelHeight, r32 Foca
 	r32 WidthOfMonitor = 0.635f;
 	r32 MetersToPixels = (r32)PixelWidth * WidthOfMonitor;
 	r32 PixelsToMeters = SafeRatio1(1.0f, MetersToPixels);
-	RenderGroup->Transform.FocalLength = FocalLength;
-	RenderGroup->Transform.DistanceAboveTarget = DistanceAboveTarget;
-	RenderGroup->Transform.MetersToPixels = MetersToPixels;
+	RenderGroup->CameraTransform.FocalLength = FocalLength;
+	RenderGroup->CameraTransform.DistanceAboveTarget = DistanceAboveTarget;
+	RenderGroup->CameraTransform.MetersToPixels = MetersToPixels;
 	RenderGroup->MonitorHalfDimInMeters = v2{
 		0.5f * PixelsToMeters * PixelWidth,
 		0.5f * PixelsToMeters * PixelHeight
 	};
-	RenderGroup->Transform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
-	RenderGroup->Transform.Orthographic = false;
-    RenderGroup->Transform.OffsetP = v3{0, 0, 0};
-    RenderGroup->Transform.Scale = 1.0f;
+	RenderGroup->CameraTransform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
+	RenderGroup->CameraTransform.Orthographic = false;
+    
 }
 
 
 inline void
 Orthographic(render_group* RenderGroup, u32 PixelWidth, u32 PixelHeight, r32 MetersToPixels) {
 	r32 PixelsToMeters = SafeRatio1(1.0f, MetersToPixels);
-	RenderGroup->Transform.FocalLength = 1.0f;
-	RenderGroup->Transform.DistanceAboveTarget = 1.0f;
-	RenderGroup->Transform.MetersToPixels = MetersToPixels;
+	RenderGroup->CameraTransform.FocalLength = 1.0f;
+	RenderGroup->CameraTransform.DistanceAboveTarget = 1.0f;
+	RenderGroup->CameraTransform.MetersToPixels = MetersToPixels;
 	RenderGroup->MonitorHalfDimInMeters = v2{
 		0.5f * PixelsToMeters * PixelWidth,
 		0.5f * PixelsToMeters * PixelHeight
 	};
-	RenderGroup->Transform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
-	RenderGroup->Transform.Orthographic = true;
-    RenderGroup->Transform.OffsetP = v3{0, 0, 0};
-    RenderGroup->Transform.Scale = 1.0f;
+	RenderGroup->CameraTransform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
+	RenderGroup->CameraTransform.Orthographic = true;
 }
 
 inline b32
@@ -228,18 +225,18 @@ AllResoucePresent(render_group* Group) {
 	return(Result);
 }
 inline v3
-Unproject(render_group* Group, v2 PixelsXY) {
+Unproject(render_group* Group, object_transform ObjectTransform, v2 PixelsXY) {
     v2 UnprojectedXY = {};
-    render_transform *Transform = &Group->Transform;
+    camera_transform CameraTransform = Group->CameraTransform;
     
-    if (Transform->Orthographic) {
-        UnprojectedXY = (1.0f / Transform->MetersToPixels) * (PixelsXY - Transform->ScreenCenter);
+    if (CameraTransform.Orthographic) {
+        UnprojectedXY = (1.0f / CameraTransform.MetersToPixels) * (PixelsXY - CameraTransform.ScreenCenter);
     } else {
-        v2 dP = (PixelsXY - Transform->ScreenCenter) * (1.0f / Transform->MetersToPixels);
-        UnprojectedXY = ((Transform->DistanceAboveTarget - Transform->OffsetP.z) / Transform->FocalLength) * dP;
+        v2 dP = (PixelsXY - CameraTransform.ScreenCenter) * (1.0f / CameraTransform.MetersToPixels);
+        UnprojectedXY = ((CameraTransform.DistanceAboveTarget - ObjectTransform.OffsetP.z) / CameraTransform.FocalLength) * dP;
     }
-    v3 Result = V3(UnprojectedXY, Transform->OffsetP.z);
-    Result -= Transform->OffsetP;
+    v3 Result = V3(UnprojectedXY, ObjectTransform.OffsetP.z);
+    Result -= ObjectTransform.OffsetP;
     return(Result);
 }
 
@@ -247,8 +244,6 @@ inline render_group
 BeginRenderGroup(game_assets* Assets, game_render_commands *Commands, u32 GenerationID, b32 RenderInBackground) {
 	
     render_group Result = {};
-	Result.Transform.OffsetP = v3{ 0, 0, 0 };
-	Result.Transform.Scale = 1.0f;
     Result.GenerationID = GenerationID;
     
     Result.Commands = Commands;
