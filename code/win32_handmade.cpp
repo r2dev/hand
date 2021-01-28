@@ -44,7 +44,7 @@ int Win32OpenGLAttribs[] = {
 
 #if DIRECTX11_ENABLED
 #include "d3d11.h"
-#include "handmade_opengl.cpp"
+#include "handmade_d11.cpp"
 #endif
 
 global_variable platform_api Platform;
@@ -624,8 +624,9 @@ Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_command
 #if OPENGL_ENABLED
         OpenGLRenderCommands(Commands, WindowWidth, WindowHeight);
         SwapBuffers(DeviceContext);
+#elif DIRECTX11_ENABLED
+        D11SwapChain->Present(1, 0);
 #endif
-        
     } else {
         loaded_bitmap OutputTarget;
         OutputTarget.Memory = GlobalBackbuffer.Memory;
@@ -1025,6 +1026,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(DoWorkerWork) {
 DWORD WINAPI ThreadProc(LPVOID lparam) {
     win32_thread_startup* StartUp = (win32_thread_startup*)(lparam);
     platform_work_queue* Queue = StartUp->Queue;
+#if OPENGL_ENABLED
     if (StartUp->OpenGLRC) {
         if (wglMakeCurrent(StartUp->WindowDC, StartUp->OpenGLRC)) {
             
@@ -1033,7 +1035,7 @@ DWORD WINAPI ThreadProc(LPVOID lparam) {
             InvalidCodePath;
         }
     }
-    
+#endif
     for (;;) {
         if (Win32DoNextQueueEntry(Queue)) {
             WaitForSingleObjectEx(Queue->SemaphoreHandle, INFINITE, 0);
@@ -1223,19 +1225,18 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
             HDC WindowDC = GetDC(Window);
 #if OPENGL_ENABLED
             HGLRC MainRC = Win32InitOpenGL(WindowDC);
+#elif DIRECTX11_ENABLED
+            Win32InitD11(Window);
 #endif
             // create queue
             win32_thread_startup HighPriorityStartUps[6] = {};
             platform_work_queue HighPriorityQueue;
             Win32MakeQueue(WindowDC, &HighPriorityQueue, ArrayCount(HighPriorityStartUps), HighPriorityStartUps);
-            
 #if OPENGL_ENABLED
             win32_thread_startup LowPriorityStartUps[2];
             LowPriorityStartUps[0] = Win32PrepareOpenGLContext(WindowDC, MainRC);
             LowPriorityStartUps[1] = Win32PrepareOpenGLContext(WindowDC, MainRC);
-#endif
-            
-#if DIRECTX11_ENABLED
+#elif DIRECTX11_ENABLED
             win32_thread_startup LowPriorityStartUps[2] = {};
 #endif
             

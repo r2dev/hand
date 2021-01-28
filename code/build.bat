@@ -1,12 +1,12 @@
 @echo off
 
-rem OpenGL
-set RendererFlag=-DOPENGL_ENABLED=1
-set RendererLib=opengl32.lib
+REM OpenGL
+REM set RendererFlag=-DOPENGL_ENABLED=1 -DDIRECTX11_ENABLED=0
+REM set RendererLib=opengl32.lib
 
-rem DirectX11
-rem set RendererFlag=-DDIRECTX11_ENABLED=1
-rem set RendererLib=d3d11.lib d3dcompiler.lib
+REM DirectX11
+set RendererFlag=-DDIRECTX11_ENABLED=1 -DOPENGL_ENABLED=0
+set RendererLib=d3d11.lib d3dcompiler.lib
 
 set CommonCompilerFlags=-MTd -nologo -Zo -Od -Gm- -GR- -EHa- -WX -W4 -Gm- -GR- -EHa- -wd4201 -wd4100 -wd4189 -wd4505 -wd4127 -wd4302 -wd4311 -WX 
 set CommonCompilerFlags=-DHANDMADE_WIN32=1 -DHANDMADE_SLOW=1 -DHANDMADE_INTERNAL=1 %RendererFlag% -Z7 -FC -D_CRT_SECURE_NO_WARNINGS %CommonCompilerFlags% 
