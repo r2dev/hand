@@ -47,6 +47,48 @@ MergeSort(tile_sort_entry *First, u32 Count, tile_sort_entry *Temp) {
         }
     }
 }
+
+inline u32
+SortKeyToU32(r32 SortKey) {
+    u32 Result = *(u32 *)&SortKey;
+    if (Result & 0x80000000) {
+        Result = ~Result;
+    } else {
+        Result |= 0x80000000;
+    }
+    return(Result);
+}
+
+internal void
+RadixSort(tile_sort_entry *First, u32 Count, tile_sort_entry *Temp) {
+    tile_sort_entry *Src = First;
+    tile_sort_entry *Dest = Temp;
+    for (u32 ByteIndex = 0; ByteIndex < 32; ByteIndex += 8) {
+        u32 SortKeyOffset[256] = {};
+        for (u32 Index = 0; Index < Count; ++Index) {
+            // tile_sort_entry *Entry = First + Index;
+            u32 RadixValue = SortKeyToU32(Src[Index].SortKey);
+            u32 RadixPiece = (RadixValue >> ByteIndex) & 0xFF;
+            ++SortKeyOffset[RadixPiece];
+        }
+        u32 Total = 0;
+        for (u32 SortKeyIndex = 0; SortKeyIndex < 256; SortKeyIndex++) {
+            u32 KeyCount = SortKeyOffset[SortKeyIndex];
+            SortKeyOffset[SortKeyIndex] = Total;
+            Total += KeyCount;
+        }
+        for(u32 Index = 0; Index < Count; ++Index) {
+            u32 RadixValue = SortKeyToU32(Src[Index].SortKey);
+            u32 RadixPiece = (RadixValue >> ByteIndex) & 0xFF;
+            Dest[SortKeyOffset[RadixPiece]++] = Src[Index];
+        }
+        // TODO(NAME): why? the dest value is ready, we can discard the src value
+        tile_sort_entry *SwapTemp = Dest;
+        Dest = Src;
+        Src = SwapTemp;
+    }
+}
+
 internal void
 BubbleSort(tile_sort_entry *SortEntries, u32 Count) {
     for (u32 Outer = 0; Outer < Count; ++Outer) {
@@ -72,23 +114,21 @@ SortEntries(game_render_commands *Commands, void *Temp) {
     u32 Count = Commands->PushBufferElementSize;
     
     // BubbleSort(SortEntries, Count);
-    MergeSort(SortEntries, Count, (tile_sort_entry *)Temp);
-    
+    //MergeSort(SortEntries, Count, (tile_sort_entry *)Temp);
+    RadixSort(SortEntries, Count, (tile_sort_entry *)Temp);
 #if HANDMADE_SLOW
+    // verifier
     for (u32 Index = 0; Index < Commands->PushBufferElementSize - 1; ++Index) {
         tile_sort_entry *EntryA = SortEntries + Index;
         tile_sort_entry *EntryB = SortEntries + Index + 1;
         Assert(EntryA->SortKey <= EntryB->SortKey);
     }
 #endif
-    
 }
 
 
 internal void
-DrawRectangle(loaded_bitmap* Buffer,
-              v2 vMin, v2 vMax,
-              v4 Color, rectangle2i ClipRect, b32 Even) {
+DrawRectangle(loaded_bitmap* Buffer, v2 vMin, v2 vMax, v4 Color, rectangle2i ClipRect, b32 Even) {
     IGNORED_TIMED_FUNCTION();
     r32 R = Color.r;
     r32 G = Color.g;
