@@ -1,7 +1,5 @@
 #define IGNORED_TIMED_FUNCTION() TIMED_FUNCTION()
 
-
-
 inline entity_basis_p_result
 GetRenderEntityBasisP(camera_transform CameraTransform, object_transform ObjectTransform, v3 OriginP) {
 	entity_basis_p_result Result = {};

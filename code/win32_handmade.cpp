@@ -612,13 +612,13 @@ Win32PrepareOpenGLContext(HDC WindowDC, HGLRC MainRC) {
 #endif
 internal void
 Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_commands* Commands,
-                           HDC DeviceContext, u32 WindowWidth, u32 WindowHeight) {
+                           HDC DeviceContext, u32 WindowWidth, u32 WindowHeight, void *SortMemory) {
     
     // TODO(NAME): sort command
     
     b32 InHardware = true;
     b32 DisplayWithWin32Blit = false;
-    SortEntries(Commands);
+    SortEntries(Commands, SortMemory);
     
     if (InHardware) {
 #if OPENGL_ENABLED
@@ -1344,6 +1344,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 u32 PushBufferSize = Megabytes(4);
                 void *PushBuffer = Win32AllocateMemory(PushBufferSize);
                 
+                umm CurrentSortMemorySize = Megabytes(1);
+                void *SortMemory = Win32AllocateMemory(CurrentSortMemorySize);
+                
                 while (GlobalRunning) {
                     ///
                     ///
@@ -1658,8 +1661,14 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     //if (CurrentSortMemorySize < NeededSortMemorySize) {
                     //SortMemory = ;
                     //}
+                    umm NeededSortMemorySize = RenderCommands.PushBufferElementSize * sizeof(tile_sort_entry);
+                    if (CurrentSortMemorySize < NeededSortMemorySize) {
+                        Win32DeallocateMemory(SortMemory);
+                        CurrentSortMemorySize = NeededSortMemorySize;
+                        SortMemory = Win32AllocateMemory(CurrentSortMemorySize);
+                    }
                     
-                    Win32DisplayBufferInWindow(&HighPriorityQueue, &RenderCommands, DeviceContext, Dimension.Width, Dimension.Height);
+                    Win32DisplayBufferInWindow(&HighPriorityQueue, &RenderCommands, DeviceContext, Dimension.Width, Dimension.Height, SortMemory);
                     ReleaseDC(Window, DeviceContext);
                     
                     // note music syncing
