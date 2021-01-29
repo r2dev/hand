@@ -1,13 +1,11 @@
-
-  #define GlobalConstants_Sim_RoomBaseCamera 0
-#define GlobalConstants_Renderer_UseDebugCamera 0
-#define GlobalConstants_Renderer_Camera_DebugCameraDistance 15.00f
-#define GlobalConstants_Renderer_ShowLightning_SampleSource 0
-#define GlobalConstants_GroundChunk_ReGenGroundChunkOnReload 0
-#define GlobalConstants_Renderer_WeirdDrawBufferSize 0
-#define GlobalConstants_GroundChunk_ShowGroundChunkOutlines 0
-#define GlobalConstants_Sim_FamiliarFollowsHero 0
-#define GlobalConstants_Particle_Demo 0
-#define GlobalConstants_Particle_Grid 0
-#define GlobalConstants_Renderer_Show_Space_Outline 1
-#define GlobalConstants_Renderer_Camera 20.0f
+global_variable b32 Global_Sim_RoomBaseCamera = false;
+global_variable b32 Global_Renderer_UseDebugCamera = false;
+global_variable r32 Global_Renderer_Camera_DebugCameraDistance = 15.00f;
+global_variable b32 Global_GroundChunk_ReGenGroundChunkOnReload = false;
+global_variable b32 Global_Renderer_WeirdDrawBufferSize = false;
+global_variable b32 Global_GroundChunk_ShowGroundChunkOutlines = false;
+global_variable b32 Global_Sim_FamiliarFollowsHero = false;
+global_variable b32 Global_Particle_Demo = false;
+global_variable b32 Global_Particle_Grid = false;
+global_variable b32 Global_Renderer_Show_Space_Outline = true;
+global_variable r32 Global_Renderer_Camera = 20.0f;

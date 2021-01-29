@@ -191,6 +191,35 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
 	Platform = Memory->PlatformAPI;
 #if HANDMADE_INTERNAL
 	DebugGlobalMemory = Memory;
+    
+    {
+        DEBUG_DATA_BLOCK("Renderer");
+        DEBUG_VALUE(Global_Renderer_WeirdDrawBufferSize);
+        {
+            DEBUG_DATA_BLOCK("Renderer/Camera");
+            DEBUG_VALUE(Global_Renderer_UseDebugCamera);
+            DEBUG_VALUE(Global_Renderer_Camera_DebugCameraDistance);
+            DEBUG_VALUE(Global_Sim_RoomBaseCamera);
+        }
+    }
+    {
+        DEBUG_DATA_BLOCK("GroundChunks");
+        DEBUG_VALUE(Global_GroundChunk_ReGenGroundChunkOnReload);
+        DEBUG_VALUE(Global_GroundChunk_ShowGroundChunkOutlines);
+        DEBUG_VALUE(Global_Sim_FamiliarFollowsHero);
+        DEBUG_VALUE(Global_Renderer_Show_Space_Outline);
+        DEBUG_VALUE(Global_Renderer_Camera);
+    }
+    {
+        DEBUG_DATA_BLOCK("Particle");
+        DEBUG_VALUE(Global_Particle_Demo);
+        DEBUG_VALUE(Global_Particle_Grid);
+    }
+    {
+        DEBUG_DATA_BLOCK("Profile");
+        DEBUG_PROFILE(GameUpdateAndRender);
+    }
+    
 #endif
 	TIMED_FUNCTION();
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -271,7 +300,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     }
     
     
-    DEBUG_IF(GroundChunk_ReGenGroundChunkOnReload)
+    if(Global_GroundChunk_ReGenGroundChunkOnReload)
     {
         if (Memory->ExecutableReloaded) {
             for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {

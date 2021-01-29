@@ -2,6 +2,7 @@
 #define HANDMADE_H
 
 #include "handmade_platform.h"
+#include "zha_config.h"
 #include "handmade_share.h"
 #include "handmade_random.h"
 #include "handmade_file_formats.h"

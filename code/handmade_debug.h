@@ -49,12 +49,29 @@ struct debug_stored_event {
     u32 FrameIndex;
 };
 
+struct debug_string {
+    u32 Length;
+    char *Value;
+};
+
 struct debug_element {
     char *GUID;
+    u32 FileNameCount;
+    u32 LineNumber;
+    u32 NameStartsAt;
+    
     debug_element *NextInHash;
     debug_stored_event *OldestEvent;
     debug_stored_event *LatestEvent;
 };
+inline char *GetName(debug_element* Element) {
+    char* Result = Element->GUID + Element->NameStartsAt;
+    return(Result);
+}
+inline debug_string GetFileName(debug_element* Element) {
+    debug_string Result = {Element->FileNameCount, Element->GUID};
+    return(Result);
+}
 
 struct debug_variable_link {
     debug_variable_link *Next;
@@ -170,12 +187,8 @@ struct debug_interaction {
 };
 struct debug_state {
     b32 IsInitialized;
-    platform_work_queue* HighPriorityQueue;
     memory_arena DebugArena;
     memory_arena PerFrameArena;
-    
-    b32 Compiling;
-    debug_executing_process Compiler;
     
     u32 FrameBarLaneCount;
     debug_element *ElementHash[1024];
@@ -183,7 +196,6 @@ struct debug_state {
     debug_variable_group *RootGroup;
     debug_view* ViewHash[4096];
     
-    // wrapping after 2 years
     u32 TotalFrameCount;
     u32 FrameCount;
     debug_frame *OldestFrame;

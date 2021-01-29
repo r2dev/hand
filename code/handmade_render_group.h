@@ -29,9 +29,6 @@ enum render_group_entry_type {
 struct tile_sort_entry {
     u32 PushBufferOffset;
     r32 SortKey;
-#if HANDMADE_INTERNAL
-    render_group_entry_type Type;
-#endif
 };
 
 struct render_group_entry_header {

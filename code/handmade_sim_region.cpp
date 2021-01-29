@@ -203,7 +203,7 @@ EndSim(sim_region* Region, game_mode_world* GameWorld) {
 		if (Entity->StorageIndex == GameWorld->CameraFollowingEntityIndex) {
 			world_position NewCameraP = GameWorld->CameraP;
 			NewCameraP.ChunkZ = Stored->P.ChunkZ;
-            DEBUG_IF(Sim_RoomBaseCamera)
+            if(Global_Sim_RoomBaseCamera)
             {
                 if (Entity->P.x > (9.0f)) {
                     NewCameraP = MapIntoChunkSpace(World, NewCameraP, v3{18.0f, 0, 0});

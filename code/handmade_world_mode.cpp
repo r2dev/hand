@@ -755,7 +755,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     r32 ClosestHeroSq = Square(10.0f);
                     sim_entity* TestEntity = SimRegion->Entities;
                     
-                    DEBUG_IF(Sim_FamiliarFollowsHero)
+                    if(Global_Sim_FamiliarFollowsHero)
                     {
                         for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
                             if (TestEntity->Type == EntityType_Hero) {
@@ -800,7 +800,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
                     PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
                     DrawHitPoints(Entity, RenderGroup, EntityTransform);
-                    DEBUG_IF(Particle_Demo)
+                    if(Global_Particle_Demo)
                     {
                         for (u32 ParticleSpawnIndex = 0; ParticleSpawnIndex < 2; ++ParticleSpawnIndex) {
                             particle *Particle = GameWorld->Particle + GameWorld->NextParticle++;
@@ -845,7 +845,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                             Cel->Density += Density;
                             Cel->VelocityTimesDensity += Particle->dP * Density;
                         }
-                        DEBUG_IF(Particle_Grid)
+                        if(Global_Particle_Grid)
                         {
                             for(u32 Y = 0; Y < PARTICEL_CEL_DIM; ++Y) {
                                 for (u32 X = 0; X < PARTICEL_CEL_DIM; ++X) {
@@ -948,7 +948,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 } break;
                 case EntityType_Space: {
                     
-                    DEBUG_IF(Renderer_Show_Space_Outline)
+                    if(Global_Renderer_Show_Space_Outline)
                     {
                         for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
                             sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
@@ -981,15 +981,13 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     
                 }
                 if (DEBUG_REQUESTED(EntityDebugID)) {
-                    DEBUG_BEGIN_DATA_BLOCK(Simulation_Entity, EntityDebugID);
+                    DEBUG_DATA_BLOCK("Simulation/Entity");
                     DEBUG_VALUE(Entity->P);
                     DEBUG_VALUE(Entity->dP);
                     DEBUG_VALUE(Entity->FacingDirection);
                     DEBUG_VALUE(Entity->WalkableDim);
                     DEBUG_VALUE(Entity->WalkableHeight);
                     DEBUG_VALUE(Entity->StorageIndex);
-                    
-                    DEBUG_END_DATA_BLOCK();
                 }
             }
         }

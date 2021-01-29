@@ -9,10 +9,9 @@ GetRenderEntityBasisP(camera_transform CameraTransform, object_transform ObjectT
 	if (CameraTransform.Orthographic == false) {
         r32 DistanceAboveTarget = CameraTransform.DistanceAboveTarget;
         
-        DEBUG_IF(Renderer_UseDebugCamera)
+        if(Global_Renderer_UseDebugCamera)
         {
-            DEBUG_VARIABLE(r32, Renderer_Camera, DebugCameraDistance);
-            DistanceAboveTarget += DebugCameraDistance;
+            DistanceAboveTarget += Global_Renderer_Camera_DebugCameraDistance;
         }
         
 		r32 DistancePz = DistanceAboveTarget - P.z;
@@ -56,7 +55,6 @@ PushRenderElement_(render_group* Group, u32 Size, render_group_entry_type Type, 
         Commands->SortEntryAt -= sizeof(tile_sort_entry);
         tile_sort_entry *Entry = (tile_sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
         Entry->SortKey = SortKey;
-        Entry->Type = Type;
         
         Entry->PushBufferOffset = Commands->PushBufferSize;
         
@@ -81,10 +79,10 @@ GetBitmapDim(render_group* Group, object_transform ObjectTransform, loaded_bitma
 }
 
 inline void
-PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
+PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f) {
 	used_bitmap_dim BitmapDim = GetBitmapDim(Group, ObjectTransform, Bitmap, Height, Offset, CAlign);
 	if (BitmapDim.Basis.Valid) {
-		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap, BitmapDim.Basis.SortKey);
+		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap, BitmapDim.Basis.SortKey + SortBias);
 		if (Entry) {
 			Entry->P = BitmapDim.Basis.P;
 			Entry->Bitmap = Bitmap;
@@ -96,7 +94,7 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap*
 
 
 inline void
-PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f) {
+PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f) {
 	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
     
     if (Group->RenderInBackground && !Bitmap) {
@@ -105,7 +103,7 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, 
         
     }
 	if (Bitmap) {
-		PushBitmap(Group, ObjectTransform, Bitmap, Height, Offset, Color, CAlign);
+		PushBitmap(Group, ObjectTransform, Bitmap, Height, Offset, Color, CAlign, SortBias);
 	}
 	else {
         Assert(!Group->RenderInBackground);

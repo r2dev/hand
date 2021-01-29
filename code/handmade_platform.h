@@ -3,7 +3,6 @@
 
 #define Introspect(params)
 
-#include "zha_config.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

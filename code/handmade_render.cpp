@@ -1,4 +1,5 @@
 #define IGNORED_TIMED_FUNCTION() 
+global_variable b32 Global_Renderer_ShowLightning_SampleSource = false;
 
 inline void
 Swap(tile_sort_entry *A, tile_sort_entry *B) {
@@ -461,7 +462,7 @@ SampleEnvironmentMap(v2 ScreenUV, v3 SampleDirection, r32 Roughness, environment
     
     Assert(X >= 0 && X < LOD->Width);
     Assert(Y >= 0 && Y < LOD->Height);
-    DEBUG_IF(Renderer_ShowLightning_SampleSource)
+    if(Global_Renderer_ShowLightning_SampleSource)
     {
         u8 *TexelPtr = ((u8*)LOD->Memory + Y*LOD->Pitch + X *sizeof(u32));
         *(u32 *)TexelPtr = 0xFFFFFFFF;
@@ -540,7 +541,7 @@ DrawRectangle1(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
     }
     
     u8* Row = ((u8*)Buffer->Memory + MinX * BITMAP_BYTE_PER_PIXEL + MinY * Buffer->Pitch);
-    TIMED_BLOCK(PixelFill, (MaxX - MinX + 1) * (MaxY - MinY + 1));
+    TIMED_BLOCK("PixelFill", (MaxX - MinX + 1) * (MaxY - MinY + 1));
     for (int Y = MinY; Y < MaxY; ++Y) {
         u32* Pixel = (u32*)Row;
         for (int X = MinX; X < MaxX; ++X) {
@@ -757,7 +758,7 @@ DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
         
         u8* Row = ((u8*)Buffer->Memory + FillRect.MinX * BITMAP_BYTE_PER_PIXEL + FillRect.MinY * Buffer->Pitch);
         
-        TIMED_BLOCK(PixelFill, GetClampedRectArea(FillRect) / 2);
+        TIMED_BLOCK("PixelFill", GetClampedRectArea(FillRect) / 2);
         for (s32 Y = FillRect.MinY; Y < FillRect.MaxY; Y += 2) {
             __m128 Y_x4 = _mm_set_ps1((r32)Y);
             __m128 Dy = _mm_sub_ps(Y_x4, OriginY_x4);

@@ -38,7 +38,6 @@ DestroyDevice() {
 
 internal void
 Win32InitD11(HWND hWnd) {
-    
     DXGI_SWAP_CHAIN_DESC SwapChainDesc;
     ZeroMemory(&SwapChainDesc, sizeof(SwapChainDesc));
     SwapChainDesc.BufferCount = 2;
