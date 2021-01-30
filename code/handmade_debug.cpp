@@ -206,7 +206,7 @@ enum debug_var_to_text_flag {
     DebugVarToText_NullTerminator = 0x10,
     DebugVarToText_Colon = 0x20,
     DebugVarToText_PrettyBools = 0x40,
-    DebugVarToText_StartAtLastUnderscore = 0x80,
+    DebugVarToText_StartAtLastSlash = 0x80,
     DebugVarToText_AddValue = 0x100,
 };
 
@@ -224,9 +224,9 @@ DEBUGEventToText(char* Buffer, char *End, debug_event* Event, u32 Flags) {
     
     if (Flags & DebugVarToText_AddName) {
         char *UseName = Name;
-        if (Flags & DebugVarToText_StartAtLastUnderscore) {
+        if (Flags & DebugVarToText_StartAtLastSlash) {
             for (char *Scan = Name; *Scan; ++Scan) {
-                if (Scan[0] == '_' && Scan[1] != 0) {
+                if (Scan[0] == '/' && Scan[1] != 0) {
                     UseName = Scan + 1;
                 }
             }
@@ -737,7 +737,7 @@ DEBUGDrawElement(layout *Layout, debug_tree *Tree, debug_element *Element, debug
                 
                 char Text[256];
                 DEBUGEventToText(Text, Text + sizeof(Text), &LastOpenEvent->Event, DebugVarToText_AddName|DebugVarToText_FloatSuffix
-                                 |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools|DebugVarToText_StartAtLastUnderscore);
+                                 |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools|DebugVarToText_StartAtLastSlash);
                 rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
                 v2 Dim = {GetDim(TextBound).x, Layout->LineAdvance};
                 layout_element LayoutElement = BeginElementRectangle(Layout, &Dim);
@@ -1081,16 +1081,16 @@ internal debug_variable_group*
 GetGroupForHierarchicalName(debug_state *DebugState, debug_variable_group* Parent, char *Name) {
     debug_variable_group *Result = Parent;
     
-    char *FirstUnderScore = 0;
+    char *FirstSeperator = 0;
     for (char *Scan = Name; *Scan; ++Scan) {
-        if (*Scan == '_') {
-            FirstUnderScore = Scan;
+        if (*Scan == '/') {
+            FirstSeperator= Scan;
         }
     }
     
-    if (FirstUnderScore) {
-        debug_variable_group *SubGroup = GetOrCreateGroupWithName(DebugState, Parent, Name, (u32)(FirstUnderScore - Name));
-        Result = GetGroupForHierarchicalName(DebugState, SubGroup, FirstUnderScore + 1);
+    if (FirstSeperator) {
+        debug_variable_group *SubGroup = GetOrCreateGroupWithName(DebugState, Parent, Name, (u32)(FirstSeperator - Name));
+        Result = GetGroupForHierarchicalName(DebugState, SubGroup, FirstSeperator + 1);
     }
     return(Result);
 }
@@ -1209,6 +1209,7 @@ StoreEvent(debug_state *DebugState, debug_element *Element, debug_event *Event) 
     Result->Next = 0;
     Result->FrameIndex = DebugState->CollationFrame->FrameIndex;
     Result->Event = *Event;
+    Result->Event.GUID = GetName(Element);
     if (Element->LatestEvent) {
         Element->LatestEvent->Next = Result;
         Element->LatestEvent = Result;
@@ -1229,13 +1230,13 @@ GetElementFromEvent(debug_state *DebugState, debug_event *Event) {
     u32 PipeCount = 0;
     for (char *Scan = Event->GUID; *Scan; ++Scan) {
         if (*Scan == '|') {
-            if (PipeCount == 1) {
+            if (PipeCount == 0) {
                 FileNameCount = (u32)(Scan - Event->GUID);
                 LineNumber = atoi(Scan + 1);
+            } else if (PipeCount == 1) {
+                
+                
             } else if (PipeCount == 2) {
-                
-                
-            } else {
                 NameStartsAt = (u32)(Scan - Event->GUID + 1);
             }
             ++PipeCount;
