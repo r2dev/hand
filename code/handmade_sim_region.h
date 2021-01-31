@@ -9,7 +9,7 @@ Introspect(category: "sim") struct move_spec {
 enum entity_type {
 	EntityType_Null,
     
-	EntityType_Space,
+	EntityType_Floor,
     
 	EntityType_Hero,
 	EntityType_Wall,

@@ -254,14 +254,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
         
 		TranState->Assets = AllocateGameAssets(&TranState->TranArena, Megabytes(512), TranState);
 		
-		TranState->GroundBufferCount = 256;
-		TranState->GroundBuffers = PushArray(&TranState->TranArena, TranState->GroundBufferCount, ground_buffer);
-		
-		for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
-			ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-			GroundBuffer->Bitmap = MakeEmptyBitmap(&TranState->TranArena, GroundBufferWidth, GroundBufferHeight, false);
-			GroundBuffer->P = NullPosition();
-		}		
 		GameState->TestDiffuse = MakeEmptyBitmap(&TranState->TranArena, 256, 256, false);
 		
 		//DrawRectangle(&GameState->TestDiffuse, v2{ 0, 0 }, 
@@ -297,17 +289,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
     if(GameState->GameMode == GameMode_None) {
         PlayIntroCutScene(GameState, TranState);
-    }
-    
-    
-    if(Global_GroundChunk_ReGenGroundChunkOnReload)
-    {
-        if (Memory->ExecutableReloaded) {
-            for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
-                ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-                GroundBuffer->P = NullPosition();
-            }
-        }
     }
     
 	game_mode_world* GameWorld = GameState->WorldMode;

@@ -63,13 +63,17 @@ InitHitPoints(low_entity* EntityLow, u32 HitPointCount) {
 	}
 }
 
-internal add_low_entity_result
+internal void
 AddStandardRoom(game_mode_world* GameWorld, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ) {
-	world_position P = ChunkPositionFromTilePosition(GameWorld->World, AbsTileX, AbsTileY, AbsTileZ);
-	add_low_entity_result Entity = AddLowEntity(GameWorld, EntityType_Space, P);
-	Entity.Low->Sim.Collision = GameWorld->StandardRoomCollision;
-	AddFlags(&Entity.Low->Sim, EntityFlag_Traversable);
-	return(Entity);
+    for (s32 OffsetY = -4; OffsetY <= 4; ++OffsetY) {
+        for (s32 OffsetX = -8; OffsetX <= 8; ++OffsetX) {
+            world_position P = ChunkPositionFromTilePosition(GameWorld->World, AbsTileX + OffsetX, AbsTileY + OffsetY, AbsTileZ);
+            add_low_entity_result Entity = AddLowEntity(GameWorld, EntityType_Floor, P);
+            Entity.Low->Sim.Collision = GameWorld->FloorCollision;
+            AddFlags(&Entity.Low->Sim, EntityFlag_Traversable);
+        }
+    }
+	
 }
 
 internal add_low_entity_result
@@ -215,7 +219,6 @@ AddCollisionRule(game_mode_world* GameWorld, u32 StorageIndexA, u32 StorageIndex
 		}
 	}
     
-    
 	if (!Found) {
 		Found = GameWorld->FirstFreeCollisionRule;
 		if (Found) {
@@ -235,92 +238,6 @@ AddCollisionRule(game_mode_world* GameWorld, u32 StorageIndexA, u32 StorageIndex
 	}
     
 	Assert(Found);
-}
-
-
-struct fill_ground_chunk_work {
-    transient_state *TranState;
-    game_mode_world* GameWorld;
-    ground_buffer* GroundBuffer;
-    world_position ChunkP;
-	task_with_memory* Task;
-	
-};
-
-PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork) {
-	fill_ground_chunk_work* Work = (fill_ground_chunk_work*)Data;
-    
-#if 0    
-    loaded_bitmap* Buffer = &Work->GroundBuffer->Bitmap;
-    Buffer->AlignPercentage = v2{ 0.5f, 0.5f };
-    Buffer->WidthOverHeight = 1.0f;
-    r32 Width = Work->GameState->World->ChunkDimInMeters.x;
-    r32 Height =Work->GameState->World->ChunkDimInMeters.y;
-    render_group* RenderGroup = AllocateRenderGroup(Work->TranState->Assets, &Work->Task->Arena, 0, true);
-    BeginRender(RenderGroup);
-    Orthographic(RenderGroup, Buffer->Width, Buffer->Height, (Buffer->Width - 2) / Width);
-    Clear(RenderGroup, v4{ 1.0f, 1.0f, 0.0f, 1.0f });
-    
-    v2 HalfDim = 0.5f * V2(Width, Height);
-    HalfDim = 2.0f * HalfDim;
-    for (s32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-        for (s32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-            
-            s32 ChunkX = Work->ChunkP.ChunkX + ChunkOffsetX;
-            s32 ChunkY = Work->ChunkP.ChunkY + ChunkOffsetY;
-            s32 ChunkZ = Work->ChunkP.ChunkZ;
-            random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
-            
-            v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
-            
-            for (u32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
-                bitmap_id Stamp = GetRandomBitmapFrom(Work->TranState->Assets, RandomChoice(&Series, 2) ? Asset_Grass : Asset_Ground, &Series);
-                v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-                PushBitmap(RenderGroup, Stamp, 4.0f, V3(P, 0.0f));
-            }
-        }
-    }
-    for (s32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY) {
-        for (s32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX) {
-            
-            s32 ChunkX = Work->ChunkP.ChunkX + ChunkOffsetX;
-            s32 ChunkY = Work->ChunkP.ChunkY + ChunkOffsetY;
-            s32 ChunkZ = Work->ChunkP.ChunkZ;
-            random_series Series = RandomSeed(139 * ChunkX + 593 * ChunkY + 329 * ChunkZ);
-            
-            v2 Center = v2{ ChunkOffsetX * Width, ChunkOffsetY * Height };
-            
-            for (u32 GrassIndex = 0; GrassIndex < 20; GrassIndex++) {
-                
-                bitmap_id Stamp = GetRandomBitmapFrom(Work->TranState->Assets, Asset_Tuft, &Series);
-                
-                v2 P = Center + Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-                PushBitmap(RenderGroup, Stamp, 0.4f, V3(P, 0.0f));
-            }
-        }
-    }
-    Assert(AllResoucePresent(RenderGroup));
-	RenderGroupToOutput(RenderGroup, Buffer);
-    EndRender(RenderGroup);
-#endif
-    
-	EndTaskWithMemory(Work->Task);
-}
-
-internal void
-FillGroundChunk(transient_state *TranState, game_mode_world* GameWorld, ground_buffer* GroundBuffer, world_position *ChunkP) {
-	task_with_memory* AvailableTask = BeginTaskWithMemory(TranState, true);
-	if (AvailableTask) {
-		fill_ground_chunk_work* Work = PushStruct(&AvailableTask->Arena, fill_ground_chunk_work);
-		Work->Task = AvailableTask;
-		
-		Work->TranState = TranState;
-        Work->GameWorld = GameWorld;
-        Work->GroundBuffer = GroundBuffer;
-		Work->ChunkP = *ChunkP;
-        GroundBuffer->P = *ChunkP;
-        Platform.AddEntry(TranState->LowPriorityQueue, FillGroundChunkWork, Work);
-	}
 }
 
 
@@ -367,7 +284,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     GameWorld->PlayerCollision = MakeSimpleGroundedCollision(GameWorld, 1.0f, 0.5f, 1.2f);
     GameWorld->MonstarCollision = MakeSimpleGroundedCollision(GameWorld, 1.0f, 0.5f, 0.5f);
     GameWorld->WallCollision = MakeSimpleGroundedCollision(GameWorld, TileSideInMeters, TileSideInMeters, TileDepthInMeters);
-    GameWorld->StandardRoomCollision = MakeSimpleGroundedCollision(GameWorld, TilesPerWidth * TileSideInMeters, TilesPerHeight * TileSideInMeters, 0.9f * TileDepthInMeters);
+    GameWorld->FloorCollision = MakeSimpleGroundedCollision(GameWorld, TileSideInMeters, TileSideInMeters, 0.9f * TileDepthInMeters);
     GameWorld->FamiliarCollision = MakeSimpleGroundedCollision(GameWorld, 1.0f, 0.5f, 0.5f);
     
     random_series Series = RandomSeed(1234);
@@ -388,7 +305,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     b32 DoorUp = false;
     b32 DoorDown = false;
     
-    for (u32 ScreenIndex = 0; ScreenIndex < 30; ++ScreenIndex) {
+    for (u32 ScreenIndex = 0; ScreenIndex < 1; ++ScreenIndex) {
         
 #if 1
         u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown)? 2: 4);
@@ -523,66 +440,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
     rectangle3 CameraBoundsInMeters = RectMinMax(V3(ScreenBound.Min, 0.0f), V3( ScreenBound.Max, 0.0f));
     CameraBoundsInMeters.Min.z = -2.0f * GameWorld->TypicalFloorHeight;
     CameraBoundsInMeters.Max.z = 1.0f * GameWorld->TypicalFloorHeight;
-    
-    
-#if 0
-    for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; GroundBufferIndex++) {
-        
-        ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-        
-        if (IsValid(GroundBuffer->P)) {
-            loaded_bitmap* Bitmap = &GroundBuffer->Bitmap;
-            v3 Delta = Subtract(GameWorld->World, &GroundBuffer->P, &GameWorld->CameraP);
-            if (Delta.z >= -1.0f && Delta.z < 1.0f) {
-                PushBitmap(RenderGroup, Bitmap, World->ChunkDimInMeters.y, Delta);
-                DEBUG_IF(GroundChunk_ShowGroundChunkOutlines)
-                {
-                    PushRectOutline(RenderGroup, Delta, World->ChunkDimInMeters.xy, v4{ 1.0f, 1.0f, 1.0f, 1.0f });
-                }
-            }
-        }
-    }
-    
-    {
-        world_position MinChunkP = MapIntoChunkSpace(World, GameWorld->CameraP, GetMinCorner(CameraBoundsInMeters));
-        world_position MaxChunkP = MapIntoChunkSpace(World, GameWorld->CameraP, GetMaxCorner(CameraBoundsInMeters));
-        
-        for (s32 ChunkZ = MinChunkP.ChunkZ; ChunkZ <= MaxChunkP.ChunkZ; ++ChunkZ) {
-            for (s32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY) {
-                for (s32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX) {
-                    world_position ChunkCenterP = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
-                    v3 RelP = Subtract(World, &ChunkCenterP, &GameWorld->CameraP);
-                    r32 FurthestBufferLengthSq = 0.0f;
-                    ground_buffer* FurthestBuffer = 0;
-                    for (u32 GroundBufferIndex = 0; GroundBufferIndex < TranState->GroundBufferCount; ++GroundBufferIndex) {
-                        ground_buffer* GroundBuffer = TranState->GroundBuffers + GroundBufferIndex;
-                        if (AreInSameChunk(World, &GroundBuffer->P, &ChunkCenterP)) {
-                            FurthestBuffer = 0;
-                            break;
-                        }
-                        else if (IsValid(GroundBuffer->P)) {
-                            v3 RelativeP = Subtract(World, &GroundBuffer->P, &GameWorld->CameraP);
-                            
-                            r32 BufferLengthSq = LengthSq(RelativeP.xy);
-                            if (FurthestBufferLengthSq < BufferLengthSq) {
-                                FurthestBufferLengthSq = BufferLengthSq;
-                                FurthestBuffer = GroundBuffer;
-                            }
-                        }
-                        else {
-                            FurthestBufferLengthSq = Real32Maximum;
-                            FurthestBuffer = GroundBuffer;
-                        }
-                    }
-                    
-                    if (FurthestBuffer) {
-                        FillGroundChunk(TranState, GameWorld, FurthestBuffer, &ChunkCenterP);
-                    }
-                }
-            }
-        }
-    }
-#endif
     b32 HeroExist = false;
     b32 QuitRequested = false;
     for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
@@ -946,14 +803,11 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     
                     //PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
                 } break;
-                case EntityType_Space: {
+                case EntityType_Floor: {
                     
-                    if(Global_Renderer_Show_Space_Outline)
-                    {
-                        for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
-                            sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                            PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
-                        }
+                    for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
+                        sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
+                        PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
                     }
                 } break;
                 default: {

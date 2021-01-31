@@ -60,7 +60,7 @@ struct game_mode_world {
 	sim_entity_collision_volume_group* MonstarCollision;
 	sim_entity_collision_volume_group* WallCollision;
 	sim_entity_collision_volume_group* FamiliarCollision;
-	sim_entity_collision_volume_group* StandardRoomCollision;
+	sim_entity_collision_volume_group* FloorCollision;
     
 	r32 time;
     

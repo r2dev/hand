@@ -257,11 +257,8 @@ struct transient_state {
 	memory_arena TranArena;
     u32 MainGenerationID;
 	task_with_memory Tasks[4];
-	u32 GroundBufferCount;
-	ground_buffer* GroundBuffers;
     
 	game_assets* Assets;
-    
     
 	u32 EnvMapWidth;
 	u32 EnvMapHeight;
