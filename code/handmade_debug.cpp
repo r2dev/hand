@@ -684,10 +684,6 @@ DEBUGDrawEvent(layout *Layout, debug_stored_event* StoredEvent, debug_id ID) {
                 PushRect(RenderGroup, NoTransform, Element.Bounds, 0.0f, v4{0, 0, 0, 1.0f});
                 PushBitmap(RenderGroup, NoTransform, Event->Value_bitmap_id, BitmapScale, V3(GetMinCorner(Element.Bounds), 0.0f), v4{1, 1, 1, 1}, 0.0f);
             } break;
-            case DebugType_OpenDataBlock: {
-            } break;
-            case DebugType_CloseDataBlock: {
-            } break;
             case DebugType_CounterFunctionList: {
                 layout_element LayoutElement = BeginElementRectangle(Layout, &View->InlineBlock.Dim);
                 SetElementSizable(&LayoutElement);
@@ -696,7 +692,7 @@ DEBUGDrawEvent(layout *Layout, debug_stored_event* StoredEvent, debug_id ID) {
             } break;
             default: {
                 char Text[256];
-                DEBUGEventToText(Text, Text + sizeof(Text), Event, DebugVarToText_AddName|DebugVarToText_AddValue|DebugVarToText_FloatSuffix
+                DEBUGEventToText(Text, Text + sizeof(Text), Event, DebugVarToText_AddName|DebugVarToText_AddValue
                                  |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools);
                 rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
                 
@@ -723,39 +719,6 @@ DEBUGDrawElement(layout *Layout, debug_tree *Tree, debug_element *Element, debug
                 SetElementSizable(&LayoutElement);
                 EndElement(&LayoutElement);
                 DrawProfile(DebugState, LayoutElement.Bounds, Layout->MouseP);
-            } break;
-            
-            case DebugType_OpenDataBlock: {
-                debug_stored_event *LastOpenEvent = Element->OldestEvent;
-                for (debug_stored_event *Event = Element->OldestEvent; Event; Event = Event->Next) {
-                    if (Event->Event.Type == DebugType_OpenDataBlock) {
-                        LastOpenEvent = Event;
-                    }
-                }
-                
-                debug_interaction ItemInteraction = EventInteraction(ID, DebugInteraction_ToggleExpansion, &LastOpenEvent->Event);
-                
-                char Text[256];
-                DEBUGEventToText(Text, Text + sizeof(Text), &LastOpenEvent->Event, DebugVarToText_AddName|DebugVarToText_FloatSuffix
-                                 |DebugVarToText_Colon|DebugVarToText_NullTerminator|DebugVarToText_PrettyBools|DebugVarToText_StartAtLastSlash);
-                rectangle2 TextBound = DEBUGGetTextSize(DebugState, Text);
-                v2 Dim = {GetDim(TextBound).x, Layout->LineAdvance};
-                layout_element LayoutElement = BeginElementRectangle(Layout, &Dim);
-                SetElementDefaultInteraction(&LayoutElement, ItemInteraction);
-                EndElement(&LayoutElement);
-                b32 IsHot = InteractionIsHot(DebugState, ItemInteraction);
-                v4 ItemColor = (IsHot)? v4{1, 1, 0, 1}: v4{1, 1, 1, 1};
-                DEBUGTextOutAt(V2(GetMinCorner(LayoutElement.Bounds).x, GetMaxCorner(LayoutElement.Bounds).y - DebugState->FontScale * GetStartingBaselineY(DebugState->FontInfo)), Text, ItemColor);
-                
-                
-                if (View->Collapsible.ExpandedAlways) {
-                    Layout->Depth++;
-                    for (debug_stored_event *Event = LastOpenEvent; Event; Event = Event->Next) {
-                        debug_id NewID = GetDebugIDFromGUID(Tree, Event->Event.GUID);
-                        DEBUGDrawEvent(Layout, Event, NewID);
-                    }
-                    Layout->Depth--;
-                }
             } break;
             default: {
                 debug_stored_event *Event = Element->LatestEvent;
@@ -1078,19 +1041,28 @@ GetOrCreateGroupWithName(debug_state *DebugState, debug_variable_group* Parent, 
 }
 
 internal debug_variable_group*
-GetGroupForHierarchicalName(debug_state *DebugState, debug_variable_group* Parent, char *Name) {
+GetGroupForHierarchicalName(debug_state *DebugState, debug_variable_group* Parent, char *Name, b32 CreateTerminal) {
     debug_variable_group *Result = Parent;
     
     char *FirstSeperator = 0;
-    for (char *Scan = Name; *Scan; ++Scan) {
+    char *Scan = Name;
+    for (; *Scan; ++Scan) {
         if (*Scan == '/') {
             FirstSeperator= Scan;
         }
     }
     
-    if (FirstSeperator) {
-        debug_variable_group *SubGroup = GetOrCreateGroupWithName(DebugState, Parent, Name, (u32)(FirstSeperator - Name));
-        Result = GetGroupForHierarchicalName(DebugState, SubGroup, FirstSeperator + 1);
+    if (FirstSeperator || CreateTerminal) {
+        u32 NameLength = 0;
+        if (FirstSeperator) {
+            NameLength = (u32)(FirstSeperator - Name);
+        } else {
+            NameLength = (u32)(Scan - Name);
+        }
+        Result = GetOrCreateGroupWithName(DebugState, Parent, Name, NameLength);
+        if (FirstSeperator) {
+            Result = GetGroupForHierarchicalName(DebugState, Result, FirstSeperator + 1, CreateTerminal);
+        }
     }
     return(Result);
 }
@@ -1209,7 +1181,7 @@ StoreEvent(debug_state *DebugState, debug_element *Element, debug_event *Event) 
     Result->Next = 0;
     Result->FrameIndex = DebugState->CollationFrame->FrameIndex;
     Result->Event = *Event;
-    Result->Event.GUID = GetName(Element);
+    // Result->Event.GUID = GetName(Element);
     if (Element->LatestEvent) {
         Element->LatestEvent->Next = Result;
         Element->LatestEvent = Result;
@@ -1218,33 +1190,51 @@ StoreEvent(debug_state *DebugState, debug_element *Element, debug_event *Event) 
     }
     return(Result);
 }
-
-internal debug_element *
-GetElementFromEvent(debug_state *DebugState, debug_event *Event) {
+struct debug_parsed_name {
+    u32 HashValue;
+    u32 FileNameCount;
+    u32 NameStartsAt;
+    u32 LineNumber;
+    char *Name;
+    u32 NameLength;
     
-    Assert(Event->GUID);
-    u32 HashValue = 0;
-    u32 FileNameCount = 0;
-    u32 NameStartsAt = 0;
-    u32 LineNumber = 0;
+};
+
+inline debug_parsed_name
+DebugParseName(char *GUID) {
+    debug_parsed_name Result = {};
     u32 PipeCount = 0;
-    for (char *Scan = Event->GUID; *Scan; ++Scan) {
+    char *Scan = GUID;
+    for (; *Scan; ++Scan) {
         if (*Scan == '|') {
             if (PipeCount == 0) {
-                FileNameCount = (u32)(Scan - Event->GUID);
-                LineNumber = atoi(Scan + 1);
+                Result.FileNameCount = (u32)(Scan - GUID);
+                Result.LineNumber = atoi(Scan + 1);
             } else if (PipeCount == 1) {
                 
                 
             } else if (PipeCount == 2) {
-                NameStartsAt = (u32)(Scan - Event->GUID + 1);
+                Result.NameStartsAt = (u32)(Scan - GUID + 1);
+                
             }
             ++PipeCount;
         }
-        HashValue += *Scan;
+        Result.HashValue += *Scan;
     }
+    Result.NameLength = (u32)((Scan - GUID) - Result.NameStartsAt);
+    Result.Name = GUID + Result.NameStartsAt;
+    return(Result);
+}
+
+internal debug_element *
+GetElementFromEvent(debug_state *DebugState, debug_event *Event, debug_variable_group *Parent = 0) {
     
-    u32 Index = HashValue % ArrayCount(DebugState->ElementHash);
+    Assert(Event->GUID);
+    if (!Parent) {
+        Parent = DebugState->RootGroup;
+    }
+    debug_parsed_name ParsedName = DebugParseName(Event->GUID);
+    u32 Index = ParsedName.HashValue % ArrayCount(DebugState->ElementHash);
     debug_element * Result = 0;
     
     for(debug_element *Chain = DebugState->ElementHash[Index]; Chain; Chain = Chain->NextInHash) {
@@ -1256,15 +1246,15 @@ GetElementFromEvent(debug_state *DebugState, debug_event *Event) {
     
     if (!Result) {
         Result = PushStruct(&DebugState->DebugArena, debug_element);
-        Result->FileNameCount = FileNameCount;
-        Result->LineNumber = LineNumber;
-        Result->NameStartsAt = NameStartsAt;
+        Result->FileNameCount = ParsedName.FileNameCount;
+        Result->LineNumber = ParsedName.LineNumber;
+        Result->NameStartsAt = ParsedName.NameStartsAt;
         Result->NextInHash = DebugState->ElementHash[Index];
         Result->GUID = PushString(&DebugState->DebugArena, Event->GUID);
         DebugState->ElementHash[Index] = Result;
         
         Result->OldestEvent = Result->LatestEvent = 0;
-        debug_variable_group *ParentGroup = GetGroupForHierarchicalName(DebugState, DebugState->RootGroup, GetName(Result));
+        debug_variable_group *ParentGroup = GetGroupForHierarchicalName(DebugState, Parent, GetName(Result), false);
         AddElementToGroup(DebugState, ParentGroup, Result);
         
     }
@@ -1276,8 +1266,6 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *EventA
     for (u32 EventIndex = 0; EventIndex < EventCount; ++EventIndex) {
         
         debug_event *Event = EventArray + EventIndex;
-        
-        debug_element *Element = GetElementFromEvent(DebugState, Event);
         
         if (!DebugState->CollationFrame) {
             DebugState->CollationFrame = NewFrame(DebugState, Event->Clock);
@@ -1324,8 +1312,14 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *EventA
             debug_thread *Thread = GetDebugThread(DebugState, Event->ThreadID);
             u64 RelativeClock = Event->Clock - DebugState->CollationFrame->BeginClock;
             
+            debug_variable_group * DefaultParentGroup = DebugState->RootGroup;
+            if (Thread->FirstOpenDataBlock) {
+                DefaultParentGroup = Thread->FirstOpenDataBlock->Group;
+            }
+            
             switch(Event->Type) {
                 case DebugType_BeginBlock: {
+                    debug_element *Element = GetElementFromEvent(DebugState, Event);
                     open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, Element, FrameIndex, Event, &Thread->FirstOpenCodeBlock);
                 } break;
                 case DebugType_EndBlock: {
@@ -1359,12 +1353,13 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *EventA
                     }
                 } break;
                 case DebugType_OpenDataBlock: {
-                    open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, Element, FrameIndex, Event, &Thread->FirstOpenDataBlock);
-                    StoreEvent(DebugState, Element, Event);
+                    debug_parsed_name ParsedName = DebugParseName(Event->GUID);
+                    open_debug_block *DebugBlock = AllocateOpenDebugBlock(DebugState, 0, FrameIndex, Event,
+                                                                          &Thread->FirstOpenDataBlock);
+                    DebugBlock->Group = GetGroupForHierarchicalName(DebugState, DefaultParentGroup, ParsedName.Name, true);
                 } break;
                 case DebugType_CloseDataBlock: {
                     if (Thread->FirstOpenDataBlock) {
-                        StoreEvent(DebugState, Thread->FirstOpenDataBlock->Element, Event);
                         open_debug_block* MatchingBlock = Thread->FirstOpenDataBlock;
                         debug_event* OpeningEvent = MatchingBlock->Event;
                         if (EventsMatch(OpeningEvent, Event)) {
@@ -1373,11 +1368,8 @@ CollateDebugRecords(debug_state *DebugState, u32 EventCount, debug_event *EventA
                     }
                 } break;
                 default: {
-                    debug_element * StoredElement = Element;
-                    if (Thread->FirstOpenDataBlock) {
-                        StoredElement = Thread->FirstOpenDataBlock->Element;
-                    }
-                    StoreEvent(DebugState, StoredElement, Event);
+                    debug_element *Element = GetElementFromEvent(DebugState, Event, DefaultParentGroup);
+                    StoreEvent(DebugState, Element, Event);
                 } break;
             }
         }
@@ -1650,9 +1642,10 @@ DEBUGEnd(debug_state* DebugState, game_input* Input) {
 
 extern "C" DEBUG_FRAME_END(DEBUGGameFrameEnd) {
     
+    // flip value
     GlobalDebugTable->CurrentEventArrayIndex = !GlobalDebugTable->CurrentEventArrayIndex;
     
-    // flip value
+    
     u64 ArrayIndex_EventIndex = AtomicExchangeU64(&GlobalDebugTable->EventArrayIndex_EventIndex, (u64)GlobalDebugTable->CurrentEventArrayIndex << 32);
     
     u32 EventArrayIndex = ArrayIndex_EventIndex >> 32;

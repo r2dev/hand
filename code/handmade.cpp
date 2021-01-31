@@ -194,12 +194,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
     {
         DEBUG_DATA_BLOCK("Renderer");
-        DEBUG_VALUE(Global_Renderer_WeirdDrawBufferSize);
+        DEBUG_B32(Global_Renderer_WeirdDrawBufferSize);
         {
-            DEBUG_DATA_BLOCK("Renderer/Camera");
-            DEBUG_VALUE(Global_Renderer_UseDebugCamera);
+            DEBUG_DATA_BLOCK("Camera");
+            DEBUG_B32(Global_Renderer_UseDebugCamera);
             DEBUG_VALUE(Global_Renderer_Camera_DebugCameraDistance);
-            DEBUG_VALUE(Global_Sim_RoomBaseCamera);
+            DEBUG_B32(Global_Sim_RoomBaseCamera);
         }
     }
     {

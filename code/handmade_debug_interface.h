@@ -226,6 +226,12 @@ struct debug_data_block {
 RecordDebugEvent(DebugType_Unknown, DEBUG_NAME(#Value)); \
 DEBUGValueSetEventData(Event, Value); \
 }
+// DEBUGHandleValueEdit(Event &Value);
+#define DEBUG_B32(Value) { \
+RecordDebugEvent(DebugType_Unknown, DEBUG_NAME(#Value)); \
+Event->Type = DebugType_b32; \
+Event->Value_b32 = Value; \
+}
 
 #define DEBUG_PROFILE(FunctionName) { \
 RecordDebugEvent(DebugType_CounterFunctionList, DEBUG_NAME(#FunctionName)); \
