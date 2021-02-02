@@ -19,11 +19,11 @@ pushd ..\..\build
 del *.pdb > NUL 2> NUL
 
 REM Preprocessor
-cl %CommonCompilerFlags% ..\handmade\code\preprocessor.cpp /link %CommonLinkerFlags% 
+REM cl %CommonCompilerFlags% ..\handmade\code\preprocessor.cpp /link %CommonLinkerFlags% 
 
-pushd ..\handmade\code
-..\..\build\preprocessor.exe > zha_generated.h
-popd
+REM pushd ..\handmade\code
+REM ..\..\build\preprocessor.exe > zha_generated.h
+REM popd
 
 REM Asset builder 
 rem cl %CommonCompilerFlags% ..\handmade\code\zha_test.cpp /link %CommonLinkerFlags% 

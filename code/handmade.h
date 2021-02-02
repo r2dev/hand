@@ -6,7 +6,6 @@
 #include "handmade_share.h"
 #include "handmade_random.h"
 #include "handmade_file_formats.h"
-#include "handmade_meta.h"
 #include "zha_data_structure.h"
 struct memory_arena {
 	memory_index Size;

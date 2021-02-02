@@ -1,1 +1,0 @@
-#include "zha_generated.h"

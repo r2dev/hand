@@ -590,7 +590,7 @@ Win32InitOpenGL(HDC WindowDC) {
     }
     
     if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-        OpenGLInit(ModernContext);
+        OpenGLInit(ModernContext, OpenGLSupportSRGBFrameBuffer);
         if (wglSwapIntervalEXT) {
             wglSwapIntervalEXT(1);
         }

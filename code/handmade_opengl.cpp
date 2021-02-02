@@ -62,15 +62,13 @@ OpenGLGetInfo(b32 ModernContext) {
 }
 
 internal void
-OpenGLInit(b32 ModernContext) {
+OpenGLInit(b32 ModernContext, b32 FrameBufferSupportSRGB) {
     // check extension and things
     opengl_info Info = OpenGLGetInfo(ModernContext);
     
     DefaultInternalTextureFormat = GL_RGBA8;
-    if (Info.GL_EXT_texture_sRGB) {
+    if (FrameBufferSupportSRGB && Info.GL_EXT_texture_sRGB && Info.GL_EXT_framebuffer_sRGB) {
         DefaultInternalTextureFormat = SRGB8_ALPHA8_EXT;
-    }
-    if (Info.GL_EXT_framebuffer_sRGB) {
         glEnable(GL_FRAMEBUFFER_SRGB);
     }
 }

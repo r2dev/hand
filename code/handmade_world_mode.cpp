@@ -464,7 +464,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 ConHero->ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
             }
             else {
-                
                 if (Controller->MoveUp.EndedDown) {
                     ConHero->ddP.y = 1.0f;
                 }
