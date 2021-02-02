@@ -1,3 +1,11 @@
+inline sim_entity_traversable_point
+GetSimEntityTraversable(sim_entity *Entity, u32 Index) {
+    Assert(Index < Entity->Collision->TraversableCount);
+    sim_entity_traversable_point Result = Entity->Collision->Traversables[Index];
+    Result.P += Entity->P;
+    return(Result);
+}
+
 internal sim_entity_hash*
 GetHashFromStorageIndex(sim_region* SimRegion, u32 StorageIndex) {
 	Assert(StorageIndex);
@@ -73,6 +81,7 @@ AddEntityRaw(game_mode_world* GameWorld, sim_region* SimRegion, u32 StorageIndex
 				// decompression
 				*Entity = Source->Sim;
 				LoadEntityReference(GameWorld, SimRegion, &Entity->Sword);
+                LoadEntityReference(GameWorld, SimRegion, &Entity->Head);
 				Assert(!IsSet(&Source->Sim, EntityFlag_Simming));
 				AddFlags(&Source->Sim, EntityFlag_Simming);
 			}
@@ -196,6 +205,7 @@ EndSim(sim_region* Region, game_mode_world* GameWorld) {
 		Stored->Sim = *Entity;
 		Assert(!IsSet(&Stored->Sim, EntityFlag_Simming));
 		StoreEntityReference(&Stored->Sim.Sword);
+        StoreEntityReference(&Stored->Sim.Head);
         
 		world_position NewP = IsSet(Entity, EntityFlag_Nonspatial) ? NullPosition() :
         MapIntoChunkSpace(GameWorld->World, Region->Origin, Entity->P);
@@ -354,7 +364,7 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, sim_entity* Entity
                      ++TestHighEntityIndex) {
 					sim_entity* TestEntity = SimRegion->Entities + TestHighEntityIndex;
 					r32 OverlapEpsilon = 0.01f;
-					if ( CanCollide(GameWorld, Entity, TestEntity)) {
+					if (CanCollide(GameWorld, Entity, TestEntity)) {
 						for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
 							sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
 							for (u32 TestVolumeIndex = 0; TestVolumeIndex < TestEntity->Collision->VolumeCount; TestVolumeIndex++) {

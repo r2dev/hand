@@ -288,6 +288,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender) {
     
     if(GameState->GameMode == GameMode_None) {
         PlayIntroCutScene(GameState, TranState);
+        //EnterWorld(GameState, TranState);
     }
     
 	game_mode_world* GameWorld = GameState->WorldMode;

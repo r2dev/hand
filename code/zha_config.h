@@ -1,4 +1,4 @@
-global_variable b32 Global_Sim_RoomBaseCamera = false;
+global_variable b32 Global_Sim_RoomBaseCamera = true;
 global_variable b32 Global_Renderer_UseDebugCamera = false;
 global_variable r32 Global_Renderer_Camera_DebugCameraDistance = 15.00f;
 global_variable b32 Global_GroundChunk_ReGenGroundChunkOnReload = false;

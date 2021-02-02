@@ -11,7 +11,8 @@ enum entity_type {
     
 	EntityType_Floor,
     
-	EntityType_Hero,
+	EntityType_HeroBody,
+    EntityType_HeroHead,
 	EntityType_Wall,
 	EntityType_Familiar,
 	EntityType_Monster,
@@ -79,6 +80,7 @@ struct sim_entity {
 	hit_point HitPoint[16];
     
 	entity_reference Sword;
+    entity_reference Head;
 	
 	r32 FacingDirection;
     
