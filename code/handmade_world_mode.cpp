@@ -70,7 +70,7 @@ AddStandardRoom(game_mode_world* GameWorld, u32 AbsTileX, u32 AbsTileY, u32 AbsT
             world_position P = ChunkPositionFromTilePosition(GameWorld->World, AbsTileX + OffsetX, AbsTileY + OffsetY, AbsTileZ);
             add_low_entity_result Entity = AddLowEntity(GameWorld, EntityType_Floor, P);
             Entity.Low->Sim.Collision = GameWorld->FloorCollision;
-            AddFlags(&Entity.Low->Sim, EntityFlag_Traversable);
+            //AddFlags(&Entity.Low->Sim, EntityFlag_Traversable);
         }
     }
 	
@@ -169,6 +169,18 @@ MakeSimpleGroundedCollision(game_mode_world* GameWorld, r32 DimX, r32 DimY, r32 
 	Group->TotalVolume.Dim = v3{ DimX, DimY, DimZ };
 	Group->TotalVolume.OffsetP = v3{ 0, 0, 0.5f * DimZ };
 	Group->Volumes[0] = Group->TotalVolume;
+	return(Group);
+}
+
+internal sim_entity_collision_volume_group*
+MakeSimpleFloorCollision(game_mode_world* GameWorld, r32 DimX, r32 DimY, r32 DimZ) {
+	sim_entity_collision_volume_group* Group = PushStruct(&GameWorld->World->Arena, sim_entity_collision_volume_group);
+	Group->VolumeCount = 0;
+    Group->TraversableCount = 1;
+    Group->Traversables = PushArray(&GameWorld->World->Arena, Group->TraversableCount, sim_entity_traversable_point);
+	Group->TotalVolume.Dim = v3{ DimX, DimY, DimZ };
+	Group->TotalVolume.OffsetP = v3{ 0, 0, 0 };
+	Group->Traversables[0].P = v3{0, 0, 0};
 	return(Group);
 }
 
@@ -284,8 +296,9 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     GameWorld->PlayerCollision = MakeSimpleGroundedCollision(GameWorld, 1.0f, 0.5f, 1.2f);
     GameWorld->MonstarCollision = MakeSimpleGroundedCollision(GameWorld, 1.0f, 0.5f, 0.5f);
     GameWorld->WallCollision = MakeSimpleGroundedCollision(GameWorld, TileSideInMeters, TileSideInMeters, TileDepthInMeters);
-    GameWorld->FloorCollision = MakeSimpleGroundedCollision(GameWorld, TileSideInMeters, TileSideInMeters, 0.9f * TileDepthInMeters);
     GameWorld->FamiliarCollision = MakeSimpleGroundedCollision(GameWorld, 1.0f, 0.5f, 0.5f);
+    
+    GameWorld->FloorCollision = MakeSimpleFloorCollision(GameWorld, TileSideInMeters, TileSideInMeters, 0.9f * TileDepthInMeters);
     
     random_series Series = RandomSeed(1234);
     GameWorld->EffectEntropy = RandomSeed(5456);
@@ -478,10 +491,11 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 }
                 
             }
+#if 0
             if (Controller->Start.EndedDown) {
                 ConHero->dZ = 3.0f;
             }
-            
+#endif
             ConHero->dSword = {};
 #if 1
             if (Controller->ActionUp.EndedDown) {
@@ -807,6 +821,11 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
                         sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
                         PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
+                    }
+                    for (u32 Index = 0; Index < Entity->Collision->TraversableCount; Index++) {
+                        sim_entity_traversable_point* Traversable = Entity->Collision->Traversables + Index;
+                        
+                        PushRect(RenderGroup, EntityTransform, Traversable->P, v2{0.1f, 0.1f}, v4{ 0, 0.5f, 1.0f, 1.0f });
                     }
                 } break;
                 default: {

@@ -289,13 +289,6 @@ CanOverlap(game_mode_world* GameWorld, sim_entity* Mover, sim_entity* Region) {
 	return(Result);
 }
 
-internal void
-HandleOverlap(game_mode_world* GameWorld, sim_entity* Mover, sim_entity* Region, r32 dt, r32* Ground) {
-	if (Region->Type == EntityType_Stairwell) {
-		*Ground = GetStairGround(Region, GetEntityGroundPoint(Mover));
-	}
-}
-
 internal b32
 SpeculativeCollide(sim_entity* Mover, sim_entity* Region, v3 TestP) {
     TIMED_FUNCTION();
@@ -329,9 +322,6 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, sim_entity* Entity
 	Drag.z = 0;
 	ddP += Drag;
     
-	if (!IsSet(Entity, EntityFlag_ZSupported)) {
-		ddP += v3{ 0, 0, -9.8f };
-	}
 	v3 OldPlayerP = Entity->P;
 	v3 PlayerDelta = 0.5f * Square(dt) * ddP +
 		dt * Entity->dP;
@@ -344,7 +334,7 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, sim_entity* Entity
     
 	for (u32 Iteration = 0; (Iteration < 4); ++Iteration) {
 		r32 tMin = 1.0f;
-		r32 tMax = 0.0f;
+		r32 tMax = 1.0f;
 		r32 PlayerDeltaLength = Length(PlayerDelta);
 		if (PlayerDeltaLength > 0.0f) {
 			if (PlayerDeltaLength > DistanceRemaining) {
@@ -364,7 +354,7 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, sim_entity* Entity
                      ++TestHighEntityIndex) {
 					sim_entity* TestEntity = SimRegion->Entities + TestHighEntityIndex;
 					r32 OverlapEpsilon = 0.01f;
-					if (((IsSet(TestEntity, EntityFlag_Traversable)) && (EntitiesOverlap(Entity, TestEntity, OverlapEpsilon * V3(1, 1, 1)))) || CanCollide(GameWorld, Entity, TestEntity)) {
+					if ( CanCollide(GameWorld, Entity, TestEntity)) {
 						for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
 							sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
 							for (u32 TestVolumeIndex = 0; TestVolumeIndex < TestEntity->Collision->VolumeCount; TestVolumeIndex++) {
@@ -384,34 +374,7 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, sim_entity* Entity
 										{MaxCorner.y, Rel.y, Rel.x, PlayerDelta.y, PlayerDelta.x, MinCorner.x, MaxCorner.x, v3{0, -1, 0}}
 									};
                                     
-									if (IsSet(TestEntity, EntityFlag_Traversable)) {
-										r32 tMaxTest = tMax;
-										b32 HitThis = false;
-                                        
-										v3 TestWallNormal = {};
-										for (u32 WallIndex = 0; WallIndex < ArrayCount(Walls); ++WallIndex) {
-											test_wall* Wall = Walls + WallIndex;
-											r32 tEpsilon = 0.001f;
-											if (Wall->DeltaX != 0.0f) {
-												r32 tResult = (Wall->X - Wall->RelX) / Wall->DeltaX;
-												r32 Y = Wall->RelY + tResult * Wall->DeltaY;
-												if ((tResult >= 0.0f) && (tMaxTest < tResult)) {
-													if ((Y >= Wall->MinY) && (Y <= Wall->MaxY)) {
-														tMaxTest = Maximum(0.0f, tResult - tEpsilon);
-														TestWallNormal = Wall->Normal;
-														HitThis = true;
-													}
-												}
-											}
-										}
-										if (HitThis) {
-											HitEntityMax = TestEntity;
-											tMax = tMaxTest;
-											WallNormalMax = TestWallNormal;
-										}
-										
-									}
-									else {
+									{
 										r32 tMinTest = tMin;
 										b32 HitThis = false;
 										v3 TestWallNormal = {};
@@ -485,29 +448,6 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, sim_entity* Entity
 			break;
 		}
         
-	}
-    
-	r32 Ground = 0.0f;
-    
-	{
-		for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex) {
-			sim_entity* TestEntity = SimRegion->Entities + TestEntityIndex;
-			if (CanOverlap(GameWorld, Entity, TestEntity) && EntitiesOverlap(Entity, TestEntity)) {
-				HandleOverlap(GameWorld, Entity, TestEntity, dt, &Ground);
-			}
-		}
-	}
-    
-    // note it was Ground += Entity->P.z - GetEntityGroundPoint(Entity).z; i dont know why
-	Ground += Entity->P.z - GetEntityGroundPoint(Entity).z;
-    
-	if ((Entity->P.z <= Ground) || ((IsSet(Entity, EntityFlag_ZSupported) && (Entity->dP.z == 0.0f)))) {
-		Entity->P.z = Ground;
-		Entity->dP.z = 0;
-		AddFlags(Entity, EntityFlag_ZSupported);
-	}
-	else {
-		ClearFlags(Entity, EntityFlag_ZSupported);
 	}
     
 	if (Entity->DistanceLimit != 0.0f) {

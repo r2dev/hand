@@ -29,8 +29,6 @@ enum sim_entity_flags {
 	EntityFlag_Collides = (1 << 0),
 	EntityFlag_Nonspatial = (1 << 1),
 	EntityFlag_Moveable = (1 << 2),
-	EntityFlag_ZSupported = (1 << 3),
-	EntityFlag_Traversable = (1 << 4),
 	EntityFlag_Simming = (1 << 30),
 };
 
@@ -49,11 +47,15 @@ struct sim_entity_collision_volume {
 	v3 Dim;
 };
 
-Introspect(category: "sim")
+struct sim_entity_traversable_point {
+    v3 P;
+};
 struct sim_entity_collision_volume_group {
 	sim_entity_collision_volume TotalVolume;
 	u32 VolumeCount;
 	sim_entity_collision_volume* Volumes;
+    u32 TraversableCount;
+    sim_entity_traversable_point *Traversables;
 };
 
 Introspect(category: "sim")
