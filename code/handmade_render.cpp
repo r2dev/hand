@@ -117,7 +117,7 @@ SortEntries(game_render_commands *Commands, void *Temp) {
     // BubbleSort(SortEntries, Count);
     //MergeSort(SortEntries, Count, (tile_sort_entry *)Temp);
     RadixSort(SortEntries, Count, (tile_sort_entry *)Temp);
-#if HANDMADE_SLOW
+#if 0
     // verifier
     for (u32 Index = 0; Index < Commands->PushBufferElementSize - 1; ++Index) {
         tile_sort_entry *EntryA = SortEntries + Index;

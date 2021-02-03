@@ -59,7 +59,11 @@ struct sim_entity_collision_volume_group {
     sim_entity_traversable_point *Traversables;
 };
 
-Introspect(category: "sim")
+enum sim_movement_code {
+    MovementMode_Planted,
+    MovementMode_Hopping,
+};
+
 struct sim_entity {
 	u32 StorageIndex;
 	b32 Updatable;
@@ -88,6 +92,11 @@ struct sim_entity {
 	v2 WalkableDim;
 	r32 WalkableHeight;
     
+    r32 tBob;
+    sim_movement_code MovementMode;
+    r32 tMovement;
+    v3 MovementFrom;
+    v3 MovementTo;
 };
 
 struct sim_entity_hash {

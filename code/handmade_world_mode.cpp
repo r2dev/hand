@@ -432,6 +432,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     GameWorld->CameraP = NewCameraP;
     AddMonster(GameWorld, CameraTileX - 3, CameraTileY + 2, CameraTileZ);
     AddFamiliar(GameWorld, CameraTileX - 2, CameraTileY - 2, CameraTileZ);
+    GameState->WorldMode = GameWorld;
 }
 
 
@@ -535,7 +536,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
     v3 SimBoundsExpansion = { 15.0f, 15.0f, 0 };
     rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundsExpansion);
     
-    temporary_memory SimMemory = BeginTemporaryMemory(&TranState->TranArena);
+    //temporary_memory SimMemory = BeginTemporaryMemory(&TranState->TranArena);
     
     world_position SimCenterP = GameWorld->CameraP;
     
@@ -611,23 +612,75 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     
                 } break;
                 case EntityType_HeroBody: {
+                    
                     sim_entity *Head = Entity->Head.Ptr;
                     if (Head) {
-                        r32 BestDistanceSq = Real32Maximum;
+                        r32 BestDistanceSq = Square(1000.0f);
                         v3 BestP = Entity->P;
                         sim_entity* TestEntity = SimRegion->Entities;
                         for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
                             for (u32 PIndex = 0; PIndex < TestEntity->Collision->TraversableCount; ++PIndex) {
                                 sim_entity_traversable_point P = GetSimEntityTraversable(TestEntity, PIndex);
-                                
-                                r32 TestDSq = LengthSq(P.P - Head->P);
+                                v3 HeadToPoint = P.P - Head->P;
+                                r32 TestDSq = LengthSq(HeadToPoint);
                                 if (BestDistanceSq > TestDSq) {
+                                    
                                     BestP = P.P;
                                     BestDistanceSq = TestDSq;
                                 }
                             }
                         }
-                        Entity->P = BestP;
+                        
+                        v3 BodyDelta = BestP - Entity->P;
+                        r32 BodyDistance = LengthSq(BodyDelta);
+                        Entity->tBob = 0;
+                        Entity->FacingDirection = Head->FacingDirection;
+                        switch (Entity->MovementMode) {
+                            case MovementMode_Planted: {
+                                if (BodyDistance > Square(0.01f)) {
+                                    Entity->tMovement = 0;
+                                    Entity->MovementFrom = Entity->P;
+                                    Entity->MovementTo = BestP;
+                                    Entity->MovementMode = MovementMode_Hopping;
+                                }
+                                
+                            } break;
+                            case MovementMode_Hopping: {
+                                r32 tTotal = Entity->tMovement;
+                                r32 tJump = 0.2f;
+                                r32 tMid = 0.5f;
+                                r32 tLand = 0.9f;
+                                
+                                if (tTotal < tMid) {
+                                    r32 t = Clamp01MapToRange(0, tTotal, tMid);
+                                    Entity->tBob = -0.1f * Sin(t * Tau32);
+                                }
+                                
+                                if (tTotal < tLand) {
+                                    r32 t = Clamp01MapToRange(tJump, tTotal, tLand);
+                                    v3 a = v3{0, -2.0f, 0};
+                                    v3 b = Entity->MovementTo - Entity->MovementFrom - a;
+                                    Entity->P = a * t * t + b * t + Entity->MovementFrom;
+                                } else {
+                                    r32 t = Clamp01MapToRange(tLand, tTotal, 1);
+                                    Entity->tBob = -0.05f * Sin(t * Pi32);
+                                    Entity->P = Entity->MovementTo;
+                                }
+                                
+                                
+                                Entity->dP = v3{0, 0, 0};
+                                if (Entity->tMovement >= 1.0f) {
+                                    Entity->MovementMode = MovementMode_Planted;
+                                }
+                                Entity->tMovement += 5.0f * dt;
+                                if (Entity->tMovement > 1.0f) {
+                                    Entity->tMovement = 1.0f;
+                                }
+                                
+                            } break;
+                        }
+                        
+                        
                     }
                 } break;
                 
@@ -643,7 +696,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     }
                 } break;
                 case EntityType_Familiar: {
-                    
                     sim_entity* ClosestHero = 0;
                     r32 ClosestHeroSq = Square(10.0f);
                     sim_entity* TestEntity = SimRegion->Entities;
@@ -690,7 +742,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     r32 HeroSizeC = 2.5f;
                     PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
                     PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, Entity->tBob, 0.0f });
                 } break;
                 case EntityType_HeroHead: {
                     r32 HeroSizeC = 2.5f;
@@ -839,7 +891,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
     rectangle2i d = {4, 4, 120, 120};
     
     EndSim(SimRegion, GameWorld);
-    EndTemporaryMemory(SimMemory);
+    //EndTemporaryMemory(SimMemory);
     
     if (!HeroExist) {
         //PlayIntroCutScene(GameState, TranState);

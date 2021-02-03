@@ -434,6 +434,16 @@ Normalize(v3 A) {
 	return(Result);
 }
 
+inline v3
+NOZ(v3 A) {
+    v3 Result = {};
+    r32 LenSq = LengthSq(A);
+    if (LenSq > Square(0.0001f)) {
+        Result = A * (1.0f / SquareRoot(LenSq));
+    }
+    return(Result);
+}
+
 
 inline v3
 Lerp(v3 A, r32 t, v3 B) {
