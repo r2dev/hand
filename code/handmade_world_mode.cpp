@@ -97,6 +97,7 @@ AddPlayer(game_mode_world *GameWorld) {
 	add_low_entity_result Sword = AddSword(GameWorld);
 	Head.Low->Sim.Sword.Index = Sword.LowIndex;
     Body.Low->Sim.Head.Index = Head.LowIndex;
+    Head.Low->Sim.Head.Index = Body.LowIndex;
     
     
 	if (GameWorld->CameraFollowingEntityIndex == 0) {
@@ -435,6 +436,25 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     GameState->WorldMode = GameWorld;
 }
 
+internal b32
+GetClosestTraversable(sim_region *SimRegion, v3 FromP, v3 *Result) {
+    b32 Found = false;
+    r32 BestDistanceSq = Square(1000.0f);
+    sim_entity* TestEntity = SimRegion->Entities;
+    for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
+        for (u32 PIndex = 0; PIndex < TestEntity->Collision->TraversableCount; ++PIndex) {
+            sim_entity_traversable_point P = GetSimEntityTraversable(TestEntity, PIndex);
+            v3 HeadToPoint = P.P - FromP;
+            r32 TestDSq = LengthSq(HeadToPoint);
+            if (BestDistanceSq > TestDSq) {
+                *Result = P.P;
+                BestDistanceSq = TestDSq;
+                Found = true;
+            }
+        }
+    }
+    return(Found);
+}
 
 
 internal b32
@@ -593,11 +613,31 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                                 Entity->dP.z = ConHero->dZ;
                             }
                             MoveSpec.UnitMaxAccelVector = true;
-                            MoveSpec.Speed = 50.0f;
-                            MoveSpec.Drag = 9.0f;
+                            MoveSpec.Speed = 30.0f;
+                            MoveSpec.Drag = 8.0f;
                             ddP = V3(ConHero->ddP, 0);
                             
+                            if (ConHero->dSword.x == 0.0f && ConHero->dSword.y == 0.0f) {
+                                // remain whichever face direction it was
+                            }
+                            else {
+                                Entity->FacingDirection = Atan2(ConHero->dSword.y, ConHero->dSword.x);
+                            }
                             
+                            v3 ClosestP = Entity->P;
+                            if (GetClosestTraversable(SimRegion, Entity->P, &ClosestP)) {
+                                r32 Cp = (Length(ddP) < 0.1f)? 300.0f: 50.0f;
+                                v3 ddP2 = {};
+                                for (u32 E = 0; E < 3; ++E) {
+                                    if (Square(ddP.E[E]) < 0.1f) {
+                                        ddP2.E[E] = Cp * (ClosestP.E[E] - Entity->P.E[E]) - 30.0f * Entity->dP.E[E];
+                                    }
+                                }
+                                Entity->dP += dt *ddP2;
+                                
+                            }
+                            
+#if 0                            
                             if (ConHero->dSword.x != 0.0f || ConHero->dSword.y != 0.0f) {
                                 sim_entity* Sword = Entity->Sword.Ptr;
                                 if (Sword && IsSet(Sword, EntityFlag_Nonspatial)) {
@@ -607,79 +647,68 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                                     PlaySound(&GameState->AudioState, GetFirstSoundFrom(TranState->Assets, Asset_Bloop));
                                 }
                             }
+#endif
                         }
                     }
                     
                 } break;
                 case EntityType_HeroBody: {
-                    
                     sim_entity *Head = Entity->Head.Ptr;
                     if (Head) {
-                        r32 BestDistanceSq = Square(1000.0f);
-                        v3 BestP = Entity->P;
-                        sim_entity* TestEntity = SimRegion->Entities;
-                        for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
-                            for (u32 PIndex = 0; PIndex < TestEntity->Collision->TraversableCount; ++PIndex) {
-                                sim_entity_traversable_point P = GetSimEntityTraversable(TestEntity, PIndex);
-                                v3 HeadToPoint = P.P - Head->P;
-                                r32 TestDSq = LengthSq(HeadToPoint);
-                                if (BestDistanceSq > TestDSq) {
-                                    
-                                    BestP = P.P;
-                                    BestDistanceSq = TestDSq;
-                                }
-                            }
-                        }
-                        
-                        v3 BodyDelta = BestP - Entity->P;
+                        v3 ClosestP = Entity->P;
+                        GetClosestTraversable(SimRegion, Head->P, &ClosestP);
+                        v3 BodyDelta = ClosestP - Entity->P;
                         r32 BodyDistance = LengthSq(BodyDelta);
-                        Entity->tBob = 0;
                         Entity->FacingDirection = Head->FacingDirection;
+                        r32 ddtBob = 0.0f;
+                        r32 HeadDistance = Length(Head->P - Entity->P);
+                        r32 MaxHeadDistance = 0.4f;
+                        Entity->dP = v3{0, 0, 0};
+                        r32 tHeadDistance = Clamp01MapToRange(0.0f, HeadDistance, MaxHeadDistance);
                         switch (Entity->MovementMode) {
                             case MovementMode_Planted: {
                                 if (BodyDistance > Square(0.01f)) {
                                     Entity->tMovement = 0;
                                     Entity->MovementFrom = Entity->P;
-                                    Entity->MovementTo = BestP;
+                                    Entity->MovementTo = ClosestP;
                                     Entity->MovementMode = MovementMode_Hopping;
                                 }
+                                ddtBob = -20.0f * tHeadDistance;
                                 
                             } break;
                             case MovementMode_Hopping: {
                                 r32 tTotal = Entity->tMovement;
-                                r32 tJump = 0.2f;
-                                r32 tMid = 0.5f;
+                                r32 tJump = 0.1f;
                                 r32 tLand = 0.9f;
                                 
-                                if (tTotal < tMid) {
-                                    r32 t = Clamp01MapToRange(0, tTotal, tMid);
-                                    Entity->tBob = -0.1f * Sin(t * Tau32);
+                                if (tTotal < tJump) {
+                                    ddtBob = 45.0f;
                                 }
-                                
                                 if (tTotal < tLand) {
                                     r32 t = Clamp01MapToRange(tJump, tTotal, tLand);
                                     v3 a = v3{0, -2.0f, 0};
                                     v3 b = Entity->MovementTo - Entity->MovementFrom - a;
                                     Entity->P = a * t * t + b * t + Entity->MovementFrom;
-                                } else {
-                                    r32 t = Clamp01MapToRange(tLand, tTotal, 1);
-                                    Entity->tBob = -0.05f * Sin(t * Pi32);
-                                    Entity->P = Entity->MovementTo;
                                 }
                                 
-                                
-                                Entity->dP = v3{0, 0, 0};
                                 if (Entity->tMovement >= 1.0f) {
+                                    Entity->P = Entity->MovementTo;
                                     Entity->MovementMode = MovementMode_Planted;
+                                    Entity->dtBob = -2.0f;
                                 }
-                                Entity->tMovement += 5.0f * dt;
+                                Entity->tMovement += 3.0f * dt;
                                 if (Entity->tMovement > 1.0f) {
                                     Entity->tMovement = 1.0f;
                                 }
                                 
                             } break;
                         }
+                        r32 Cv = 10.0f;
+                        ddtBob += -100.0f * Entity->tBob + Cv * -Entity->dtBob;
+                        Entity->tBob = ddtBob * dt * dt + Entity->dtBob*dt;
+                        Entity->dtBob += ddtBob * dt;
                         
+                        //-0.1f * Sin(t * Tau32);
                         
                     }
                 } break;

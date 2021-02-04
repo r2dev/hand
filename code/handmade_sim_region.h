@@ -93,6 +93,8 @@ struct sim_entity {
 	r32 WalkableHeight;
     
     r32 tBob;
+    r32 dtBob;
+    
     sim_movement_code MovementMode;
     r32 tMovement;
     v3 MovementFrom;
