@@ -198,7 +198,7 @@ RenderCommandsToBitmap(game_render_commands* RenderCommands, loaded_bitmap* Outp
                 render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
                 v2 XAxis = {1, 0};
                 v2 YAxis = {0, 1};
-                DrawRectangle2(OutputTarget, Entry->P, Entry->Size.x * XAxis, Entry->Size.y * YAxis, Entry->Color, Entry->Bitmap, NullPixelsToMeters, ClipRect, Even);
+                DrawRectangle2(OutputTarget, Entry->P, Entry->XAxis, Entry->YAxis, Entry->Color, Entry->Bitmap, NullPixelsToMeters, ClipRect, Even);
                 
                 BaseAddress += sizeof(*Entry);
                 

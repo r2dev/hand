@@ -107,7 +107,8 @@ struct render_entry_bitmap {
 	v2 P;
 	loaded_bitmap* Bitmap;
 	v4 Color;
-	v2 Size;
+	v2 XAxis;
+    v2 YAxis;
 };
 
 struct render_entry_coordinate_system {

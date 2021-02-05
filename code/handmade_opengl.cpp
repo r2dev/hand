@@ -92,26 +92,26 @@ OpenGLSetScreenSpace(s32 Width, s32 Height) {
     
 }
 inline void
-OpenGLRectangle(v2 MinP, v2 MaxP, v4 Color) {
+OpenGLRectangle(v2 MinP, v2 MaxP, v4 Color, v2 MinUV = {0, 0}, v2 MaxUV = {1, 1}) {
     glBegin(GL_TRIANGLES);
-    glColor4f(Color.r, Color.g, Color.b, Color.a);
+    glColor4fv(Color.E);
     
-    glTexCoord2f(0, 0);
+    glTexCoord2f(MinUV.x, MinUV.y);
     glVertex2f(MinP.x, MinP.y);
     
-    glTexCoord2f(1.0f, 0);
+    glTexCoord2f(MaxUV.x, MinUV.y);
     glVertex2f(MaxP.x, MinP.y);
     
-    glTexCoord2f(1.0f, 1.0f);
+    glTexCoord2f(MaxUV.x, MaxUV.y);
     glVertex2f(MaxP.x, MaxP.y);
     
-    glTexCoord2f(0, 0);
+    glTexCoord2f(MinUV.x, MinUV.y);
     glVertex2f(MinP.x, MinP.y);
     
-    glTexCoord2f(1.0f, 1.0f);
+    glTexCoord2f(MaxUV.x, MaxUV.y);
     glVertex2f(MaxP.x, MaxP.y);
     
-    glTexCoord2f(0, 1.0f);
+    glTexCoord2f(MinUV.x, MaxUV.y);
     glVertex2f(MinP.x, MaxP.y);
     
     glEnd();
@@ -196,14 +196,45 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
             case RenderGroupEntryType_render_entry_bitmap: {
                 render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
                 
-                v2 XAxis = {1, 0};
-                v2 YAxis = {0, 1};
-                v2 MinP = Entry->P;
-                v2 MaxP = MinP + Entry->Size.x * XAxis + Entry->Size.y * YAxis;
-                
-                glBindTexture(GL_TEXTURE_2D, (GLuint)Entry->Bitmap->TextureHandle);
-                
-				OpenGLRectangle(Entry->P, MaxP, Entry->Color);
+                if (Entry->Bitmap->Width && Entry->Bitmap->Height) {
+                    v2 XAxis = Entry->XAxis;
+                    v2 YAxis = Entry->YAxis;
+                    v2 MinP = Entry->P;
+                    //v2 MaxP = MinP + Entry->Size.x * XAxis + Entry->Size.y * YAxis;
+                    glBindTexture(GL_TEXTURE_2D, (GLuint)Entry->Bitmap->TextureHandle);
+                    r32 OneTexelU = 1.0f / Entry->Bitmap->Width;
+                    r32 OneTexelV = 1.0f / Entry->Bitmap->Height;
+                    v2 MinUV = v2{OneTexelU, OneTexelV};
+                    v2 MaxUV = v2{1.0f - OneTexelU, 1.0f - OneTexelV};
+                    
+                    v2 MinXMinY = MinP;
+                    v2 MaxXMinY = MinP + XAxis;
+                    v2 MinXMaxY = MinP + YAxis;
+                    v2 MaxXMaxY = MinP + XAxis + YAxis;
+                    
+                    glBegin(GL_TRIANGLES);
+                    glColor4fv(Entry->Color.E);
+                    
+                    glTexCoord2f(MinUV.x, MinUV.y);
+                    glVertex2fv(MinXMinY.E);
+                    
+                    glTexCoord2f(MaxUV.x, MinUV.y);
+                    glVertex2fv(MaxXMinY.E);
+                    
+                    glTexCoord2f(MaxUV.x, MaxUV.y);
+                    glVertex2fv(MaxXMaxY.E);
+                    
+                    glTexCoord2f(MinUV.x, MinUV.y);
+                    glVertex2fv(MinXMinY.E);
+                    
+                    glTexCoord2f(MaxUV.x, MaxUV.y);
+                    glVertex2fv(MaxXMaxY.E);
+                    
+                    glTexCoord2f(MinUV.x, MaxUV.y);
+                    glVertex2fv(MinXMaxY.E);
+                    
+                    glEnd();
+                }
                 
             } break;
             

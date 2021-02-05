@@ -87,7 +87,9 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap*
 			Entry->P = BitmapDim.Basis.P;
 			Entry->Bitmap = Bitmap;
 			Entry->Color = Group->GlobalAlpha * Color;
-			Entry->Size = BitmapDim.Basis.Scale * BitmapDim.Size;
+			v2 Size = BitmapDim.Basis.Scale * BitmapDim.Size;
+            Entry->XAxis = v2{Size.x, 0};
+            Entry->YAxis = v2{0, Size.y};
 		}
 	}
 }
