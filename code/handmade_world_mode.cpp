@@ -569,8 +569,10 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
     PushRectOutline(RenderGroup, DefaultFlatTransform(), v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
     PushRectOutline(RenderGroup, DefaultFlatTransform(), v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
     
-    sim_entity* Entity = SimRegion->Entities;
-    for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
+    for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
+        sim_entity* Entity = SimRegion->Entities + EntityIndex;
+        Entity->XAxis = v2{1,0};
+        Entity->YAxis = v2{0,1};
         if (Entity->Updatable) {
             
             r32 dt = Input->dtForFrame;
@@ -661,7 +663,8 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                         r32 BodyDistance = LengthSq(BodyDelta);
                         Entity->FacingDirection = Head->FacingDirection;
                         r32 ddtBob = 0.0f;
-                        r32 HeadDistance = Length(Head->P - Entity->P);
+                        v3 HeadDelta = Head->P - Entity->P;
+                        r32 HeadDistance = Length(HeadDelta);
                         r32 MaxHeadDistance = 0.4f;
                         Entity->dP = v3{0, 0, 0};
                         r32 tHeadDistance = Clamp01MapToRange(0.0f, HeadDistance, MaxHeadDistance);
@@ -708,6 +711,8 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                         Entity->tBob = ddtBob * dt * dt + Entity->dtBob*dt;
                         Entity->dtBob += ddtBob * dt;
                         
+                        //Entity->XAxis = Prep;
+                        Entity->YAxis = v2{0, 1} + 1.0f * HeadDelta.xy;
                         //-0.1f * Sin(t * Tau32);
                         
                     }
@@ -769,9 +774,12 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
             switch (Entity->Type) {
                 case EntityType_HeroBody: {
                     r32 HeroSizeC = 2.5f;
+                    v4 Color = {1,1,1,1};
+                    v2 XAxis = Entity->XAxis;
+                    v2 YAxis = Entity->YAxis;
                     PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, Entity->tBob, 0.0f });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, Color, 1.0f, 0.0f, XAxis, YAxis);
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, Entity->tBob, 0.0f }, Color, 1.0f, 0.0f, XAxis, YAxis);
                 } break;
                 case EntityType_HeroHead: {
                     r32 HeroSizeC = 2.5f;

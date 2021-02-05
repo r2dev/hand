@@ -68,19 +68,20 @@ PushRenderElement_(render_group* Group, u32 Size, render_group_entry_type Type, 
 }
 
 inline used_bitmap_dim
-GetBitmapDim(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, r32 CAlign) {
+GetBitmapDim(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, r32 CAlign, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
     used_bitmap_dim Result;
     Result.Size = v2{ Height * Bitmap->WidthOverHeight, Height };
 	Result.Align = CAlign * Hadamard(Result.Size, Bitmap->AlignPercentage);
-	Result.P = Offset - V3(Result.Align, 0);
+    Result.P.z = Offset.z;
+	Result.P.xy = Offset.xy - Result.Align.x * XAxis - Result.Align.y * YAxis;
 	Result.Basis = GetRenderEntityBasisP(Group->CameraTransform, ObjectTransform, Result.P);
     
     return(Result);
 }
 
 inline void
-PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f) {
-	used_bitmap_dim BitmapDim = GetBitmapDim(Group, ObjectTransform, Bitmap, Height, Offset, CAlign);
+PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
+	used_bitmap_dim BitmapDim = GetBitmapDim(Group, ObjectTransform, Bitmap, Height, Offset, CAlign, XAxis, YAxis);
 	if (BitmapDim.Basis.Valid) {
 		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap, BitmapDim.Basis.SortKey + SortBias);
 		if (Entry) {
@@ -88,15 +89,15 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap*
 			Entry->Bitmap = Bitmap;
 			Entry->Color = Group->GlobalAlpha * Color;
 			v2 Size = BitmapDim.Basis.Scale * BitmapDim.Size;
-            Entry->XAxis = v2{Size.x, 0};
-            Entry->YAxis = v2{0, Size.y};
+            Entry->XAxis = Size.x * XAxis;
+            Entry->YAxis = Size.y * YAxis;
 		}
 	}
 }
 
 
 inline void
-PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f) {
+PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
 	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
     
     if (Group->RenderInBackground && !Bitmap) {
@@ -105,7 +106,7 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, 
         
     }
 	if (Bitmap) {
-		PushBitmap(Group, ObjectTransform, Bitmap, Height, Offset, Color, CAlign, SortBias);
+		PushBitmap(Group, ObjectTransform, Bitmap, Height, Offset, Color, CAlign, SortBias, XAxis, YAxis);
 	}
 	else {
         Assert(!Group->RenderInBackground);
