@@ -211,6 +211,7 @@ struct controlled_hero {
 	v2 ddP;
 	v2 dSword;
 	r32 dZ;
+    r32 RecenterTimer;
 };
 
 enum game_mode {

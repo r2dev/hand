@@ -483,17 +483,16 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
         game_controller_input* Controller = GetController(Input, ControllerIndex);
         controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
         if (ConHero->EntityIndex == 0) {
-            if (WasPressed(&Controller->Back)) {
+            if (WasPressed(Controller->Back)) {
                 QuitRequested = true;
             }
-            else if (WasPressed(&Controller->Start)) {
+            else if (WasPressed(Controller->Start)) {
                 *ConHero = {};
                 ConHero->EntityIndex = AddPlayer(GameWorld).LowIndex;
             }
         }
         if (ConHero->EntityIndex) {
             HeroExist = true;
-            ConHero->ddP = {};
             ConHero->dZ = 0.0f;
             ConHero->dSword = {};
             
@@ -501,19 +500,46 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 ConHero->ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
             }
             else {
-                if (Controller->MoveUp.EndedDown) {
+                r32 RecenterTimer = 0.2f;
+                if (WasPressed(Controller->MoveUp)) {
+                    ConHero->ddP.x = 0;
                     ConHero->ddP.y = 1.0f;
+                    ConHero->RecenterTimer = RecenterTimer;
                 }
-                if (Controller->MoveDown.EndedDown) {
+                if (WasPressed(Controller->MoveDown)) {
+                    ConHero->ddP.x = 0;
                     ConHero->ddP.y = -1.0f;
+                    ConHero->RecenterTimer = RecenterTimer;
                 }
-                if (Controller->MoveLeft.EndedDown) {
+                if (WasPressed(Controller->MoveLeft)) {
                     ConHero->ddP.x = -1.0f;
+                    ConHero->ddP.y = 0;
+                    ConHero->RecenterTimer = RecenterTimer;
                 }
-                if (Controller->MoveRight.EndedDown) {
+                if (WasPressed(Controller->MoveRight)) {
                     ConHero->ddP.x = 1.0f;
+                    ConHero->ddP.y = 0;
+                    ConHero->RecenterTimer = RecenterTimer;
+                }
+                if (!IsDown(Controller->MoveUp) && !IsDown(Controller->MoveDown)) {
+                    ConHero->ddP.y = 0;
+                    if (IsDown(Controller->MoveRight)) {
+                        ConHero->ddP.x = 1;
+                    }
+                    if (IsDown(Controller->MoveLeft)) {
+                        ConHero->ddP.x = -1;
+                    }
                 }
                 
+                if (!IsDown(Controller->MoveRight) && !IsDown(Controller->MoveLeft)) {
+                    ConHero->ddP.x = 0;
+                    if (IsDown(Controller->MoveUp)) {
+                        ConHero->ddP.y = 1;
+                    }
+                    if (IsDown(Controller->MoveDown)) {
+                        ConHero->ddP.y = -1;
+                    }
+                }
             }
 #if 0
             if (Controller->Start.EndedDown) {
@@ -538,7 +564,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                 ChangeVolume(GameState->Music, v2{ 0, 1 }, 2.0f);
                 ConHero->dSword = v2{ 1.0f, 0.0f };
             }
-            if (WasPressed(&Controller->Back)) {
+            if (WasPressed(Controller->Back)) {
                 DeleteLowEntity(GameState, ConHero->EntityIndex);
                 ConHero->EntityIndex = 0;
             }
@@ -628,11 +654,20 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                             
                             v3 ClosestP = Entity->P;
                             if (GetClosestTraversable(SimRegion, Entity->P, &ClosestP)) {
-                                r32 Cp = (Length(ddP) < 0.1f)? 300.0f: 50.0f;
+                                ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
+                                b32 TimeIsUp = ConHero->RecenterTimer == 0.0f? true: false;
+                                b32 NoPush = (Length(ddP) < 0.1f);
+                                r32 Cp = NoPush? 300.0f: 25.0f;
                                 v3 ddP2 = {};
                                 for (u32 E = 0; E < 3; ++E) {
-                                    if (Square(ddP.E[E]) < 0.1f) {
-                                        ddP2.E[E] = Cp * (ClosestP.E[E] - Entity->P.E[E]) - 30.0f * Entity->dP.E[E];
+#if 0
+                                    if (Square(ddP.E[E]) < 0.1f)
+#else
+                                    if (NoPush || (TimeIsUp && (Square(ddP.E[E]) < 0.1f)))
+#endif
+                                    {
+                                        ddP2.E[E] =
+                                            Cp * (ClosestP.E[E] - Entity->P.E[E]) - 30.0f * Entity->dP.E[E];
                                     }
                                 }
                                 Entity->dP += dt *ddP2;
@@ -658,7 +693,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                     sim_entity *Head = Entity->Head.Ptr;
                     if (Head) {
                         v3 ClosestP = Entity->P;
-                        GetClosestTraversable(SimRegion, Head->P, &ClosestP);
+                        b32 Found = GetClosestTraversable(SimRegion, Head->P, &ClosestP);
                         v3 BodyDelta = ClosestP - Entity->P;
                         r32 BodyDistance = LengthSq(BodyDelta);
                         Entity->FacingDirection = Head->FacingDirection;
@@ -668,13 +703,15 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                         r32 MaxHeadDistance = 0.4f;
                         Entity->dP = v3{0, 0, 0};
                         r32 tHeadDistance = Clamp01MapToRange(0.0f, HeadDistance, MaxHeadDistance);
+                        Entity->FloorDisplace = 0.25f * HeadDelta.xy;
                         switch (Entity->MovementMode) {
                             case MovementMode_Planted: {
-                                if (BodyDistance > Square(0.01f)) {
+                                if (Found && (BodyDistance > Square(0.01f))) {
                                     Entity->tMovement = 0;
                                     Entity->MovementFrom = Entity->P;
                                     Entity->MovementTo = ClosestP;
                                     Entity->MovementMode = MovementMode_Hopping;
+                                    
                                 }
                                 ddtBob = -20.0f * tHeadDistance;
                                 
@@ -699,7 +736,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                                     Entity->MovementMode = MovementMode_Planted;
                                     Entity->dtBob = -2.0f;
                                 }
-                                Entity->tMovement += 3.0f * dt;
+                                Entity->tMovement += 6.0f * dt;
                                 if (Entity->tMovement > 1.0f) {
                                     Entity->tMovement = 1.0f;
                                 }
@@ -712,7 +749,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
                         Entity->dtBob += ddtBob * dt;
                         
                         //Entity->XAxis = Prep;
-                        Entity->YAxis = v2{0, 1} + 1.0f * HeadDelta.xy;
+                        Entity->YAxis = v2{0, 1} + 0.5f * HeadDelta.xy;
                         //-0.1f * Sin(t * Tau32);
                         
                     }
@@ -770,20 +807,20 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *GameWorld, transien
             MatchVector.E[Tag_FaceDirection] = (r32)Entity->FacingDirection;
             asset_vector WeightVector = {};
             WeightVector.E[Tag_FaceDirection] = 1.0f;
-            
+            r32 HeroSizeC = 3.0f;
             switch (Entity->Type) {
                 case EntityType_HeroBody: {
-                    r32 HeroSizeC = 2.5f;
+                    
                     v4 Color = {1,1,1,1};
                     v2 XAxis = Entity->XAxis;
                     v2 YAxis = Entity->YAxis;
-                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 }, Color, 1.0f, 0.0f, XAxis, YAxis);
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, Entity->tBob, 0.0f }, Color, 1.0f, 0.0f, XAxis, YAxis);
+                    v3 Offset = V3(Entity->FloorDisplace, 0.0f);
+                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, {0,0,0}, v4{ 1, 1, 1, ShadowAlpha });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, Offset + v3{0, 0, -0.0002f}, Color, 1.0f, XAxis, YAxis);
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, Entity->tBob - 0.1f, -0.0001f }, Color, 1.0f, XAxis, YAxis);
                 } break;
                 case EntityType_HeroHead: {
-                    r32 HeroSizeC = 2.5f;
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, 0, 0 });
+                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, -0.4f, 0 });
                     DrawHitPoints(Entity, RenderGroup, EntityTransform);
                     
                 } break;

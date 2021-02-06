@@ -152,8 +152,8 @@ DEBUGTextOp(debug_text_op Op, debug_state* DebugState, v2 P, char* String, v4 Co
                 v3 BitmapOffset = {AtX, TextY, 0};
                 
                 if (Op == DEBUGTextOp_DrawText) {
-                    PushBitmap(RenderGroup, DefaultFlatTransform(), BitmapID, BitmapScale, BitmapOffset, Color, 1.0f,200000.0f);
-                    PushBitmap(RenderGroup, DefaultFlatTransform(), BitmapID, BitmapScale, BitmapOffset + v3{2.0f, -2.0f, 0}, v4{0, 0, 0, 1}, 1.0f, 100000.0f);
+                    PushBitmap(RenderGroup, DebugState->TextTransform, BitmapID, BitmapScale, BitmapOffset, Color, 1.0f);
+                    PushBitmap(RenderGroup, DebugState->ShadowTransform, BitmapID, BitmapScale, BitmapOffset + v3{2.0f, -2.0f, 0}, v4{0, 0, 0, 1}, 1.0f);
                 } else {
                     Assert(Op == DEBUGTextOp_SizeText);
                     loaded_bitmap* Bitmap = GetBitmap(RenderGroup->Assets, BitmapID, RenderGroup->GenerationID);
@@ -1393,6 +1393,12 @@ DEBUGStart(debug_state* DebugState, game_render_commands *Commands, game_assets 
         DebugState->FirstFreeFrame = 0;
         DebugState->CollationFrame = 0;
         
+        DebugState->TextTransform = DefaultFlatTransform();
+        DebugState->ShadowTransform = DefaultFlatTransform();
+        
+        DebugState->TextTransform.SortBias = 400000.0f;
+        DebugState->ShadowTransform.SortBias = 300000.0f;
+        
         memory_index TotalMemorySize = DebugGlobalMemory->DebugStorageSize - sizeof(debug_state);
         InitializeArena(&DebugState->DebugArena, TotalMemorySize, DebugState + 1);
         SubArena(&DebugState->PerFrameArena, &DebugState->DebugArena, TotalMemorySize / 2);
@@ -1559,7 +1565,7 @@ DEBUGEnd(debug_state* DebugState, game_input* Input) {
             DEBUGTextLine(TextBuffer);
         }
     }
-    if (WasPressed(&Input->MouseButtons[PlatformMouseButton_Left])) {
+    if (WasPressed(Input->MouseButtons[PlatformMouseButton_Left])) {
         if (HotEvent) {
             DebugState->RecordToScope = HotEvent->GUID;
         } else {

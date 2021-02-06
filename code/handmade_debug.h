@@ -237,6 +237,9 @@ struct debug_state {
     
     debug_frame *FirstFreeFrame;
     debug_stored_event *FirstFreeStoredEvent;
+    
+    object_transform TextTransform;
+    object_transform ShadowTransform;
 };
 
 #endif //HANDMADE_DEBUG_H

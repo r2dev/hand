@@ -49,6 +49,7 @@ struct object_transform {
     b32 Upright;
     r32 Scale;
 	v3 OffsetP;
+    r32 SortBias;
 };
 
 struct camera_transform {
@@ -72,6 +73,13 @@ inline object_transform
 DefaultFlatTransform() {
     object_transform Result = {};
 	Result.Scale = 1.0f;
+    return Result;
+}
+inline object_transform
+DefaultDebugTransform() {
+    object_transform Result = {};
+	Result.Scale = 1.0f;
+    Result.SortBias = 2000000.0f;
     return Result;
 }
 

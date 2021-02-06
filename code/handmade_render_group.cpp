@@ -32,7 +32,8 @@ GetRenderEntityBasisP(camera_transform CameraTransform, object_transform ObjectT
 		Result.P = CameraTransform.ScreenCenter + CameraTransform.MetersToPixels * P.xy;
 	}
     // TODO(NAME): 
-    Result.SortKey = 4888.0f *((2.0f * P.z) + (1.0f * (r32)ObjectTransform.Upright)) - P.y;
+    Result.SortKey = ObjectTransform.SortBias + 
+        4096.0f *((2.0f * P.z) + OriginP.z + (1.0f * (r32)ObjectTransform.Upright)) - P.y;
     
 	return(Result);
 }
@@ -80,10 +81,10 @@ GetBitmapDim(render_group* Group, object_transform ObjectTransform, loaded_bitma
 }
 
 inline void
-PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
+PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
 	used_bitmap_dim BitmapDim = GetBitmapDim(Group, ObjectTransform, Bitmap, Height, Offset, CAlign, XAxis, YAxis);
 	if (BitmapDim.Basis.Valid) {
-		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap, BitmapDim.Basis.SortKey + SortBias);
+		render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap, BitmapDim.Basis.SortKey);
 		if (Entry) {
 			Entry->P = BitmapDim.Basis.P;
 			Entry->Bitmap = Bitmap;
@@ -97,7 +98,7 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap*
 
 
 inline void
-PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, r32 SortBias = 0.0f, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
+PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
 	loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
     
     if (Group->RenderInBackground && !Bitmap) {
@@ -106,7 +107,7 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, bitmap_id ID, 
         
     }
 	if (Bitmap) {
-		PushBitmap(Group, ObjectTransform, Bitmap, Height, Offset, Color, CAlign, SortBias, XAxis, YAxis);
+		PushBitmap(Group, ObjectTransform, Bitmap, Height, Offset, Color, CAlign, XAxis, YAxis);
 	}
 	else {
         Assert(!Group->RenderInBackground);

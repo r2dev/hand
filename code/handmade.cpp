@@ -165,12 +165,12 @@ CheckForMetaInput(game_state *GameState, transient_state *TranState, game_input 
     b32 Rerun = false;
     for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
 		game_controller_input* Controller = GetController(Input, ControllerIndex);
-        if (WasPressed(&Controller->Back)) {
+        if (WasPressed(Controller->Back)) {
             Input->QuitRequested = true;
             Rerun = false;
             break;
         }
-        else if (WasPressed(&Controller->Start)) {
+        else if (WasPressed(Controller->Start)) {
             EnterWorld(GameState, TranState);
             Rerun = true;
             break;

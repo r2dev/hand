@@ -230,7 +230,14 @@ Clamp01MapToRange(r32 Min, r32 Value, r32 Max) {
 	return(Result);
 }
 
-
+inline r32
+ClampAboveZero(r32 Value) {
+    r32 Result = Value;
+    if (Value < 0) {
+        Result = 0;
+    }
+	return(Result);
+}
 
 inline v2
 Clamp01(v2 Value) {
