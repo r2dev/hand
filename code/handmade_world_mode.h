@@ -3,15 +3,11 @@
 #ifndef HANDMADE_WORLD_MODE_H
 #define HANDMADE_WORLD_MODE_H
 
-struct low_entity {
-    world_position P;
-	sim_entity Sim;
-};
 
 struct pairwise_collision_rule {
 	b32 CanCollide;
-	u32 StorageIndexA;
-	u32 StorageIndexB;
+	u32 EntityIDA;
+	u32 EntityIDB;
     
 	pairwise_collision_rule* NextHash;
 };
@@ -42,49 +38,38 @@ struct game_mode_world {
     
     world* World;
     
-    u32 CameraFollowingEntityIndex;
+    entity_id CameraFollowingEntityID;
 	world_position CameraP;
     
 	r32 TypicalFloorHeight = 3.0f;
     
-	u32 LowEntityCount;
-	low_entity LowEntities[100000];
-    
 	pairwise_collision_rule* CollisionRuleHash[256];
 	pairwise_collision_rule* FirstFreeCollisionRule;
     
-	sim_entity_collision_volume_group* NullCollision;
-	sim_entity_collision_volume_group* SwordCollision;
-	sim_entity_collision_volume_group* StairCollision;
-	sim_entity_collision_volume_group* HeroHeadCollision;
-    sim_entity_collision_volume_group* HeroBodyCollision;
-	sim_entity_collision_volume_group* MonstarCollision;
-	sim_entity_collision_volume_group* WallCollision;
-	sim_entity_collision_volume_group* FamiliarCollision;
-	sim_entity_collision_volume_group* FloorCollision;
+	entity_collision_volume_group* NullCollision;
+	entity_collision_volume_group* StairCollision;
+	entity_collision_volume_group* HeroHeadCollision;
+    entity_collision_volume_group* HeroBodyCollision;
+	entity_collision_volume_group* MonstarCollision;
+	entity_collision_volume_group* WallCollision;
+	entity_collision_volume_group* FamiliarCollision;
+	entity_collision_volume_group* FloorCollision;
     
 	r32 time;
     
     u32 NextParticle;
     particle Particle[256];
     
+    b32 CreationBufferLock;
+    u32 CreationBufferIndex;
+    entity CreationBuffer[4];
+    u32 LastUsedEntityStorageIndex;
+    
 #define PARTICEL_CEL_DIM 16
     particle_cel ParticleCels[PARTICEL_CEL_DIM][PARTICEL_CEL_DIM];
     
     random_series EffectEntropy;
 };
-
-inline low_entity*
-GetLowEntity(game_mode_world* World, u32 Index) {
-	low_entity* Result = 0;
-    
-	if ((Index > 0) && (Index < World->LowEntityCount)) {
-		Result = World->LowEntities + Index;
-	}
-	return(Result);
-}
-
-
 
 
 #endif //HANDMADE_WORLD_MODE_H

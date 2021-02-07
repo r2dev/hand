@@ -16,7 +16,6 @@ enum entity_type {
 	EntityType_Wall,
 	EntityType_Familiar,
 	EntityType_Monster,
-	EntityType_Sword,
 	EntityType_Stairwell,
 };
 
@@ -26,37 +25,38 @@ Introspect(category: "sim") struct hit_point {
 	u8 FilledAmount;
 };
 
-enum sim_entity_flags {
+enum entity_flags {
 	EntityFlag_Collides = (1 << 0),
-	EntityFlag_Nonspatial = (1 << 1),
-	EntityFlag_Moveable = (1 << 2),
+	EntityFlag_Moveable = (1 << 1),
 	EntityFlag_Simming = (1 << 30),
 };
 
-struct sim_entity;
-
+struct entity_id {
+    u32 Value;
+};
+struct entity;
 Introspect(category: "sim")
 union entity_reference {
-	sim_entity* Ptr;
-	u32 Index;
+	entity* Ptr;
+    entity_id ID;
 };
 
 
 Introspect(category: "sim")
-struct sim_entity_collision_volume {
+struct entity_collision_volume {
 	v3 OffsetP;
 	v3 Dim;
 };
 
-struct sim_entity_traversable_point {
+struct entity_traversable_point {
     v3 P;
 };
-struct sim_entity_collision_volume_group {
-	sim_entity_collision_volume TotalVolume;
+struct entity_collision_volume_group {
+	entity_collision_volume TotalVolume;
 	u32 VolumeCount;
-	sim_entity_collision_volume* Volumes;
+	entity_collision_volume* Volumes;
     u32 TraversableCount;
-    sim_entity_traversable_point *Traversables;
+    entity_traversable_point *Traversables;
 };
 
 enum sim_movement_code {
@@ -64,8 +64,9 @@ enum sim_movement_code {
     MovementMode_Hopping,
 };
 
-struct sim_entity {
-	u32 StorageIndex;
+struct entity {
+    world_position ChunkP;
+    entity_id ID;
 	b32 Updatable;
     
 	entity_type Type;
@@ -76,14 +77,13 @@ struct sim_entity {
     
 	r32 DistanceLimit;
 	
-	sim_entity_collision_volume_group* Collision;
+	entity_collision_volume_group* Collision;
     
 	s32 dAbsTileZ;
     
 	u32 HitPointMax;
 	hit_point HitPoint[16];
     
-	entity_reference Sword;
     entity_reference Head;
 	
 	r32 FacingDirection;
@@ -105,9 +105,9 @@ struct sim_entity {
     v2 FloorDisplace;
 };
 
-struct sim_entity_hash {
-	u32 Index;
-	sim_entity* Ptr;
+struct entity_hash {
+    entity_id ID;
+	entity* Ptr;
 };
 
 Introspect(category: "sim") struct sim_region {
@@ -121,7 +121,7 @@ Introspect(category: "sim") struct sim_region {
 	rectangle3 UpdatableBounds;
 	u32 MaxEntityCount;
 	u32 EntityCount;
-	sim_entity *Entities;
-	sim_entity_hash Hash[4096];
+	entity *Entities;
+	entity_hash Hash[4096];
 };
 #endif
