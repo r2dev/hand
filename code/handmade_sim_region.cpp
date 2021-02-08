@@ -29,7 +29,6 @@ GetEntityByID(sim_region* SimRegion, entity_id ID) {
 	return(Result);
 }
 
-
 inline void
 StoreEntityReference(entity_reference* Ref) {
 	if (Ref->Ptr != 0) {
@@ -39,43 +38,18 @@ StoreEntityReference(entity_reference* Ref) {
 
 inline v3
 GetSimSpaceP(sim_region* SimRegion, entity *Stored) {
-	v3 Result = InvalidP;
-    Result = Subtract(SimRegion->World, &Stored->ChunkP, &SimRegion->Origin);
+	v3 Result = Subtract(SimRegion->World, &Stored->ChunkP, &SimRegion->Origin);
 	return(Result);
 }
 
 inline void
-LoadEntityReference(game_mode_world* GameWorld, sim_region* SimRegion, entity_reference* Ref) {
+LoadEntityReference(sim_region* SimRegion, entity_reference* Ref) {
 	if (Ref->ID.Value != 0) {
 		entity_hash* Entry = GetHashFromID(SimRegion, Ref->ID);
 		Ref->Ptr = Entry ? Entry->Ptr: 0;
 	}
 }
 
-internal entity *
-AddEntityRaw(game_mode_world* GameWorld, sim_region* SimRegion, entity_id ID, entity *Source) {
-	Assert(ID.Value);
-	entity* Entity = 0;
-	entity_hash* Entry = GetHashFromID(SimRegion, ID);
-	if (Entry->Ptr == 0) {
-		if (SimRegion->EntityCount < SimRegion->MaxEntityCount) {
-			Entity = SimRegion->Entities + SimRegion->EntityCount++;
-			Entry->ID = ID;
-			Entry->Ptr = Entity;
-			if (Source) {
-				// decompression
-				*Entity = *Source;
-                LoadEntityReference(GameWorld, SimRegion, &Entity->Head);
-			}
-			Entity->Updatable = false;
-		}
-		else {
-			InvalidCodePath
-		}
-	}
-	return(Entity);
-    
-}
 internal b32
 EntitiesOverlap(entity* Entity, entity* TestEntity, v3 Epsilon = v3{ 0, 0, 0 }) {
     TIMED_FUNCTION();
@@ -100,20 +74,28 @@ EntityOverlapsRectangle(v3 P, entity_collision_volume Volume, rectangle3 Rect) {
 	return(Result);
 }
 
-internal entity*
-AddEntity(game_mode_world* GameWorld, sim_region* SimRegion, entity* Source, v3* SimP) {
+internal void
+AddEntity(sim_region* SimRegion, entity* Source, v3 SimP) {
     entity_id ID = Source->ID;
-	entity* Dest = AddEntityRaw(GameWorld, SimRegion, ID, Source);
-	if (Dest) {
-		if (SimP) {
-			Dest->P = *SimP;
-			Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
-		}
-		else {
-			Dest->P = GetSimSpaceP(SimRegion, Source);
-		}
-	}
-	return(Dest);
+    
+    entity_hash* Entry = GetHashFromID(SimRegion, ID);
+	Assert(Entry->Ptr == 0);
+    entity *Dest = 0;
+    if (SimRegion->EntityCount < SimRegion->MaxEntityCount) {
+        Dest= SimRegion->Entities + SimRegion->EntityCount++;
+        Entry->ID = ID;
+        Entry->Ptr = Dest;
+        if (Source) {
+            // decompression
+            *Dest = *Source;
+        }
+        Dest->Updatable = false;
+        Dest->P = SimP;
+        Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
+    }
+    else {
+        InvalidCodePath
+    }
 }
 
 struct test_wall {
@@ -127,6 +109,13 @@ struct test_wall {
 	v3 Normal;
 };
 
+internal void
+ConnectEntityPointers(sim_region *SimRegion) {
+    for(u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
+        entity *Entity = SimRegion->Entities + EntityIndex;
+        LoadEntityReference(SimRegion, &Entity->Head);
+    }
+}
 
 internal sim_region*
 BeginSim(memory_arena* SimArena, game_mode_world* GameWorld, world* World, world_position Origin, rectangle3 Bounds, r32 dt) {
@@ -158,7 +147,7 @@ BeginSim(memory_arena* SimArena, game_mode_world* GameWorld, world* World, world
 							entity *Entity = (entity *)Block->EntityData + EntityIndex;
                             v3 SimSpaceP = GetSimSpaceP(SimRegion, Entity);
                             if (EntityOverlapsRectangle(SimSpaceP, Entity->Collision->TotalVolume, SimRegion->Bounds)) {
-                                AddEntity(GameWorld, SimRegion, Entity, &SimSpaceP);
+                                AddEntity(SimRegion, Entity, SimSpaceP);
 							}
 						}
                         world_entity_block* NextBlock = Block->Next;
@@ -171,6 +160,7 @@ BeginSim(memory_arena* SimArena, game_mode_world* GameWorld, world* World, world
 			}
 		}
 	}
+    ConnectEntityPointers(SimRegion);
 	return(SimRegion);
 }
 
@@ -231,7 +221,6 @@ CanCollide(game_mode_world* GameWorld, entity* A, entity* B) {
             }
         }
     }
-    
     
 	return(Result);
 }
@@ -431,5 +420,3 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, entity* Entity, r3
 	}
 #endif
 }
-
-
