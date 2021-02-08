@@ -144,7 +144,7 @@ AreInSameChunk(world* World, world_position* A, world_position* B) {
 	return(Result);
 }
 
-v3
+internal v3
 Subtract(world* World, world_position* A, world_position* B) {
 	v3 dTile = {
 		(r32)A->ChunkX - (r32)B->ChunkX,
@@ -195,7 +195,6 @@ internal void
 PackEntityIntoWorld(world *World, entity *Source, world_position ChunkP) {
     world_chunk* Chunk = GetWorldChunk(World, ChunkP.ChunkX, ChunkP.ChunkY, ChunkP.ChunkZ, &World->Arena);
     Assert(Chunk);
-    Source->ChunkP = ChunkP;
     PackEntityIntoChunk(World, Source, Chunk);
 }
 

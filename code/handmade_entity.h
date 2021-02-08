@@ -25,6 +25,7 @@ struct hit_point {
 enum entity_flags {
 	EntityFlag_Collides = (1 << 0),
 	EntityFlag_Moveable = (1 << 1),
+    EntityFlag_Deleted = (1 << 2),
 };
 
 struct entity_id {
@@ -59,7 +60,6 @@ enum entity_movement_code {
 };
 
 struct entity {
-    world_position ChunkP;
     entity_id ID;
 	b32 Updatable;
     

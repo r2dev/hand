@@ -40,6 +40,7 @@ struct game_mode_world {
     
     entity_id CameraFollowingEntityID;
 	world_position CameraP;
+    v3 CameraOffset;
     
 	r32 TypicalFloorHeight = 3.0f;
     

@@ -207,11 +207,12 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 #include "handmade_cutscene.h"
 
 struct controlled_hero {
-    entity_id EntityIndex;
+    entity_id ID;
 	v2 ddP;
 	v2 dSword;
 	r32 dZ;
     r32 RecenterTimer;
+    b32 Exited;
 };
 
 enum game_mode {

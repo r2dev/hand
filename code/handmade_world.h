@@ -1,4 +1,5 @@
-#pragma once
+#if !defined(HANDMADE_WORLD_H)
+#define HANDMADE_WORLD_H
 struct tile_chunk_position {
 	s32 TileChunkX;
 	s32 TileChunkY;
@@ -48,3 +49,5 @@ struct world {
     world_chunk *FirstFreeChunk;
     world_entity_block *FirstFreeBlock;
 };
+
+#endif

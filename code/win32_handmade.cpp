@@ -1221,7 +1221,7 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
         //"Test", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 1920, 1080, 0, 0, //Instance, 0);
         
         if (Window) {
-            //ToggleFullScreen(Window);
+            ToggleFullScreen(Window);
             ShowWindow(Window, SW_SHOW);
             HDC WindowDC = GetDC(Window);
 #if OPENGL_ENABLED

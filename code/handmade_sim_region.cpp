@@ -38,8 +38,7 @@ StoreEntityReference(entity_reference* Ref) {
 
 inline v3
 GetSimSpaceP(sim_region* SimRegion, entity *Stored) {
-	v3 Result = Subtract(SimRegion->World, &Stored->ChunkP, &SimRegion->Origin);
-	return(Result);
+	
 }
 
 inline void
@@ -75,22 +74,25 @@ EntityOverlapsRectangle(v3 P, entity_collision_volume Volume, rectangle3 Rect) {
 }
 
 internal void
-AddEntity(sim_region* SimRegion, entity* Source, v3 SimP) {
+AddEntity(sim_region* SimRegion, entity* Source, v3 ChunkDelta) {
     entity_id ID = Source->ID;
     
     entity_hash* Entry = GetHashFromID(SimRegion, ID);
 	Assert(Entry->Ptr == 0);
     entity *Dest = 0;
     if (SimRegion->EntityCount < SimRegion->MaxEntityCount) {
-        Dest= SimRegion->Entities + SimRegion->EntityCount++;
+        Dest = SimRegion->Entities + SimRegion->EntityCount++;
         Entry->ID = ID;
         Entry->Ptr = Dest;
         if (Source) {
             // decompression
             *Dest = *Source;
         }
+        Dest->ID = ID;
         Dest->Updatable = false;
-        Dest->P = SimP;
+        Dest->P += ChunkDelta;
+        Dest->MovementFrom += ChunkDelta;
+        Dest->MovementTo += ChunkDelta;
         Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
     }
     else {
@@ -118,7 +120,7 @@ ConnectEntityPointers(sim_region *SimRegion) {
 }
 
 internal sim_region*
-BeginSim(memory_arena* SimArena, game_mode_world* GameWorld, world* World, world_position Origin, rectangle3 Bounds, r32 dt) {
+BeginSim(memory_arena* SimArena, game_mode_world* WorldMode, world* World, world_position Origin, rectangle3 Bounds, r32 dt) {
     TIMED_FUNCTION();
 	sim_region* SimRegion = PushStruct(SimArena, sim_region);
 	SimRegion->MaxEntityRadius = 5.0f;
@@ -140,14 +142,17 @@ BeginSim(memory_arena* SimArena, game_mode_world* GameWorld, world* World, world
 		for (s32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY) {
 			for (s32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX) {
 				world_chunk* Chunk = RemoveWorldChunk(World, ChunkX, ChunkY, ChunkZ);
+                world_position ChunkP = {ChunkX, ChunkY, ChunkZ};
+                // chunk delta relative to sim chunk
+                v3 ChunkDelta = Subtract(SimRegion->World, &ChunkP, &SimRegion->Origin);
 				if (Chunk) {
                     world_entity_block* Block = Chunk->FirstBlock;
                     while (Block) {
                         for (u32 EntityIndex = 0; EntityIndex < Block->EntityCount; ++EntityIndex) {
 							entity *Entity = (entity *)Block->EntityData + EntityIndex;
-                            v3 SimSpaceP = GetSimSpaceP(SimRegion, Entity);
+                            v3 SimSpaceP = Entity->P + ChunkDelta;
                             if (EntityOverlapsRectangle(SimSpaceP, Entity->Collision->TotalVolume, SimRegion->Bounds)) {
-                                AddEntity(SimRegion, Entity, SimSpaceP);
+                                AddEntity(SimRegion, Entity, ChunkDelta);
 							}
 						}
                         world_entity_block* NextBlock = Block->Next;
@@ -164,44 +169,91 @@ BeginSim(memory_arena* SimArena, game_mode_world* GameWorld, world* World, world
 	return(SimRegion);
 }
 
+inline void
+DeleteEntity(sim_region *SimRegion, entity_id ID) {
+    entity *Entity = GetEntityByID(SimRegion, ID);
+    Entity->Flags |= EntityFlag_Deleted;
+}
+
 internal void
-EndSim(sim_region* Region, game_mode_world* GameWorld) {
+EndSim(sim_region* SimRegion, game_mode_world* WorldMode) {
     TIMED_FUNCTION();
-	entity* Entity = Region->Entities;
-    world *World = GameWorld->World;
-	for (u32 EntityIndex = 0; EntityIndex < Region->EntityCount; ++EntityIndex, ++Entity) {
-        StoreEntityReference(&Entity->Head);
-        world_position ChunkP = MapIntoChunkSpace(GameWorld->World, Region->Origin, Entity->P);
-		if (Entity->ID.Value == GameWorld->CameraFollowingEntityID.Value) {
-			world_position NewCameraP = GameWorld->CameraP;
-			NewCameraP.ChunkZ = Entity->ChunkP.ChunkZ;
-            if(Global_Sim_RoomBaseCamera)
-            {
-                if (Entity->P.x > (9.0f)) {
-                    NewCameraP = MapIntoChunkSpace(World, NewCameraP, v3{18.0f, 0, 0});
+	entity* Entity = SimRegion->Entities;
+    world *World = WorldMode->World;
+	for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity) {
+        if (!(Entity->Flags & EntityFlag_Deleted)) {
+            world_position EntityChunkP = MapIntoChunkSpace(WorldMode->World, SimRegion->Origin, Entity->P);
+            world_position ChunkP = EntityChunkP;
+            ChunkP.Offset_ = {0, 0, 0};
+            v3 ChunkDelta = -Subtract(SimRegion->World, &ChunkP, &SimRegion->Origin);
+            if (Entity->ID.Value == WorldMode->CameraFollowingEntityID.Value) {
+                world_position NewCameraP = WorldMode->CameraP;
+                NewCameraP.ChunkZ = EntityChunkP.ChunkZ;
+                v3 RoomDelta = {24.0f, 12.5f, 0.0f};
+                v3 hRoomDelta = 0.5f * RoomDelta;
+                r32 ApronSize = 0.7f;
+                r32 BounceHeight = 0.1f;
+                v3 hRoomApron = hRoomDelta - v3{ApronSize, ApronSize, 0};
+                if(Global_Sim_RoomBaseCamera)
+                {
+                    v3 AppliedCameraDelta = {};
+                    if (Entity->P.x > hRoomDelta.x) {
+                        AppliedCameraDelta = v3{RoomDelta.x, 0, 0};
+                        NewCameraP = MapIntoChunkSpace(World, NewCameraP, AppliedCameraDelta);
+                    }
+                    if (Entity->P.x < -hRoomDelta.x) {
+                        AppliedCameraDelta = v3{-RoomDelta.x, 0, 0};
+                        NewCameraP = MapIntoChunkSpace(World, NewCameraP, AppliedCameraDelta);
+                    }
+                    if (Entity->P.y > hRoomDelta.y) {
+                        AppliedCameraDelta = v3{0, RoomDelta.y, 0};
+                        NewCameraP = MapIntoChunkSpace(World, NewCameraP, AppliedCameraDelta);
+                    }
+                    if (Entity->P.y < -hRoomDelta.y) {
+                        AppliedCameraDelta = v3{0, -RoomDelta.y, 0};
+                        NewCameraP = MapIntoChunkSpace(World, NewCameraP, AppliedCameraDelta);
+                    }
+                    
+                    v3 EntityP = Entity->P - AppliedCameraDelta;
+                    // parabolic arc for camera
+                    r32 a = -1;
+                    r32 b = 2;
+                    if (EntityP.y > hRoomApron.y) {
+                        r32 t = Clamp01MapToRange(hRoomApron.y, EntityP.y, hRoomDelta.y);
+                        WorldMode->CameraOffset = {0, t * hRoomDelta.y, a * t * t + b * t} ;
+                    }
+                    if (EntityP.y < -hRoomApron.y) {
+                        r32 t = Clamp01MapToRange(-hRoomApron.y, EntityP.y, -hRoomDelta.y);
+                        WorldMode->CameraOffset = {0, -t * hRoomDelta.y, a * t * t + b * t};
+                    }
+                    
+                    if (EntityP.x > hRoomApron.x) {
+                        r32 t = Clamp01MapToRange(hRoomApron.x, EntityP.x, hRoomDelta.x);
+                        WorldMode->CameraOffset = {t * hRoomDelta.x, 0, a * t * t + b * t} ;
+                    }
+                    if (EntityP.x < -hRoomApron.x) {
+                        r32 t = Clamp01MapToRange(-hRoomApron.x, EntityP.x, -hRoomDelta.x);
+                        WorldMode->CameraOffset = {-t * hRoomDelta.x, 0, a * t * t + b * t};
+                    }
+                } else {
+                    //r32 CamZOffset = NewCameraP.Offset_.z;
+                    NewCameraP = EntityChunkP;
+                    //NewCameraP.Offset_.z = CamZOffset;
                 }
-                if (Entity->P.x < -(9.0f)) {
-                    NewCameraP = MapIntoChunkSpace(World, NewCameraP, v3{-18.0f, 0, 0});
-                }
-                if (Entity->P.y > (5.0f)) {
-                    NewCameraP = MapIntoChunkSpace(World, NewCameraP, v3{0, 10.0f, 0});
-                }
-                if (Entity->P.y < -(5.0f)) {
-                    NewCameraP = MapIntoChunkSpace(World, NewCameraP, v3{0, -10.0f, 0});
-                }
-            } else {
-                //r32 CamZOffset = NewCameraP.Offset_.z;
-                NewCameraP = Entity->ChunkP;
-                //NewCameraP.Offset_.z = CamZOffset;
+                WorldMode->CameraP = NewCameraP;
             }
-			GameWorld->CameraP = NewCameraP;
-		}
-        PackEntityIntoWorld(World, Entity, ChunkP);
+            
+            Entity->P += ChunkDelta;
+            Entity->MovementFrom += ChunkDelta;
+            Entity->MovementTo += ChunkDelta;
+            StoreEntityReference(&Entity->Head);
+            PackEntityIntoWorld(World, Entity, EntityChunkP);
+        }
 	}
 }
 
 internal b32
-CanCollide(game_mode_world* GameWorld, entity* A, entity* B) {
+CanCollide(game_mode_world* WorldMode, entity* A, entity* B) {
 	b32 Result = false;
 	if (A != B) {
 		if (A->ID.Value > B->ID.Value) {
@@ -212,8 +264,8 @@ CanCollide(game_mode_world* GameWorld, entity* A, entity* B) {
         if (IsSet(A, EntityFlag_Collides) && (IsSet(B, EntityFlag_Collides))) {
             Result = true;
             
-            u32 HashBucket = A->ID.Value & (ArrayCount(GameWorld->CollisionRuleHash) - 1);
-            for (pairwise_collision_rule* Rule = GameWorld->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextHash) {
+            u32 HashBucket = A->ID.Value & (ArrayCount(WorldMode->CollisionRuleHash) - 1);
+            for (pairwise_collision_rule* Rule = WorldMode->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextHash) {
                 if (Rule->EntityIDA == A->ID.Value && Rule->EntityIDB == B->ID.Value) {
                     Result = Rule->CanCollide;
                     break;
@@ -226,7 +278,7 @@ CanCollide(game_mode_world* GameWorld, entity* A, entity* B) {
 }
 
 internal b32
-HandleCollision(game_mode_world* GameWorld, entity* A, entity* B) {
+HandleCollision(game_mode_world* WorldMode, entity* A, entity* B) {
 	b32 StopsOnCollision = false;
 	
 	if (A->Type > B->Type) {
@@ -239,7 +291,7 @@ HandleCollision(game_mode_world* GameWorld, entity* A, entity* B) {
 }
 
 internal b32
-CanOverlap(game_mode_world* GameWorld, entity* Mover, entity* Region) {
+CanOverlap(game_mode_world* WorldMode, entity* Mover, entity* Region) {
 	b32 Result = false;
 	if (Mover != Region) {
 		if (Region->Type == EntityType_Stairwell) {
@@ -260,12 +312,12 @@ SpeculativeCollide(entity* Mover, entity* Region, v3 TestP) {
 		Result = (AbsoluteValue(GetEntityGroundPoint(Mover).z - Ground) > StepHeight);
 	}
     
-	return(Result);
+    return(Result);
 }
 
 
 internal void
-MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, entity* Entity, r32 dt, move_spec* MoveSpec,
+MoveEntity(game_mode_world *WorldMode, sim_region* SimRegion, entity* Entity, r32 dt, move_spec* MoveSpec,
            v3 ddP) {
     TIMED_FUNCTION();
 	world* World = SimRegion->World;
@@ -312,7 +364,7 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, entity* Entity, r3
                  ++TestHighEntityIndex) {
                 entity* TestEntity = SimRegion->Entities + TestHighEntityIndex;
                 r32 OverlapEpsilon = 0.01f;
-                if (CanCollide(GameWorld, Entity, TestEntity)) {
+                if (CanCollide(WorldMode, Entity, TestEntity)) {
                     for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
                         entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
                         for (u32 TestVolumeIndex = 0; TestVolumeIndex < TestEntity->Collision->VolumeCount; TestVolumeIndex++) {
@@ -388,7 +440,7 @@ MoveEntity(game_mode_world *GameWorld, sim_region* SimRegion, entity* Entity, r3
 				PlayerDelta = DesiredPosition - Entity->P;
                 
 				// b32 WasOverlapping = (OverlapIndex != OverlappingCount);
-				b32 StopsOnCollision = HandleCollision(GameWorld, Entity, HitEntity);
+				b32 StopsOnCollision = HandleCollision(WorldMode, Entity, HitEntity);
                 
 				if (StopsOnCollision) {
 					Entity->dP = Entity->dP - 1 * Inner(Entity->dP, WallNormal) * WallNormal;
