@@ -54,10 +54,13 @@ InitHitPoints(entity* Entity, u32 HitPointCount) {
 }
 
 internal void
-AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ) {
+AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ, random_series *Series) {
     for (s32 OffsetY = -4; OffsetY <= 4; ++OffsetY) {
         for (s32 OffsetX = -8; OffsetX <= 8; ++OffsetX) {
             world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX + OffsetX, AbsTileY + OffsetY, AbsTileZ);
+            
+            P.Offset_.z = 0.2f * (r32)(OffsetX + OffsetY);
+            
             entity *Entity = BeginLowEntity(WorldMode, EntityType_Floor);
             Entity->Collision = WorldMode->FloorCollision;
             EndEntity(WorldMode, Entity, P);
@@ -328,7 +331,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
         AddStandardRoom(WorldMode, 
                         (ScreenX * TilesPerWidth + TilesPerWidth / 2), 
                         (ScreenY * TilesPerHeight + TilesPerHeight / 2), 
-                        AbsTileZ);
+                        AbsTileZ, &Series);
         
         
         for (u32 TileY = 0; TileY < TilesPerHeight; ++TileY) {
@@ -425,6 +428,7 @@ GetClosestTraversable(sim_region *SimRegion, v3 FromP, v3 *Result) {
         for (u32 PIndex = 0; PIndex < TestEntity->Collision->TraversableCount; ++PIndex) {
             entity_traversable_point P = GetSimEntityTraversable(TestEntity, PIndex);
             v3 HeadToPoint = P.P - FromP;
+            // HeadToPoint.z 
             r32 TestDSq = LengthSq(HeadToPoint);
             if (BestDistanceSq > TestDSq) {
                 *Result = P.P;
@@ -558,7 +562,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
 #endif
         }
     }
-    v3 SimBoundsExpansion = { 15.0f, 15.0f, 0 };
+    v3 SimBoundsExpansion = { 15.0f, 15.0f, 15.0f };
     rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundsExpansion);
     
     //temporary_memory SimMemory = BeginTemporaryMemory(&TranState->TranArena);
@@ -568,7 +572,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
     v3 CameraP = Subtract(World, &WorldMode->CameraP, &SimCenterP) + WorldMode->CameraOffset;
     
     object_transform WorldTransform = DefaultUprightTransform();
-    WorldTransform.OffsetP += -CameraP;
+    WorldTransform.OffsetP = -CameraP;
     PushRectOutline(RenderGroup, WorldTransform, v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
     PushRectOutline(RenderGroup, WorldTransform, v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
     PushRectOutline(RenderGroup, WorldTransform, v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
@@ -657,6 +661,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     
                 } break;
                 case EntityType_HeroBody: {
+                    DEBUG_VALUE(GetEntityGroundPoint(Entity));
                     entity *Head = Entity->Head.Ptr;
                     if (Head) {
                         v3 ClosestP = Entity->P;

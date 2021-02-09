@@ -201,7 +201,6 @@ Perspective(render_group* RenderGroup, u32 PixelWidth, u32 PixelHeight, r32 Foca
 	};
 	RenderGroup->CameraTransform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
 	RenderGroup->CameraTransform.Orthographic = false;
-    
 }
 
 
