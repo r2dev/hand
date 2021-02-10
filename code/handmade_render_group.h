@@ -23,16 +23,24 @@ enum render_group_entry_type {
 	RenderGroupEntryType_render_entry_clear,
 	RenderGroupEntryType_render_entry_rectangle,
 	RenderGroupEntryType_render_entry_bitmap,
+    RenderGroupEntryType_render_entry_cliprect,
 	RenderGroupEntryType_render_entry_coordinate_system
 };
 
-struct tile_sort_entry {
+struct render_entry_cliprect {
+    render_entry_cliprect *Next;
+    rectangle2i Rect;
+    // u16 X, Y, W, H;
+};
+
+struct sort_entry {
     u32 PushBufferOffset;
     r32 SortKey;
 };
 
 struct render_group_entry_header {
-	render_group_entry_type Type;
+    u16 Type;
+    u16 ClipRectIndex;
 };
 
 struct render_basis {
@@ -98,6 +106,7 @@ struct render_group {
     b32 RenderInBackground;
     
     game_render_commands *Commands;
+    u32 CurrentClipRectIndex;
 };
 
 struct render_entry_clear {

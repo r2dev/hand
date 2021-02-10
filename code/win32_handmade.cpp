@@ -166,7 +166,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile) {
 	if (FileHandle != INVALID_HANDLE_VALUE) {
 		LARGE_INTEGER FileSize;
 		if (GetFileSizeEx(FileHandle, &FileSize)) {
-			u32 FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
+			u32 FileSize32 = SafeTruncateToU32(FileSize.QuadPart);
 			Result.Contents = VirtualAlloc(0, FileSize32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 			if (Result.Contents) {
 				DWORD BytesRead;
@@ -613,13 +613,12 @@ Win32PrepareOpenGLContext(HDC WindowDC, HGLRC MainRC) {
 
 internal void
 Win32DisplayBufferInWindow(platform_work_queue *RenderQueue, game_render_commands* Commands,
-                           HDC DeviceContext, u32 WindowWidth, u32 WindowHeight, void *SortMemory) {
-    
-    // TODO(NAME): sort command
+                           HDC DeviceContext, u32 WindowWidth, u32 WindowHeight, void *SortMemory, void *ClipRectMemory) {
     
     b32 InHardware = true;
     b32 DisplayWithWin32Blit = false;
     SortEntries(Commands, SortMemory);
+    LinearizeClipRects(Commands, ClipRectMemory);
     
     if (InHardware) {
 #if OPENGL_ENABLED
@@ -1146,7 +1145,7 @@ PLATFORM_READ_DATA_FROM_FILE(Win32ReadDataFromFile) {
         OVERLAPPED Overlapped = {};
         Overlapped.Offset = (u32)(((Offset >> 0) & 0xFFFFFFFF));
         Overlapped.OffsetHigh = (u32)((Offset >> 32) & 0xFFFFFFFF);
-        u32 FileSize32 = SafeTruncateUInt64(Size);
+        u32 FileSize32 = SafeTruncateToU32(Size);
         DWORD BytesRead;
         if (ReadFile(Handle->Win32Handle, Dest, FileSize32, &BytesRead, &Overlapped) && (FileSize32 == BytesRead)) {
         } else {
@@ -1348,6 +1347,9 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                 
                 umm CurrentSortMemorySize = Megabytes(1);
                 void *SortMemory = Win32AllocateMemory(CurrentSortMemorySize);
+                
+                umm CurrentClipMemorySize = Megabytes(1);
+                void *ClipMemory = Win32AllocateMemory(CurrentClipMemorySize);
                 
                 while (GlobalRunning) {
                     {DEBUG_DATA_BLOCK("Platform/Controls");
@@ -1663,18 +1665,21 @@ int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLi
                     
                     HDC DeviceContext = GetDC(Window);
                     
-                    // sort temp memory allocation
-                    //if (CurrentSortMemorySize < NeededSortMemorySize) {
-                    //SortMemory = ;
-                    //}
-                    umm NeededSortMemorySize = RenderCommands.PushBufferElementSize * sizeof(tile_sort_entry);
+                    umm NeededSortMemorySize = RenderCommands.PushBufferElementSize * sizeof(sort_entry);
                     if (CurrentSortMemorySize < NeededSortMemorySize) {
                         Win32DeallocateMemory(SortMemory);
                         CurrentSortMemorySize = NeededSortMemorySize;
                         SortMemory = Win32AllocateMemory(CurrentSortMemorySize);
                     }
                     
-                    Win32DisplayBufferInWindow(&HighPriorityQueue, &RenderCommands, DeviceContext, Dimension.Width, Dimension.Height, SortMemory);
+                    umm NeededClipMemorySize = RenderCommands.PushBufferElementSize * sizeof(render_entry_cliprect);
+                    if (CurrentClipMemorySize < NeededClipMemorySize) {
+                        Win32DeallocateMemory(ClipMemory);
+                        CurrentClipMemorySize = NeededClipMemorySize;
+                        ClipMemory = Win32AllocateMemory(CurrentClipMemorySize);
+                    }
+                    
+                    Win32DisplayBufferInWindow(&HighPriorityQueue, &RenderCommands, DeviceContext, Dimension.Width, Dimension.Height, SortMemory, ClipMemory);
                     ReleaseDC(Window, DeviceContext);
                     
                     // note music syncing

@@ -306,7 +306,6 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     b32 DoorDown = false;
     
     for (u32 ScreenIndex = 0; ScreenIndex < 4; ++ScreenIndex) {
-        
 #if 0
         u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown)? 2: 4);
 #else
@@ -802,9 +801,12 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                 } break;
                 
                 case EntityType_Stairwell: {
+                    u32 OldIndex = RenderGroup->CurrentClipRectIndex;
+                    RenderGroup->CurrentClipRectIndex = PushClipRect(RenderGroup, EntityTransform, v3{ 0, 0, 0 }, v2{10.0f, 10.0f});
                     
                     PushRect(RenderGroup, EntityTransform, v3{ 0, 0, 0 }, Entity->WalkableDim, v4{ 1.0f, 0.5f, 0, 1.0f });
                     PushRect(RenderGroup, EntityTransform, v3{ 0, 0, Entity->WalkableHeight }, Entity->WalkableDim, v4{ 1.0f, 1.0f, 0, 1.0f });
+                    RenderGroup->CurrentClipRectIndex = OldIndex;
                     
                     //PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
                 } break;

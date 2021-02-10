@@ -42,8 +42,8 @@ EndTaskWithMemory(task_with_memory* Task) {
 internal loaded_bitmap
 MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, b32 ClearToZero = true) {
 	loaded_bitmap Result = {};
-	Result.Width = SafeTruncateToUInt16(Width);
-	Result.Height = SafeTruncateToUInt16(Height);
+	Result.Width = SafeTruncateToU16(Width);
+	Result.Height = SafeTruncateToU16(Height);
     Result.AlignPercentage = v2{0.5f, 0.5f};
     Result.WidthOverHeight = SafeRatio1((r32)Width, (r32)Height);
 	Result.Pitch = Result.Width * BITMAP_BYTE_PER_PIXEL;

@@ -47,14 +47,15 @@ PushRenderElement_(render_group* Group, u32 Size, render_group_entry_type Type, 
     
 	void* Result = 0;
 	Size += sizeof(render_group_entry_header);
-	if (Commands->PushBufferSize + Size < Commands->SortEntryAt - sizeof(tile_sort_entry)) {
+	if (Commands->PushBufferSize + Size < Commands->SortEntryAt - sizeof(sort_entry)) {
         
         render_group_entry_header* Header = (render_group_entry_header*)(Commands->PushBufferBase + Commands->PushBufferSize);
-		Header->Type = Type;
+		Header->Type = (u16)Type;
+        Header->ClipRectIndex = SafeTruncateToU16(Group->CurrentClipRectIndex);
 		Result = Header + 1;
         
-        Commands->SortEntryAt -= sizeof(tile_sort_entry);
-        tile_sort_entry *Entry = (tile_sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
+        Commands->SortEntryAt -= sizeof(sort_entry);
+        sort_entry *Entry = (sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
         Entry->SortKey = SortKey;
         
         Entry->PushBufferOffset = Commands->PushBufferSize;
@@ -130,7 +131,6 @@ PushFont(render_group* Group, font_id ID) {
     return(Font);
 }
 
-
 inline void
 PushRect(render_group* Group, object_transform ObjectTransform, v3 Offset, v2 Dim, v4 Color) {
 	v3 P = Offset - V3(0.5f * Dim, 0);
@@ -187,6 +187,43 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 	return(Entry);
 }
 
+inline u32
+PushClipRect(render_group* Group, u32 X, u32 Y, u32 W, u32 H) {
+    u32 Result = 0;
+	u32 Size = sizeof(render_entry_cliprect);
+    game_render_commands *Commands = Group->Commands;
+	if (Commands->PushBufferSize + Size < Commands->SortEntryAt - sizeof(sort_entry)) {
+        render_entry_cliprect *Entry = (render_entry_cliprect *)(Commands->PushBufferBase + Commands->PushBufferSize);
+        Commands->PushBufferSize += Size;
+        
+        Result = Group->Commands->ClipRectCount++;
+        if (Group->Commands->LastRect) {
+            Group->Commands->LastRect = Group->Commands->LastRect->Next = Entry;
+        } else {
+            Group->Commands->FirstRect = Group->Commands->LastRect = Entry;
+        }
+        Entry->Next = 0;
+        Entry->Rect.MinX = X;
+        Entry->Rect.MinY = (u16)Y;
+        Entry->Rect.MaxX = (u16)X + W;
+        Entry->Rect.MaxY = (u16)Y + H;
+    }
+    return(Result);
+}
+
+inline u32
+PushClipRect(render_group* Group, object_transform ObjectTransform, v3 Offset, v2 Dim) {
+    u32 Result = 0;
+    v3 P = Offset - V3(0.5f * Dim, 0);
+	entity_basis_p_result Basis = GetRenderEntityBasisP(Group->CameraTransform, ObjectTransform, P);
+	if (Basis.Valid) {
+        v2 BasisP = Basis.P;
+        v2 BasisDim = Basis.Scale * Dim;
+        Result = PushClipRect(Group, RoundReal32ToUInt32(BasisP.x), RoundReal32ToUInt32(BasisP.y), RoundReal32ToUInt32(BasisDim.x), RoundReal32ToUInt32(BasisDim.y));
+	}
+    return(Result);
+}
+
 inline void
 Perspective(render_group* RenderGroup, u32 PixelWidth, u32 PixelHeight, r32 FocalLength, r32 DistanceAboveTarget) {
 	r32 WidthOfMonitor = 0.635f;
@@ -201,6 +238,8 @@ Perspective(render_group* RenderGroup, u32 PixelWidth, u32 PixelHeight, r32 Foca
 	};
 	RenderGroup->CameraTransform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
 	RenderGroup->CameraTransform.Orthographic = false;
+    
+    RenderGroup->CurrentClipRectIndex = PushClipRect(RenderGroup, 0, 0, PixelWidth, PixelHeight);
 }
 
 
@@ -216,6 +255,8 @@ Orthographic(render_group* RenderGroup, u32 PixelWidth, u32 PixelHeight, r32 Met
 	};
 	RenderGroup->CameraTransform.ScreenCenter = v2{ 0.5f * PixelWidth, 0.5f * PixelHeight };
 	RenderGroup->CameraTransform.Orthographic = true;
+    
+    RenderGroup->CurrentClipRectIndex = PushClipRect(RenderGroup, 0, 0, PixelWidth, PixelHeight);
 }
 
 inline b32
@@ -244,6 +285,8 @@ BeginRenderGroup(game_assets* Assets, game_render_commands *Commands, u32 Genera
 	
     render_group Result = {};
     Result.GenerationID = GenerationID;
+    
+    Result.CurrentClipRectIndex = 0;
     
     Result.Commands = Commands;
     

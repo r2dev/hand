@@ -122,7 +122,7 @@ OpenGLDisplayBitmap(s32 Width, s32 Height, void *Memory, s32 Pitch, s32 WindowWi
     
     Assert(Pitch == (Width * 4));
     glViewport(0, 0, Width, Height);
-    
+    glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, DefaultInternalTextureFormat, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Memory);
     
@@ -159,7 +159,7 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
     
     //glViewport(0, 0, WindowWidth, WindowHeight);
     glEnable(GL_TEXTURE_2D);
-    
+    glEnable(GL_SCISSOR_TEST);
     glEnable(GL_BLEND);
     // if its not premultiple alpha image
     // GL_SOURCE_ALPHA, GL_ONE_MINUS_SRC_ALPHA
@@ -174,12 +174,20 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
     OpenGLSetScreenSpace(Commands->Width, Commands->Height);
     
     u32 SortEntryCount = Commands->PushBufferElementSize;
-    tile_sort_entry *SortEntries = (tile_sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
-    tile_sort_entry *SortEntry = SortEntries;
+    sort_entry *SortEntries = (sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
+    sort_entry *SortEntry = SortEntries;
+    u32 ClipRectIndex = 0xFFFFFFFF;
     for (u32 SortEntryIndex = 0; SortEntryIndex < SortEntryCount; ++SortEntryIndex, ++SortEntry) {
-        
-        render_group_entry_header* Header = (render_group_entry_header*)(Commands->PushBufferBase + SortEntry->PushBufferOffset);
+        render_group_entry_header *Header = (render_group_entry_header *)(Commands->PushBufferBase + SortEntry->PushBufferOffset);
 		void* Data = Header + 1;
+        
+        if (ClipRectIndex != Header->ClipRectIndex) {
+            ClipRectIndex = Header->ClipRectIndex;
+            Assert(ClipRectIndex < Commands->ClipRectCount);
+            render_entry_cliprect *Clip = Commands->ClipRects + Header->ClipRectIndex;
+            glScissor(Clip->Rect.MinX, Clip->Rect.MinY, Clip->Rect.MaxX, Clip->Rect.MaxY);
+        }
+        
 		switch (Header->Type) {
             case RenderGroupEntryType_render_entry_clear: {
                 render_entry_clear* Entry = (render_entry_clear*)Data;
@@ -193,9 +201,9 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
                 OpenGLRectangle(Entry->P, Entry->P + Entry->Dim, Entry->Color);
                 glEnable(GL_TEXTURE_2D);
             } break;
+            
             case RenderGroupEntryType_render_entry_bitmap: {
                 render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
-                
                 if (Entry->Bitmap->Width && Entry->Bitmap->Height) {
                     v2 XAxis = Entry->XAxis;
                     v2 YAxis = Entry->YAxis;
@@ -240,7 +248,9 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
             
             case RenderGroupEntryType_render_entry_coordinate_system: {
             } break;
-			InvalidDefaultCase;
+            case RenderGroupEntryType_render_entry_cliprect: {
+            } break;
+            InvalidDefaultCase;
 		}
     }
 }

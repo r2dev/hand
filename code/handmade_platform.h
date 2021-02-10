@@ -231,8 +231,14 @@ extern "C" {
         u32 PushBufferSize;
         u8* PushBufferBase;
         u32 PushBufferElementSize;
-        u32 SortEntryAt; 
+        u32 SortEntryAt;
+        
+        u32 ClipRectCount;
+        struct render_entry_cliprect *ClipRects;
+        render_entry_cliprect *FirstRect;
+        render_entry_cliprect *LastRect;
     };
+    
 #define RenderCommandStruct(MaxPushBufferSize, PushBuffer, Width, Height) \
 {Width, Height, MaxPushBufferSize, 0, PushBuffer, 0, MaxPushBufferSize}
     
@@ -461,14 +467,15 @@ extern "C" {
     
     
     inline u32
-        SafeTruncateUInt64(uint64 Value) {
+        SafeTruncateToU32(u64 Value) {
         Assert(Value <= 0xFFFFFFFF);
         u32 Result = (u32)Value;
         return(Result);
     }
     
+    
     inline u16
-        SafeTruncateToUInt16(u32 Value) {
+        SafeTruncateToU16(u32 Value) {
         Assert(Value <= 65535);
         Assert(Value >= 0);
         u16 Result = (u16)Value;
@@ -476,7 +483,7 @@ extern "C" {
     }
     
     inline s16
-        SafeTruncateToInt16(u32 Value) {
+        SafeTruncateToS16(u32 Value) {
         Assert(Value <= 32767);
         Assert(Value > 0);
         s16 Result = (s16)Value;

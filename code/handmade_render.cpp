@@ -2,29 +2,29 @@
 global_variable b32 Global_Renderer_ShowLightning_SampleSource = false;
 
 inline void
-Swap(tile_sort_entry *A, tile_sort_entry *B) {
-    tile_sort_entry Temp = *A;
+Swap(sort_entry *A, sort_entry *B) {
+    sort_entry Temp = *A;
     *A = *B;
     *B = Temp;
 }
 
 internal void
-MergeSort(tile_sort_entry *First, u32 Count, tile_sort_entry *Temp) {
+MergeSort(sort_entry *First, u32 Count, sort_entry *Temp) {
     if (Count == 2) {
         if (First->SortKey > (First + 1)->SortKey) {
             Swap(First, First + 1);
         }
     } else if (Count > 2) {
         u32 Half0 = Count / 2;
-        tile_sort_entry *FirstHalf = First;
-        tile_sort_entry *SecondHalf = First + Half0;
+        sort_entry *FirstHalf = First;
+        sort_entry *SecondHalf = First + Half0;
         MergeSort(FirstHalf, Half0, Temp);
         MergeSort(SecondHalf, Count - Half0, Temp);
-        tile_sort_entry *FirstRead = First;
-        tile_sort_entry *SecondRead = First + Half0;
-        tile_sort_entry *End = First + Count;
+        sort_entry *FirstRead = First;
+        sort_entry *SecondRead = First + Half0;
+        sort_entry *End = First + Count;
         
-        tile_sort_entry *Out = Temp;
+        sort_entry *Out = Temp;
         while(FirstRead != SecondHalf && SecondRead != End) {
             if (FirstRead->SortKey < SecondRead->SortKey) {
                 *Out++ = *FirstRead++;
@@ -61,13 +61,13 @@ SortKeyToU32(r32 SortKey) {
 }
 
 internal void
-RadixSort(tile_sort_entry *First, u32 Count, tile_sort_entry *Temp) {
-    tile_sort_entry *Src = First;
-    tile_sort_entry *Dest = Temp;
+RadixSort(sort_entry *First, u32 Count, sort_entry *Temp) {
+    sort_entry *Src = First;
+    sort_entry *Dest = Temp;
     for (u32 ByteIndex = 0; ByteIndex < 32; ByteIndex += 8) {
         u32 SortKeyOffset[256] = {};
         for (u32 Index = 0; Index < Count; ++Index) {
-            // tile_sort_entry *Entry = First + Index;
+            // sort_entry *Entry = First + Index;
             u32 RadixValue = SortKeyToU32(Src[Index].SortKey);
             u32 RadixPiece = (RadixValue >> ByteIndex) & 0xFF;
             ++SortKeyOffset[RadixPiece];
@@ -84,20 +84,20 @@ RadixSort(tile_sort_entry *First, u32 Count, tile_sort_entry *Temp) {
             Dest[SortKeyOffset[RadixPiece]++] = Src[Index];
         }
         // TODO(NAME): why? the dest value is ready, we can discard the src value
-        tile_sort_entry *SwapTemp = Dest;
+        sort_entry *SwapTemp = Dest;
         Dest = Src;
         Src = SwapTemp;
     }
 }
 
 internal void
-BubbleSort(tile_sort_entry *SortEntries, u32 Count) {
+BubbleSort(sort_entry *SortEntries, u32 Count) {
     for (u32 Outer = 0; Outer < Count; ++Outer) {
         b32 EarlyOut = true;
         for (u32 Inner = 0; Inner < Count - 1; ++Inner) {
             
-            tile_sort_entry *EntryA = SortEntries + Inner;
-            tile_sort_entry *EntryB = SortEntries + Inner + 1;
+            sort_entry *EntryA = SortEntries + Inner;
+            sort_entry *EntryB = SortEntries + Inner + 1;
             if (EntryA->SortKey > EntryB->SortKey) {
                 EarlyOut = false;
                 Swap(EntryA, EntryB);
@@ -111,20 +111,29 @@ BubbleSort(tile_sort_entry *SortEntries, u32 Count) {
 
 internal void
 SortEntries(game_render_commands *Commands, void *Temp) {
-    tile_sort_entry *SortEntries = (tile_sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
+    sort_entry *SortEntries = (sort_entry *)(Commands->PushBufferBase + Commands->SortEntryAt);
     u32 Count = Commands->PushBufferElementSize;
     
     // BubbleSort(SortEntries, Count);
-    //MergeSort(SortEntries, Count, (tile_sort_entry *)Temp);
-    RadixSort(SortEntries, Count, (tile_sort_entry *)Temp);
+    //MergeSort(SortEntries, Count, (sort_entry *)Temp);
+    RadixSort(SortEntries, Count, (sort_entry *)Temp);
 #if 0
     // verifier
     for (u32 Index = 0; Index < Commands->PushBufferElementSize - 1; ++Index) {
-        tile_sort_entry *EntryA = SortEntries + Index;
-        tile_sort_entry *EntryB = SortEntries + Index + 1;
+        sort_entry *EntryA = SortEntries + Index;
+        sort_entry *EntryB = SortEntries + Index + 1;
         Assert(EntryA->SortKey <= EntryB->SortKey);
     }
 #endif
+}
+
+internal void
+LinearizeClipRects(game_render_commands *Commands, void *ClipMemory) {
+    render_entry_cliprect *Out = (render_entry_cliprect *)ClipMemory;
+    for (render_entry_cliprect *Rect = Commands->FirstRect; Rect; Rect = Rect->Next) {
+        *Out++ = *Rect;
+    }
+    Commands->ClipRects = (render_entry_cliprect *)ClipMemory;
 }
 
 
