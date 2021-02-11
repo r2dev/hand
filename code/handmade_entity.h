@@ -59,6 +59,11 @@ enum entity_movement_code {
     MovementMode_Hopping,
 };
 
+struct traversable_reference {
+    entity_reference Entity;
+    u32 Index;
+};
+
 struct entity {
     entity_id ID;
 	b32 Updatable;
@@ -91,8 +96,8 @@ struct entity {
     
     entity_movement_code MovementMode;
     r32 tMovement;
-    v3 MovementFrom;
-    v3 MovementTo;
+    traversable_reference StandingOn;
+    traversable_reference MovingTo;
     
     v2 XAxis;
     v2 YAxis;

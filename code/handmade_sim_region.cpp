@@ -6,6 +6,12 @@ GetSimEntityTraversable(entity *Entity, u32 Index) {
     return(Result);
 }
 
+inline entity_traversable_point
+GetSimEntityTraversable(traversable_reference Ref) {
+    entity_traversable_point Result = GetSimEntityTraversable(Ref.Entity.Ptr, Ref.Index);
+    return(Result);
+}
+
 internal entity_hash *
 GetHashFromID(sim_region* SimRegion, entity_id ID) {
 	Assert(ID.Value);
@@ -30,23 +36,16 @@ GetEntityByID(sim_region* SimRegion, entity_id ID) {
 }
 
 inline void
-StoreEntityReference(entity_reference* Ref) {
-	if (Ref->Ptr != 0) {
-        Ref->ID = Ref->Ptr->ID;
-	}
-}
-
-inline v3
-GetSimSpaceP(sim_region* SimRegion, entity *Stored) {
-	
-}
-
-inline void
 LoadEntityReference(sim_region* SimRegion, entity_reference* Ref) {
 	if (Ref->ID.Value != 0) {
 		entity_hash* Entry = GetHashFromID(SimRegion, Ref->ID);
 		Ref->Ptr = Entry ? Entry->Ptr: 0;
 	}
+}
+
+inline void
+LoadTraversableReference(sim_region* SimRegion, traversable_reference* Ref) {
+    LoadEntityReference(SimRegion, &Ref->Entity);
 }
 
 internal b32
@@ -91,8 +90,7 @@ AddEntity(sim_region* SimRegion, entity* Source, v3 ChunkDelta) {
         Dest->ID = ID;
         Dest->Updatable = false;
         Dest->P += ChunkDelta;
-        Dest->MovementFrom += ChunkDelta;
-        Dest->MovementTo += ChunkDelta;
+        
         Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
     }
     else {
@@ -116,6 +114,8 @@ ConnectEntityPointers(sim_region *SimRegion) {
     for(u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
         entity *Entity = SimRegion->Entities + EntityIndex;
         LoadEntityReference(SimRegion, &Entity->Head);
+        LoadTraversableReference(SimRegion, &Entity->StandingOn);
+        LoadTraversableReference(SimRegion, &Entity->MovingTo);
     }
 }
 
@@ -252,9 +252,6 @@ EndSim(sim_region* SimRegion, game_mode_world* WorldMode) {
             }
             
             Entity->P += ChunkDelta;
-            Entity->MovementFrom += ChunkDelta;
-            Entity->MovementTo += ChunkDelta;
-            StoreEntityReference(&Entity->Head);
             PackEntityIntoWorld(World, Entity, EntityChunkP);
         }
 	}
@@ -479,4 +476,31 @@ MoveEntity(game_mode_world *WorldMode, sim_region* SimRegion, entity* Entity, r3
 		Entity->FacingDirection = Atan2(Entity->dP.y, Entity->dP.x);
 	}
 #endif
+}
+
+internal b32
+GetClosestTraversable(sim_region *SimRegion, v3 FromP, traversable_reference *Result) {
+    b32 Found = false;
+    r32 BestDistanceSq = Square(1000.0f);
+    entity* TestEntity = SimRegion->Entities;
+    for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
+        for (u32 PIndex = 0; PIndex < TestEntity->Collision->TraversableCount; ++PIndex) {
+            entity_traversable_point Point = GetSimEntityTraversable(TestEntity, PIndex);
+            v3 HeadToPoint = Point.P - FromP;
+            // HeadToPoint.z 
+            r32 TestDSq = LengthSq(HeadToPoint);
+            if (BestDistanceSq > TestDSq) {
+                //*Result = P.P;
+                Result->Entity.Ptr = TestEntity;
+                Result->Index = PIndex;
+                BestDistanceSq = TestDSq;
+                Found = true;
+            }
+        }
+    }
+    if (!Found) {
+        Result->Entity.Ptr = 0;
+        Result->Index = 0;
+    }
+    return(Found);
 }

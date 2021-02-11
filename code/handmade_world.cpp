@@ -171,6 +171,18 @@ HasRoomFor(world_entity_block *Block, u32 Size) {
     return(Result);
 }
 
+inline void
+PackEntityReference(entity_reference* Ref) {
+	if (Ref->Ptr != 0) {
+        Ref->ID = Ref->Ptr->ID;
+	}
+}
+
+inline void
+PackTraverableReference(traversable_reference* Ref) {
+    PackEntityReference(&Ref->Entity);
+}
+
 internal void
 PackEntityIntoChunk(world *World, entity *Source, world_chunk* Chunk) {
     u32 PackSize = sizeof(*Source);
@@ -188,7 +200,12 @@ PackEntityIntoChunk(world *World, entity *Source, world_chunk* Chunk) {
     void *Dest = Block->EntityData + Block->EntityDataSize;
     ++Block->EntityCount;
     Block->EntityDataSize += PackSize;
-    *(entity *)Dest = *Source;
+    entity *DestE = (entity *)Dest;
+    *DestE = *Source;
+    
+    PackTraverableReference(&DestE->StandingOn);
+    PackTraverableReference(&DestE->MovingTo);
+    PackEntityReference(&DestE->Head);
 }
 
 internal void

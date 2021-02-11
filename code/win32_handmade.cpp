@@ -1171,7 +1171,7 @@ debug_table* GlobalDebugTable = &GlobalDebugTable_;
 #endif
 
 int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int showCode) {
-    
+    SetProcessDPIAware();
     win32_state Win32State = {};
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
