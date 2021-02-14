@@ -113,46 +113,6 @@ Win32BuildEXEPathFileName(win32_state* State, char* FileName,
                DestCount, Dest);
 }
 
-#if 0
-internal void
-Win32DebugDrawVertical(win32_offscreen_buffer* Backbuffer,
-                       int X, int Top, int Bottom, u32 Color) {
-	u8* Pixel = (u8*)Backbuffer->Memory +
-		X * Backbuffer->BytesPerPixel +
-		Top * Backbuffer->Pitch;
-	for (int Y = Top; Y < Bottom; ++Y) {
-		*(u32*)Pixel = Color;
-		Pixel += Backbuffer->Pitch;
-	}
-}
-
-inline void
-Win32DrawSoundBufferMarker(win32_offscreen_buffer* Backbuffer, win32_sound_output* SoundOutput,
-                           r32 C, int PadX, int Top, int Bottom, DWORD Value, u32 Color) {
-	Assert(Value < SoundOutput->SecondaryBufferSize);
-	r32 XReal32 = (C * (r32)Value);
-	int X = PadX + (int)XReal32;
-	Win32DebugDrawVertical(Backbuffer, X, Top, Bottom, Color);
-}
-
-internal void
-Win32DebugSyncDisplay(win32_offscreen_buffer* Backbuffer, size_t MarkerCount,
-                      win32_debug_time_marker* Markers, win32_sound_output* SoundOutput, r32 TargetSecondsPerFrame) {
-	int PadX = 16;
-	int PadY = 16;
-	int Top = PadY;
-	int Bottom = Backbuffer->Height - PadY;
-    
-	r32 C = (r32)(Backbuffer->Width - 2 * PadX) / (r32)SoundOutput->SecondaryBufferSize;
-	for (int MarkerIndex = 0; MarkerIndex < MarkerCount; ++MarkerIndex) {
-		win32_debug_time_marker* ThisMarker = &Markers[MarkerIndex];
-		Win32DrawSoundBufferMarker(Backbuffer, SoundOutput,
-                                   C, PadX, Top, Bottom, ThisMarker->PlayCursor, 0xFFFFFFFF);
-		Win32DrawSoundBufferMarker(Backbuffer, SoundOutput,
-                                   C, PadX, Top, Bottom, ThisMarker->WriteCursor, 0xFFFF0000);
-	}
-}
-#endif
 #if HANDMADE_INTERNAL
 DEBUG_PLATFORM_FREE_FILE_MEMORY(DEBUGPlatformFreeFileMemory) {
 	if (Memory) {
@@ -1171,7 +1131,7 @@ debug_table* GlobalDebugTable = &GlobalDebugTable_;
 #endif
 
 int CALLBACK WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CommandLine, int showCode) {
-    SetProcessDPIAware();
+    //SetProcessDPIAware();
     win32_state Win32State = {};
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);

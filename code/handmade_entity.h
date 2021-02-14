@@ -7,7 +7,7 @@ enum entity_type {
 	EntityType_Null,
     
 	EntityType_Floor,
-    
+    EntityType_FloatyThingForNow,
 	EntityType_HeroBody,
     EntityType_HeroHead,
 	EntityType_Wall,
@@ -63,6 +63,12 @@ struct traversable_reference {
     entity_reference Entity;
     u32 Index;
 };
+
+inline b32
+IsEqual(traversable_reference A, traversable_reference B) {
+    b32 Result = (A.Index == B.Index && (A.Entity.Ptr == B.Entity.Ptr) && (A.Entity.ID.Value == B.Entity.ID.Value));
+    return(Result);
+}
 
 struct entity {
     entity_id ID;
