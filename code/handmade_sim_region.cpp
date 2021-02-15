@@ -1,8 +1,30 @@
+inline entity_traversable_point *
+GetTraversable(entity *Entity, u32 Index) {
+    entity_traversable_point* Result = 0;
+    if (Entity) {
+        Assert(Index < Entity->TraversableCount);
+        Result = Entity->Traversables + Index;
+    }
+    return(Result);
+}
+
+inline entity_traversable_point *
+GetTraversable(traversable_reference Reference) {
+    entity_traversable_point *Result = GetTraversable(Reference.Entity.Ptr, Reference.Index);
+    return(Result);
+}
+
 inline entity_traversable_point
 GetSimEntityTraversable(entity *Entity, u32 Index) {
-    Assert(Index < Entity->Collision->TraversableCount);
-    entity_traversable_point Result = Entity->Collision->Traversables[Index];
-    Result.P += Entity->P;
+    entity_traversable_point Result = {};
+    Result.P = Entity->P;
+    Assert(Index < Entity->TraversableCount);
+    entity_traversable_point *Point = GetTraversable(Entity, Index);
+    if (Point) {
+        Result.P += Point->P;
+        Result.Occupier = Point->Occupier;
+    }
+    
     return(Result);
 }
 
@@ -88,7 +110,6 @@ AddEntity(sim_region* SimRegion, entity* Source, v3 ChunkDelta) {
             *Dest = *Source;
         }
         Dest->ID = ID;
-        Dest->Updatable = false;
         Dest->P += ChunkDelta;
         
         Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
@@ -114,8 +135,11 @@ ConnectEntityPointers(sim_region *SimRegion) {
     for(u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
         entity *Entity = SimRegion->Entities + EntityIndex;
         LoadEntityReference(SimRegion, &Entity->Head);
-        LoadTraversableReference(SimRegion, &Entity->StandingOn);
-        LoadTraversableReference(SimRegion, &Entity->MovingTo);
+        LoadTraversableReference(SimRegion, &Entity->Occupying);
+        if (Entity->Occupying.Entity.Ptr) {
+            Entity->Occupying.Entity.Ptr->Traversables[Entity->Occupying.Index].Occupier = Entity;
+        }
+        LoadTraversableReference(SimRegion, &Entity->CameFrom);
     }
 }
 
@@ -319,7 +343,21 @@ SpeculativeCollide(entity* Mover, entity* Region, v3 TestP) {
     
     return(Result);
 }
-
+internal b32
+TransactionalOccupy(entity *Entity, traversable_reference *Ref, traversable_reference Target) {
+    b32 Result = false;
+    entity_traversable_point *DesiredPoint = GetTraversable(Target);
+    if (!DesiredPoint->Occupier) {
+        entity_traversable_point *OriginalPoint = GetTraversable(*Ref);
+        if (OriginalPoint) {
+            OriginalPoint->Occupier = 0;
+        }
+        *Ref = Target;
+        DesiredPoint->Occupier = Entity;
+        Result = true;
+    }
+    return(Result);
+}
 
 internal void
 MoveEntity(game_mode_world *WorldMode, sim_region* SimRegion, entity* Entity, r32 dt, move_spec* MoveSpec,
@@ -478,23 +516,30 @@ MoveEntity(game_mode_world *WorldMode, sim_region* SimRegion, entity* Entity, r3
 #endif
 }
 
+enum traversable_search_flag {
+    TraversableSearch_Unoccupied = 0x1,
+};
+
 internal b32
-GetClosestTraversable(sim_region *SimRegion, v3 FromP, traversable_reference *Result) {
+GetClosestTraversable(sim_region *SimRegion, v3 FromP, traversable_reference *Result,
+                      u32 Flags = 0) {
     b32 Found = false;
     r32 BestDistanceSq = Square(1000.0f);
     entity* TestEntity = SimRegion->Entities;
     for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
-        for (u32 PIndex = 0; PIndex < TestEntity->Collision->TraversableCount; ++PIndex) {
+        for (u32 PIndex = 0; PIndex < TestEntity->TraversableCount; ++PIndex) {
             entity_traversable_point Point = GetSimEntityTraversable(TestEntity, PIndex);
-            v3 HeadToPoint = Point.P - FromP;
-            // HeadToPoint.z 
-            r32 TestDSq = LengthSq(HeadToPoint);
-            if (BestDistanceSq > TestDSq) {
-                //*Result = P.P;
-                Result->Entity.Ptr = TestEntity;
-                Result->Index = PIndex;
-                BestDistanceSq = TestDSq;
-                Found = true;
+            if (Point.Occupier == 0 || !(Flags & TraversableSearch_Unoccupied)) {
+                v3 HeadToPoint = Point.P - FromP;
+                // HeadToPoint.z 
+                r32 TestDSq = LengthSq(HeadToPoint);
+                if (BestDistanceSq > TestDSq) {
+                    //*Result = P.P;
+                    Result->Entity.Ptr = TestEntity;
+                    Result->Index = PIndex;
+                    BestDistanceSq = TestDSq;
+                    Found = true;
+                }
             }
         }
     }

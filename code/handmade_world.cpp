@@ -203,8 +203,8 @@ PackEntityIntoChunk(world *World, entity *Source, world_chunk* Chunk) {
     entity *DestE = (entity *)Dest;
     *DestE = *Source;
     
-    PackTraverableReference(&DestE->StandingOn);
-    PackTraverableReference(&DestE->MovingTo);
+    PackTraverableReference(&DestE->Occupying);
+    PackTraverableReference(&DestE->CameFrom);
     PackEntityReference(&DestE->Head);
 }
 

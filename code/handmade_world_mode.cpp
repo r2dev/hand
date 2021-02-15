@@ -59,14 +59,23 @@ AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsT
         for (s32 OffsetX = -8; OffsetX <= 8; ++OffsetX) {
             world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX + OffsetX, AbsTileY + OffsetY, AbsTileZ);
             
-            P.Offset_.z = 0.2f * (r32)(OffsetX + OffsetY);
+            //P.Offset_.z = 0.2f * (r32)(OffsetX + OffsetY);
             
             if (OffsetX == 2 && OffsetY == 2) {
                 entity *Entity = BeginGroundedEntity(WorldMode, EntityType_FloatyThingForNow, WorldMode->FloorCollision);
+                Entity->TraversableCount = 1;
+                Entity->Traversables[0].P = v3{0, 0, 0};
+                Entity->Traversables[0].Occupier = 0;
                 EndEntity(WorldMode, Entity, P);
             } else {
                 
                 entity *Entity = BeginGroundedEntity(WorldMode, EntityType_Floor, WorldMode->FloorCollision);
+                
+                Entity->TraversableCount = 1;
+                //Entity->Traversables = PushArray(&WorldMode->World->Arena, Entity->TraversableCount, entity_traversable_point);
+                Entity->Traversables[0].P = v3{0, 0, 0};
+                Entity->Traversables[0].Occupier = 0;
+                
                 EndEntity(WorldMode, Entity, P);
             }
         }
@@ -75,17 +84,16 @@ AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsT
 }
 
 internal entity_id
-AddPlayer(game_mode_world *WorldMode, traversable_reference StandingOn) {
-	world_position P = WorldMode->CameraP;
+AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_reference StandingOn) {
+	world_position P = MapIntoChunkSpace(SimRegion->World, SimRegion->Origin, GetSimEntityTraversable(StandingOn).P);
     entity_id Result;
     entity *Body = BeginGroundedEntity(WorldMode, EntityType_HeroBody, WorldMode->HeroBodyCollision);
     AddFlags(Body, EntityFlag_Collides | EntityFlag_Moveable);
     InitHitPoints(Body, 3);
     
-    
     entity *Head = BeginGroundedEntity(WorldMode, EntityType_HeroHead, WorldMode->HeroHeadCollision);
 	AddFlags(Head, EntityFlag_Collides | EntityFlag_Moveable);
-    Body->StandingOn = StandingOn;
+    Body->Occupying = StandingOn;
     Body->Head.Ptr = Head;
     Head->Head.Ptr = Body;
 	if (WorldMode->CameraFollowingEntityID.Value == 0) {
@@ -167,11 +175,9 @@ internal entity_collision_volume_group*
 MakeSimpleFloorCollision(game_mode_world* WorldMode, r32 DimX, r32 DimY, r32 DimZ) {
 	entity_collision_volume_group* Group = PushStruct(&WorldMode->World->Arena, entity_collision_volume_group);
 	Group->VolumeCount = 0;
-    Group->TraversableCount = 1;
-    Group->Traversables = PushArray(&WorldMode->World->Arena, Group->TraversableCount, entity_traversable_point);
+    
 	Group->TotalVolume.Dim = v3{ DimX, DimY, DimZ };
 	Group->TotalVolume.OffsetP = v3{ 0, 0, 0 };
-	Group->Traversables[0].P = v3{0, 0, 0};
 	return(Group);
 }
 
@@ -470,13 +476,15 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                 *ConHero = {};
                 traversable_reference Traversable;
                 if (GetClosestTraversable(SimRegion, CameraP, &Traversable)) {
-                    ConHero->ID = AddPlayer(WorldMode, Traversable);
+                    ConHero->ID = AddPlayer(WorldMode, SimRegion, Traversable);
+                    HeroExist = true;
                 } else {
                     
                 }
             }
         }
-        if (ConHero->ID.Value) {
+        //if (ConHero->ID.Value) {
+        else {
             HeroExist = true;
             ConHero->dZ = 0.0f;
             ConHero->dSword = {};
@@ -524,6 +532,10 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     if (IsDown(Controller->MoveDown)) {
                         ConHero->ddP.y = -1;
                     }
+                }
+                
+                if (WasPressed(Controller->Start)) {
+                    ConHero->DebugSpawn = true;
                 }
             }
 #if 0
@@ -601,74 +613,89 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
             //hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
             switch (Entity->Type) {
                 case EntityType_HeroHead: {
+                    controlled_hero ConHero_ = {};
+                    ConHero_.ddP.x = 1.0f;
+                    controlled_hero* ConHero = &ConHero_;
                     for (u32 ControlIndex = 0; ControlIndex < ArrayCount(GameState->ControlledHeroes); ++ControlIndex) {
-                        controlled_hero* ConHero = GameState->ControlledHeroes + ControlIndex;
-                        if (Entity->ID.Value == ConHero->ID.Value) {
-                            ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
-                            
-                            entity *Head = Entity;
-                            entity *Body = Head->Head.Ptr;
-                            
-                            if (ConHero->dZ != 0.0f) {
-                                Entity->dP.z = ConHero->dZ;
-                            }
-                            MoveSpec.UnitMaxAccelVector = true;
-                            MoveSpec.Speed = 30.0f;
-                            MoveSpec.Drag = 8.0f;
-                            ddP = V3(ConHero->ddP, 0);
-                            
-                            if (ConHero->dSword.x == 0.0f && ConHero->dSword.y == 0.0f) {
-                                // remain whichever face direction it was
-                            }
-                            else {
-                                Entity->FacingDirection = Atan2(ConHero->dSword.y, ConHero->dSword.x);
-                            }
-                            
-                            traversable_reference Traversable;
-                            if (GetClosestTraversable(SimRegion, Head->P, &Traversable)) {
-                                
-                                if (Body) {
-                                    if (Body->MovementMode == MovementMode_Planted) {
-                                        if (!IsEqual(Traversable, Body->StandingOn)) {
-                                            
-                                            Body->tMovement = 0;
-                                            Body->MovingTo = Traversable;
-                                            Body->MovementMode = MovementMode_Hopping;
-                                        }
-                                    }
+                        controlled_hero* TestHero = GameState->ControlledHeroes + ControlIndex;
+                        
+                        if (Entity->ID.Value == TestHero->ID.Value) {
+                            ConHero = TestHero;
+                            if (TestHero->DebugSpawn) {
+                                traversable_reference Traversable;
+                                if (GetClosestTraversable(SimRegion, Entity->P, &Traversable, TraversableSearch_Unoccupied)) {
+                                    AddPlayer(WorldMode, SimRegion, Traversable);
                                 } else {
+                                    
                                 }
-                                
-                                v3 ClosestP = GetSimEntityTraversable(Traversable).P;
-                                b32 TimeIsUp = ConHero->RecenterTimer == 0.0f? true: false;
-                                b32 NoPush = (Length(ddP) < 0.1f);
-                                r32 Cp = NoPush? 300.0f: 25.0f;
-                                v3 ddP2 = {};
-                                for (u32 E = 0; E < 3; ++E) {
-#if 0
-                                    if (Square(ddP.E[E]) < 0.1f)
-#else
-                                    if (NoPush || (TimeIsUp && (Square(ddP.E[E]) < 0.1f)))
-#endif
-                                    {
-                                        ddP2.E[E] =
-                                            Cp * (ClosestP.E[E] - Entity->P.E[E]) - 30.0f * Entity->dP.E[E];
-                                    }
-                                }
-                                Entity->dP += dt *ddP2;
-                            }
-                            
-                            
-                            if (Body) {
-                                Body->FacingDirection = Head->FacingDirection;
-                            }
-                            
-                            if (ConHero->Exited) {
-                                ConHero->Exited = false;
-                                DeleteEntity(SimRegion, ConHero->ID);
-                                ConHero->ID.Value = 0;
+                                TestHero->DebugSpawn = false;
                             }
                         }
+                        
+                    }
+                    ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
+                    
+                    entity *Head = Entity;
+                    entity *Body = Head->Head.Ptr;
+                    
+                    if (ConHero->dZ != 0.0f) {
+                        Entity->dP.z = ConHero->dZ;
+                    }
+                    MoveSpec.UnitMaxAccelVector = true;
+                    MoveSpec.Speed = 30.0f;
+                    MoveSpec.Drag = 8.0f;
+                    ddP = V3(ConHero->ddP, 0);
+                    
+                    if (ConHero->dSword.x == 0.0f && ConHero->dSword.y == 0.0f) {
+                        // remain whichever face direction it was
+                    }
+                    else {
+                        Entity->FacingDirection = Atan2(ConHero->dSword.y, ConHero->dSword.x);
+                    }
+                    
+                    traversable_reference Traversable;
+                    if (GetClosestTraversable(SimRegion, Head->P, &Traversable)) {
+                        if (Body) {
+                            if (Body->MovementMode == MovementMode_Planted) {
+                                if (!IsEqual(Traversable, Body->Occupying)) {
+                                    Body->CameFrom = Body->Occupying;
+                                    if (TransactionalOccupy(Body, &Body->Occupying, Traversable)) {
+                                        Body->tMovement = 0;
+                                        Body->MovementMode = MovementMode_Hopping;
+                                    }
+                                }
+                            }
+                        } else {
+                        }
+                        
+                        v3 ClosestP = GetSimEntityTraversable(Traversable).P;
+                        b32 TimeIsUp = ConHero->RecenterTimer == 0.0f? true: false;
+                        b32 NoPush = (Length(ddP) < 0.1f);
+                        r32 Cp = NoPush? 300.0f: 25.0f;
+                        v3 ddP2 = {};
+                        for (u32 E = 0; E < 3; ++E) {
+#if 0
+                            if (Square(ddP.E[E]) < 0.1f)
+#else
+                            if (NoPush || (TimeIsUp && (Square(ddP.E[E]) < 0.1f)))
+#endif
+                            {
+                                ddP2.E[E] =
+                                    Cp * (ClosestP.E[E] - Entity->P.E[E]) - 30.0f * Entity->dP.E[E];
+                            }
+                        }
+                        Entity->dP += dt *ddP2;
+                    }
+                    
+                    
+                    if (Body) {
+                        Body->FacingDirection = Head->FacingDirection;
+                    }
+                    
+                    if (ConHero->Exited) {
+                        ConHero->Exited = false;
+                        DeleteEntity(SimRegion, ConHero->ID);
+                        ConHero->ID.Value = 0;
                     }
                     
                 } break;
@@ -678,7 +705,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     
                     Entity->dP = v3{0, 0, 0};
                     if (Entity->MovementMode == MovementMode_Planted) {
-                        Entity->P = GetSimEntityTraversable(Entity->StandingOn).P;
+                        Entity->P = GetSimEntityTraversable(Entity->Occupying).P;
                     }
                     
                     r32 ddtBob = 0.0f;
@@ -704,8 +731,8 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                             r32 tTotal = Entity->tMovement;
                             r32 tJump = 0.1f;
                             r32 tLand = 0.9f;
-                            v3 MovementFrom = GetSimEntityTraversable(Entity->StandingOn).P;
-                            v3 MovementTo = GetSimEntityTraversable(Entity->MovingTo).P;
+                            v3 MovementFrom = GetSimEntityTraversable(Entity->CameFrom).P;
+                            v3 MovementTo = GetSimEntityTraversable(Entity->Occupying).P;
                             
                             if (tTotal < tJump) {
                                 ddtBob = 45.0f;
@@ -720,7 +747,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                             
                             if (Entity->tMovement >= 1.0f) {
                                 Entity->P = MovementTo;
-                                Entity->StandingOn = Entity->MovingTo;
+                                Entity->CameFrom = Entity->Occupying;
                                 Entity->MovementMode = MovementMode_Planted;
                                 Entity->dtBob = -2.0f;
                             }
@@ -834,10 +861,11 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                         entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
                         PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
                     }
-                    for (u32 Index = 0; Index < Entity->Collision->TraversableCount; Index++) {
-                        entity_traversable_point* Traversable = Entity->Collision->Traversables + Index;
+                    for (u32 Index = 0; Index < Entity->TraversableCount; Index++) {
+                        entity_traversable_point* Traversable = Entity->Traversables + Index;
                         
-                        PushRect(RenderGroup, EntityTransform, Traversable->P, v2{0.1f, 0.1f}, v4{ 0, 0.5f, 1.0f, 1.0f });
+                        PushRect(RenderGroup, EntityTransform, Traversable->P, v2{0.1f, 0.1f}, 
+                                 Traversable->Occupier? v4{0.0f, 0.5f, 1.0f,1.0f}: v4{ 1.0f, 0.5f, 0.0f, 1.0f });
                     }
                 } break;
                 default: {

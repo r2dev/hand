@@ -45,13 +45,12 @@ struct entity_collision_volume {
 
 struct entity_traversable_point {
     v3 P;
+    entity *Occupier;
 };
 struct entity_collision_volume_group {
 	entity_collision_volume TotalVolume;
 	u32 VolumeCount;
 	entity_collision_volume* Volumes;
-    u32 TraversableCount;
-    entity_traversable_point *Traversables;
 };
 
 enum entity_movement_code {
@@ -102,12 +101,15 @@ struct entity {
     
     entity_movement_code MovementMode;
     r32 tMovement;
-    traversable_reference StandingOn;
-    traversable_reference MovingTo;
+    traversable_reference Occupying;
+    traversable_reference CameFrom;
     
     v2 XAxis;
     v2 YAxis;
     v2 FloorDisplace;
+    
+    u32 TraversableCount;
+    entity_traversable_point Traversables[16];
 };
 
 inline b32
