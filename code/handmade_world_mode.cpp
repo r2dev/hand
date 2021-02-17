@@ -1,3 +1,8 @@
+internal brain_id
+AddBrain(game_mode_world *WorldMode) {
+    brain_id ID = {++WorldMode->LastUsedEntityStorageIndex};
+    return(ID);
+}
 internal entity *
 BeginLowEntity(game_mode_world* WorldMode, entity_type Type) {
     Assert(WorldMode->CreationBufferIndex < ArrayCount(WorldMode->CreationBuffer));
@@ -15,7 +20,7 @@ EndEntity(game_mode_world* WorldMode, entity *Entity, world_position P) {
     --WorldMode->CreationBufferIndex;
     Assert(Entity == WorldMode->CreationBuffer + WorldMode->CreationBufferIndex);
     Entity->P = P.Offset_;
-    PackEntityIntoWorld(WorldMode->World, Entity, P);
+    PackEntityIntoWorld(WorldMode->World, 0, Entity, P);
 }
 
 inline entity *
@@ -83,10 +88,10 @@ AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsT
 	
 }
 
-internal entity_id
+internal brain_id
 AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_reference StandingOn) {
 	world_position P = MapIntoChunkSpace(SimRegion->World, SimRegion->Origin, GetSimEntityTraversable(StandingOn).P);
-    entity_id Result;
+    
     entity *Body = BeginGroundedEntity(WorldMode, EntityType_HeroBody, WorldMode->HeroBodyCollision);
     AddFlags(Body, EntityFlag_Collides | EntityFlag_Moveable);
     InitHitPoints(Body, 3);
@@ -94,15 +99,22 @@ AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_referen
     entity *Head = BeginGroundedEntity(WorldMode, EntityType_HeroHead, WorldMode->HeroHeadCollision);
 	AddFlags(Head, EntityFlag_Collides | EntityFlag_Moveable);
     Body->Occupying = StandingOn;
-    Body->Head.Ptr = Head;
-    Head->Head.Ptr = Body;
+    
+    brain_id BrainID = AddBrain(WorldMode);
+    Body->BrainID = BrainID;
+    Body->BrainType = Brain_Hero;
+    Body->BrainSlot.Index = 0;
+    
+    Head->BrainID = BrainID;
+    Head->BrainType = Brain_Hero;
+    Head->BrainSlot.Index = 1;
+    
 	if (WorldMode->CameraFollowingEntityID.Value == 0) {
 		WorldMode->CameraFollowingEntityID = Head->ID;
 	}
-    Result = Head->ID;
     EndEntity(WorldMode, Head, P);
     EndEntity(WorldMode, Body, P);
-	return(Result);
+	return(BrainID);
 }
 
 internal void
@@ -208,7 +220,6 @@ ClearCollisionRulesFor(game_mode_world* WorldMode, entity_id ID) {
 			}
 		}
 	}
-    
 }
 
 internal void
@@ -465,10 +476,126 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
     
     b32 HeroExist = false;
     b32 QuitRequested = false;
+    r32 dt = Input->dtForFrame;
+    
+    for (u32 BrainIndex = 0; BrainIndex < SimRegion->BrainCount; ++BrainIndex) {
+        brain *Brain = SimRegion->Brains + BrainIndex;
+        switch(Brain->Type) {
+            case Brain_Hero: {
+                
+                entity *Head = 0;;
+                entity *Body = 0;
+                
+                controlled_hero ConHero_ = {};
+                ConHero_.ddP.x = 1.0f;
+                controlled_hero* ConHero = &ConHero_;
+                for (u32 ControlIndex = 0; ControlIndex < ArrayCount(GameState->ControlledHeroes); ++ControlIndex) {
+                    controlled_hero* TestHero = GameState->ControlledHeroes + ControlIndex;
+                    if (Brain->ID.Value == TestHero->BrainID.Value) {
+                        ConHero = TestHero;
+                        if (TestHero->DebugSpawn && Head) {
+                            traversable_reference Traversable;
+                            if (GetClosestTraversable(SimRegion, Head->P, &Traversable, TraversableSearch_Unoccupied)) {
+                                AddPlayer(WorldMode, SimRegion, Traversable);
+                            } else {
+                                
+                            }
+                            TestHero->DebugSpawn = false;
+                        }
+                    }
+                    
+                }
+                ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
+                
+                if (Head) {
+                    if (ConHero->dZ != 0.0f) {
+                        Head->dP.z = ConHero->dZ;
+                    }
+                    if (ConHero->dSword.x == 0.0f && ConHero->dSword.y == 0.0f) {
+                        // remain whichever face direction it was
+                    }
+                    else {
+                        Head->FacingDirection = Atan2(ConHero->dSword.y, ConHero->dSword.x);
+                    }
+                }
+                
+                v3 ddP = V3(ConHero->ddP, 0);
+                
+                traversable_reference Traversable;
+                if (Head && GetClosestTraversable(SimRegion, Head->P, &Traversable)) {
+                    if (Body) {
+                        if (Body->MovementMode == MovementMode_Planted) {
+                            if (!IsEqual(Traversable, Body->Occupying)) {
+                                Body->CameFrom = Body->Occupying;
+                                if (TransactionalOccupy(Body, &Body->Occupying, Traversable)) {
+                                    Body->tMovement = 0;
+                                    Body->MovementMode = MovementMode_Hopping;
+                                }
+                            }
+                        }
+                    } else {
+                    }
+                    
+                    v3 ClosestP = GetSimEntityTraversable(Traversable).P;
+                    b32 TimeIsUp = ConHero->RecenterTimer == 0.0f? true: false;
+                    b32 NoPush = (Length(ddP) < 0.1f);
+                    r32 Cp = NoPush? 300.0f: 25.0f;
+                    v3 ddP2 = {};
+                    for (u32 E = 0; E < 3; ++E) {
+#if 0
+                        if (Square(ddP.E[E]) < 0.1f)
+#else
+                        if (NoPush || (TimeIsUp && (Square(ddP.E[E]) < 0.1f)))
+#endif
+                        {
+                            ddP2.E[E] =
+                                Cp * (ClosestP.E[E] - Head->P.E[E]) - 30.0f * Head->dP.E[E];
+                        }
+                    }
+                    Head->dP += dt *ddP2;
+                }
+                
+                
+                if (Body) {
+                    Body->FacingDirection = Head->FacingDirection;
+                    
+                    DEBUG_VALUE(GetEntityGroundPoint(Body));
+                    
+                    
+                    Body->dP = v3{0, 0, 0};
+                    if (Body->MovementMode == MovementMode_Planted) {
+                        Body->P = GetSimEntityTraversable(Body->Occupying).P;
+                    }
+                    
+                    
+                    v3 HeadDelta = {};
+                    if (Head) {
+                        HeadDelta = Head->P - Body->P;
+                    }
+                    Body->FloorDisplace = 0.25f * HeadDelta.xy;
+                    Body->YAxis = v2{0, 1} + 0.5f * HeadDelta.xy;
+                    
+                }
+                
+                if (ConHero->Exited) {
+                    ConHero->Exited = false;
+                    DeleteEntity(SimRegion, Body);
+                    DeleteEntity(SimRegion, Head);
+                    ConHero->BrainID.Value = 0;
+                }
+                
+            } break;
+            case Brain_Snake: {
+                
+            } break;
+            InvalidDefaultCase;
+        }
+    }
+    
     for (int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++) {
         game_controller_input* Controller = GetController(Input, ControllerIndex);
         controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
-        if (ConHero->ID.Value == 0) {
+        if (ConHero->BrainID.Value == 0) {
             if (WasPressed(Controller->Back)) {
                 QuitRequested = true;
             }
@@ -476,7 +603,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                 *ConHero = {};
                 traversable_reference Traversable;
                 if (GetClosestTraversable(SimRegion, CameraP, &Traversable)) {
-                    ConHero->ID = AddPlayer(WorldMode, SimRegion, Traversable);
+                    ConHero->BrainID = AddPlayer(WorldMode, SimRegion, Traversable);
                     HeroExist = true;
                 } else {
                     
@@ -576,14 +703,11 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
         }
     }
     
-    
     for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
         entity* Entity = SimRegion->Entities + EntityIndex;
         Entity->XAxis = v2{1,0};
         Entity->YAxis = v2{0,1};
         if (Entity->Updatable) {
-            
-            r32 dt = Input->dtForFrame;
             
             r32 ShadowAlpha = 1.0f - 0.5f * Entity->P.z;
             if (ShadowAlpha < 0) {
@@ -612,158 +736,10 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
             
             //hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
             switch (Entity->Type) {
-                case EntityType_HeroHead: {
-                    controlled_hero ConHero_ = {};
-                    ConHero_.ddP.x = 1.0f;
-                    controlled_hero* ConHero = &ConHero_;
-                    for (u32 ControlIndex = 0; ControlIndex < ArrayCount(GameState->ControlledHeroes); ++ControlIndex) {
-                        controlled_hero* TestHero = GameState->ControlledHeroes + ControlIndex;
-                        
-                        if (Entity->ID.Value == TestHero->ID.Value) {
-                            ConHero = TestHero;
-                            if (TestHero->DebugSpawn) {
-                                traversable_reference Traversable;
-                                if (GetClosestTraversable(SimRegion, Entity->P, &Traversable, TraversableSearch_Unoccupied)) {
-                                    AddPlayer(WorldMode, SimRegion, Traversable);
-                                } else {
-                                    
-                                }
-                                TestHero->DebugSpawn = false;
-                            }
-                        }
-                        
-                    }
-                    ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
-                    
-                    entity *Head = Entity;
-                    entity *Body = Head->Head.Ptr;
-                    
-                    if (ConHero->dZ != 0.0f) {
-                        Entity->dP.z = ConHero->dZ;
-                    }
+                case EntityType_HeroBody: {
                     MoveSpec.UnitMaxAccelVector = true;
                     MoveSpec.Speed = 30.0f;
                     MoveSpec.Drag = 8.0f;
-                    ddP = V3(ConHero->ddP, 0);
-                    
-                    if (ConHero->dSword.x == 0.0f && ConHero->dSword.y == 0.0f) {
-                        // remain whichever face direction it was
-                    }
-                    else {
-                        Entity->FacingDirection = Atan2(ConHero->dSword.y, ConHero->dSword.x);
-                    }
-                    
-                    traversable_reference Traversable;
-                    if (GetClosestTraversable(SimRegion, Head->P, &Traversable)) {
-                        if (Body) {
-                            if (Body->MovementMode == MovementMode_Planted) {
-                                if (!IsEqual(Traversable, Body->Occupying)) {
-                                    Body->CameFrom = Body->Occupying;
-                                    if (TransactionalOccupy(Body, &Body->Occupying, Traversable)) {
-                                        Body->tMovement = 0;
-                                        Body->MovementMode = MovementMode_Hopping;
-                                    }
-                                }
-                            }
-                        } else {
-                        }
-                        
-                        v3 ClosestP = GetSimEntityTraversable(Traversable).P;
-                        b32 TimeIsUp = ConHero->RecenterTimer == 0.0f? true: false;
-                        b32 NoPush = (Length(ddP) < 0.1f);
-                        r32 Cp = NoPush? 300.0f: 25.0f;
-                        v3 ddP2 = {};
-                        for (u32 E = 0; E < 3; ++E) {
-#if 0
-                            if (Square(ddP.E[E]) < 0.1f)
-#else
-                            if (NoPush || (TimeIsUp && (Square(ddP.E[E]) < 0.1f)))
-#endif
-                            {
-                                ddP2.E[E] =
-                                    Cp * (ClosestP.E[E] - Entity->P.E[E]) - 30.0f * Entity->dP.E[E];
-                            }
-                        }
-                        Entity->dP += dt *ddP2;
-                    }
-                    
-                    
-                    if (Body) {
-                        Body->FacingDirection = Head->FacingDirection;
-                    }
-                    
-                    if (ConHero->Exited) {
-                        ConHero->Exited = false;
-                        DeleteEntity(SimRegion, ConHero->ID);
-                        ConHero->ID.Value = 0;
-                    }
-                    
-                } break;
-                case EntityType_HeroBody: {
-                    DEBUG_VALUE(GetEntityGroundPoint(Entity));
-                    
-                    
-                    Entity->dP = v3{0, 0, 0};
-                    if (Entity->MovementMode == MovementMode_Planted) {
-                        Entity->P = GetSimEntityTraversable(Entity->Occupying).P;
-                    }
-                    
-                    r32 ddtBob = 0.0f;
-                    entity *Body = Entity;
-                    entity *Head = Entity->Head.Ptr;
-                    v3 HeadDelta = {};
-                    if (Head) {
-                        HeadDelta = Head->P - Body->P;
-                    }
-                    Body->FloorDisplace = 0.25f * HeadDelta.xy;
-                    Body->YAxis = v2{0, 1} + 0.5f * HeadDelta.xy;
-                    switch (Entity->MovementMode) {
-                        case MovementMode_Planted: {
-                            if (Head) {
-                                r32 HeadDistance = Length(HeadDelta);
-                                r32 MaxHeadDistance = 0.5f;
-                                r32 tHeadDistance = Clamp01MapToRange(0.0f, HeadDistance, MaxHeadDistance);
-                                ddtBob = -20.0f * tHeadDistance;
-                                
-                            }
-                        } break;
-                        case MovementMode_Hopping: {
-                            r32 tTotal = Entity->tMovement;
-                            r32 tJump = 0.1f;
-                            r32 tLand = 0.9f;
-                            v3 MovementFrom = GetSimEntityTraversable(Entity->CameFrom).P;
-                            v3 MovementTo = GetSimEntityTraversable(Entity->Occupying).P;
-                            
-                            if (tTotal < tJump) {
-                                ddtBob = 45.0f;
-                            }
-                            
-                            if (tTotal < tLand) {
-                                r32 t = Clamp01MapToRange(tJump, tTotal, tLand);
-                                v3 a = v3{0, -2.0f, 0};
-                                v3 b = MovementTo - MovementFrom - a;
-                                Entity->P = a * t * t + b * t + MovementFrom;
-                            }
-                            
-                            if (Entity->tMovement >= 1.0f) {
-                                Entity->P = MovementTo;
-                                Entity->CameFrom = Entity->Occupying;
-                                Entity->MovementMode = MovementMode_Planted;
-                                Entity->dtBob = -2.0f;
-                            }
-                            Entity->tMovement += 6.0f * dt;
-                            if (Entity->tMovement > 1.0f) {
-                                Entity->tMovement = 1.0f;
-                            }
-                            
-                        } break;
-                    }
-                    
-                    r32 Cv = 10.0f;
-                    ddtBob += -100.0f * Entity->tBob + Cv * -Entity->dtBob;
-                    Entity->tBob = ddtBob * dt * dt + Entity->dtBob*dt;
-                    Entity->dtBob += ddtBob * dt;
-                    
                 } break;
                 
                 case EntityType_Familiar: {
@@ -796,13 +772,69 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     MoveSpec.Drag = 0.2f;
                 }
                 case EntityType_FloatyThingForNow: {
-                    Entity->P.z += 0.05f * Cos(Entity->tBob);
-                    Entity->tBob += dt;
-                }
+                    //Entity->P.z += 0.05f * Cos(Entity->tBob);
+                    //Entity->tBob += dt;
+                } break;
             }
+            
+            
+#if 0            
+            r32 ddtBob = 0.0f;
+            switch (Entity->MovementMode) {
+                case MovementMode_Planted: {
+                    r32 HeadDistance = 0.0f;
+                    for (u32 PairedEntityIndex = 0; PairedEntityIndex < Entity->PairedEntityCount; ++PairedEntityIndex) {
+                        entity *PairedEntity = Entity->PairedEntities[PairedEntityIndex].Ptr;
+                        if (PairedEntity) {
+                            HeadDistance += LengthSq(PairedEntity->P - Entity->P);
+                        }
+                    }
+                    HeadDistance = SquareRoot(HeadDistance);
+                    r32 MaxHeadDistance = 0.5f;
+                    r32 tHeadDistance = Clamp01MapToRange(0.0f, HeadDistance, MaxHeadDistance);
+                    ddtBob = -20.0f * tHeadDistance;
+                } break;
+                case MovementMode_Hopping: {
+                    r32 tTotal = Entity->tMovement;
+                    r32 tJump = 0.1f;
+                    r32 tLand = 0.9f;
+                    v3 MovementFrom = GetSimEntityTraversable(Entity->CameFrom).P;
+                    v3 MovementTo = GetSimEntityTraversable(Entity->Occupying).P;
+                    
+                    if (tTotal < tJump) {
+                        ddtBob = 45.0f;
+                    }
+                    
+                    if (tTotal < tLand) {
+                        r32 t = Clamp01MapToRange(tJump, tTotal, tLand);
+                        v3 a = v3{0, -2.0f, 0};
+                        v3 b = MovementTo - MovementFrom - a;
+                        Entity->P = a * t * t + b * t + MovementFrom;
+                    }
+                    
+                    if (Entity->tMovement >= 1.0f) {
+                        Entity->P = MovementTo;
+                        Entity->CameFrom = Entity->Occupying;
+                        Entity->MovementMode = MovementMode_Planted;
+                        Entity->dtBob = -2.0f;
+                    }
+                    Entity->tMovement += 6.0f * dt;
+                    if (Entity->tMovement > 1.0f) {
+                        Entity->tMovement = 1.0f;
+                    }
+                    
+                } break;
+            }
+            r32 Cv = 10.0f;
+            ddtBob += -100.0f * Entity->tBob + Cv * -Entity->dtBob;
+            Entity->tBob = ddtBob * dt * dt + Entity->dtBob*dt;
+            Entity->dtBob += ddtBob * dt;
+#endif
+            
+            
             if (IsSet(Entity, EntityFlag_Moveable)) {
                 MoveEntity(WorldMode, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
-            }			
+            }
             
             object_transform EntityTransform = DefaultUprightTransform();
             EntityTransform.OffsetP = GetEntityGroundPoint(Entity) - CameraP;

@@ -172,19 +172,28 @@ HasRoomFor(world_entity_block *Block, u32 Size) {
 }
 
 inline void
-PackEntityReference(entity_reference* Ref) {
-	if (Ref->Ptr != 0) {
-        Ref->ID = Ref->Ptr->ID;
-	}
+PackEntityReference(sim_region *SimRegion, entity_reference *Ref) {
+    if (Ref->Ptr) {
+        if (IsDeleted(Ref->Ptr)) {
+            Ref->ID.Value = 0;
+        } else {
+            Ref->ID = Ref->Ptr->ID;
+        }
+    } else if (Ref->ID.Value) {
+        
+        if (!SimRegion || GetHashFromID(SimRegion, Ref->ID)) {
+            Ref->ID.Value = 0;
+        }
+    }
 }
 
 inline void
-PackTraverableReference(traversable_reference* Ref) {
-    PackEntityReference(&Ref->Entity);
+PackTraverableReference(sim_region *SimRegion, traversable_reference* Ref) {
+    PackEntityReference(SimRegion, &Ref->Entity);
 }
 
 internal void
-PackEntityIntoChunk(world *World, entity *Source, world_chunk* Chunk) {
+PackEntityIntoChunk(world *World, sim_region *SimRegion, entity *Source, world_chunk* Chunk) {
     u32 PackSize = sizeof(*Source);
     if (!Chunk->FirstBlock || !HasRoomFor(Chunk->FirstBlock, PackSize)) {
         if (!World->FirstFreeBlock) {
@@ -203,16 +212,16 @@ PackEntityIntoChunk(world *World, entity *Source, world_chunk* Chunk) {
     entity *DestE = (entity *)Dest;
     *DestE = *Source;
     
-    PackTraverableReference(&DestE->Occupying);
-    PackTraverableReference(&DestE->CameFrom);
-    PackEntityReference(&DestE->Head);
+    PackTraverableReference(SimRegion, &DestE->Occupying);
+    PackTraverableReference(SimRegion, &DestE->CameFrom);
+    
 }
 
 internal void
-PackEntityIntoWorld(world *World, entity *Source, world_position ChunkP) {
+PackEntityIntoWorld(world *World, sim_region *SimRegion, entity *Source, world_position ChunkP) {
     world_chunk* Chunk = GetWorldChunk(World, ChunkP.ChunkX, ChunkP.ChunkY, ChunkP.ChunkZ, &World->Arena);
     Assert(Chunk);
-    PackEntityIntoChunk(World, Source, Chunk);
+    PackEntityIntoChunk(World, SimRegion, Source, Chunk);
 }
 
 inline void

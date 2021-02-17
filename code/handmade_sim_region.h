@@ -7,8 +7,18 @@ struct move_spec {
 };
 
 struct entity_hash {
-    entity_id ID;
 	entity* Ptr;
+    entity_id ID;
+};
+
+struct brain {
+    brain_type Type;
+    brain_id ID;
+};
+
+struct brain_hash {
+    brain *Ptr;
+    brain_id ID;
 };
 
 struct sim_region {
@@ -23,6 +33,13 @@ struct sim_region {
 	u32 MaxEntityCount;
 	u32 EntityCount;
 	entity *Entities;
-	entity_hash Hash[4096];
+	entity_hash EntityHash[4096];
+    
+    u32 MaxBrainCount;
+    u32 BrainCount;
+    brain *Brains;
+    brain_hash BrainHash[256];
 };
+
+internal entity_hash *GetHashFromID(sim_region* SimRegion, entity_id ID);
 #endif

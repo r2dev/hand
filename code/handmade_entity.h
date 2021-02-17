@@ -33,10 +33,17 @@ struct entity_id {
 };
 struct entity;
 
-union entity_reference {
+struct entity_reference {
 	entity* Ptr;
     entity_id ID;
 };
+
+inline b32
+ReferencesAreEqual(entity_reference A, entity_reference B) {
+    b32 Result = ((A.ID.Value == B.ID.Value) &&
+                  (A.Ptr == B.Ptr));
+    return(Result);
+}
 
 struct entity_collision_volume {
 	v3 OffsetP;
@@ -65,13 +72,35 @@ struct traversable_reference {
 
 inline b32
 IsEqual(traversable_reference A, traversable_reference B) {
-    b32 Result = (A.Index == B.Index && (A.Entity.Ptr == B.Entity.Ptr) && (A.Entity.ID.Value == B.Entity.ID.Value));
+    b32 Result = (A.Index == B.Index && 
+                  ReferencesAreEqual(A.Entity, B.Entity));
     return(Result);
 }
+
+enum brain_type {
+    Brain_Hero,
+    Brain_Snake,
+    Brain_Count,
+};
+struct brain_slot {
+    u32 Index;
+};
+struct brain_id {
+    u32 Value;
+};
 
 struct entity {
     entity_id ID;
 	b32 Updatable;
+    ////////////////////////////////////////
+    
+    
+    
+    ///////////////////////////////////////
+    
+    brain_type BrainType;
+    brain_slot BrainSlot;
+    brain_id BrainID;
     
 	entity_type Type;
 	u32 Flags;
@@ -88,7 +117,7 @@ struct entity {
 	u32 HitPointMax;
 	hit_point HitPoint[16];
     
-    entity_reference Head;
+    
 	
 	r32 FacingDirection;
     
@@ -116,6 +145,12 @@ inline b32
 IsSet(entity* Entity, u32 Flag) {
 	b32 Result = Entity->Flags & Flag;
 	return(Result);
+}
+
+inline b32
+IsDeleted(entity *Entity) {
+    b32 Result = IsSet(Entity, EntityFlag_Deleted);
+    return(Result);
 }
 
 inline void

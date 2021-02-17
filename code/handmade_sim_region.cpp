@@ -39,9 +39,9 @@ GetHashFromID(sim_region* SimRegion, entity_id ID) {
 	Assert(ID.Value);
 	entity_hash* Result = 0;
 	u32 HashValue = ID.Value;
-	for (u32 Offset = 0; Offset < ArrayCount(SimRegion->Hash); ++Offset) {
-		u32 HashIndex = ((HashValue + Offset) & (ArrayCount(SimRegion->Hash) - 1));
-		entity_hash* Entry = SimRegion->Hash + HashIndex;
+	for (u32 Offset = 0; Offset < ArrayCount(SimRegion->EntityHash); ++Offset) {
+		u32 HashIndex = ((HashValue + Offset) & (ArrayCount(SimRegion->EntityHash) - 1));
+		entity_hash* Entry = SimRegion->EntityHash + HashIndex;
 		if (Entry->ID.Value == 0 || Entry->ID.Value == ID.Value) {
 			Result = Entry;
 			break;
@@ -53,15 +53,15 @@ GetHashFromID(sim_region* SimRegion, entity_id ID) {
 inline entity *
 GetEntityByID(sim_region* SimRegion, entity_id ID) {
 	entity_hash* Entry = GetHashFromID(SimRegion, ID);
-	entity* Result = Entry->Ptr;
+	entity* Result = Entry? Entry->Ptr: 0;
 	return(Result);
 }
 
 inline void
 LoadEntityReference(sim_region* SimRegion, entity_reference* Ref) {
+    // TODO(not-set): 
 	if (Ref->ID.Value != 0) {
-		entity_hash* Entry = GetHashFromID(SimRegion, Ref->ID);
-		Ref->Ptr = Entry ? Entry->Ptr: 0;
+		Ref->Ptr = GetEntityByID(SimRegion, Ref->ID);
 	}
 }
 
@@ -132,6 +132,8 @@ struct test_wall {
 
 internal void
 ConnectEntityPointers(sim_region *SimRegion) {
+    // TODO(not-set): 
+#if 0    
     for(u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
         entity *Entity = SimRegion->Entities + EntityIndex;
         LoadEntityReference(SimRegion, &Entity->Head);
@@ -141,6 +143,7 @@ ConnectEntityPointers(sim_region *SimRegion) {
         }
         LoadTraversableReference(SimRegion, &Entity->CameFrom);
     }
+#endif
 }
 
 internal sim_region*
@@ -194,9 +197,10 @@ BeginSim(memory_arena* SimArena, game_mode_world* WorldMode, world* World, world
 }
 
 inline void
-DeleteEntity(sim_region *SimRegion, entity_id ID) {
-    entity *Entity = GetEntityByID(SimRegion, ID);
-    Entity->Flags |= EntityFlag_Deleted;
+DeleteEntity(sim_region *SimRegion, entity *Entity) {
+    if (Entity) {
+        Entity->Flags |= EntityFlag_Deleted;
+    }
 }
 
 internal void
@@ -276,7 +280,7 @@ EndSim(sim_region* SimRegion, game_mode_world* WorldMode) {
             }
             
             Entity->P += ChunkDelta;
-            PackEntityIntoWorld(World, Entity, EntityChunkP);
+            PackEntityIntoWorld(World, SimRegion, Entity, EntityChunkP);
         }
 	}
 }
