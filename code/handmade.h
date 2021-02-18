@@ -208,12 +208,7 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 
 struct controlled_hero {
     brain_id BrainID;
-	v2 ddP;
-	v2 dSword;
-	r32 dZ;
     r32 RecenterTimer;
-    b32 Exited;
-    b32 DebugSpawn;
 };
 
 enum game_mode {

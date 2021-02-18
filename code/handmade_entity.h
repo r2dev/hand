@@ -82,11 +82,19 @@ enum brain_type {
     Brain_Snake,
     Brain_Count,
 };
+
 struct brain_slot {
     u32 Index;
 };
+
 struct brain_id {
     u32 Value;
+};
+
+enum reserved_brain_id {
+    ReservedBrainID_FirstControl = 1,
+    ReservedBrainID_LastControl = (ReservedBrainID_FirstControl + MAX_CONTROLLER_COUNT - 1),
+    ReservedBrainID_FirstFree,
 };
 
 struct entity {
@@ -107,6 +115,7 @@ struct entity {
     
 	v3 P;
 	v3 dP;
+    v3 ddP;
     
 	r32 DistanceLimit;
 	
@@ -141,6 +150,27 @@ struct entity {
     entity_traversable_point Traversables[16];
 };
 
+struct brain_hero_parts {
+    entity *Head;
+    entity *Body;
+};
+
+#define BrainSlotFor(Type, Member) BrainSlotFor_((&(((Type *)0)->Member)) - (entity **)0)
+
+inline brain_slot
+BrainSlotFor_(u32 PackValue) {
+    brain_slot Result = {PackValue};
+    return(Result);
+}
+
+struct brain {
+    brain_type Type;
+    brain_id ID;
+    union {
+        brain_hero_parts Hero;
+        entity *Array[16];
+    };
+};
 inline b32
 IsSet(entity* Entity, u32 Flag) {
 	b32 Result = Entity->Flags & Flag;

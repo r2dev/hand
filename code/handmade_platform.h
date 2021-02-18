@@ -298,9 +298,9 @@ extern "C" {
         PlatformMouseButton_Extended1,
         PlatformMouseButton_Count,
     };
-    
+#define MAX_CONTROLLER_COUNT 5
     struct game_input {
-        game_controller_input Controllers[5];
+        game_controller_input Controllers[MAX_CONTROLLER_COUNT];
         
         r32 dtForFrame;
         

@@ -11,11 +11,6 @@ struct entity_hash {
     entity_id ID;
 };
 
-struct brain {
-    brain_type Type;
-    brain_id ID;
-};
-
 struct brain_hash {
     brain *Ptr;
     brain_id ID;
