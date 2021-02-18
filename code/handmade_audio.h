@@ -1,4 +1,3 @@
-#pragma once
 struct playing_sound {
 	v2 CurrentVolume;
 	v2 TargetVolume;
@@ -16,3 +15,5 @@ struct audio_state {
 	playing_sound* FirstFreePlayingSound;
 	v2 MasterVolume;
 };
+
+internal void ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, r32 ChangeInSeconds);

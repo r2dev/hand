@@ -1,5 +1,3 @@
-#include "handmade.h"
-
 internal void
 ChangeVolume(playing_sound* PlayingSound, v2 TargetVolumn, r32 ChangeInSeconds) {
     TIMED_FUNCTION();

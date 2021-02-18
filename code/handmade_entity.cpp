@@ -1,5 +1,3 @@
-#include "handmade.h"
-
 inline move_spec
 DefaultMoveSpec() {
 	move_spec Result = {};

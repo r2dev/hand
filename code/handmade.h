@@ -198,6 +198,7 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 }
 #include "handmade_world.h"
 #include "handmade_render_group.h"
+#include "handmade_brain.h"
 #include "handmade_entity.h"
 #include "handmade_asset.h"
 #include "handmade_sim_region.h"
@@ -205,6 +206,7 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 
 #include "handmade_audio.h"
 #include "handmade_cutscene.h"
+#include "handmade_random.h"
 
 struct controlled_hero {
     brain_id BrainID;
@@ -222,7 +224,7 @@ enum game_mode {
 struct game_state {
 	b32 IsInitialized;
 	memory_arena ModeArena;
-	controlled_hero ControlledHeroes[ArrayCount(((game_input*)0)->Controllers)];
+	controlled_hero ControlledHeroes[MAX_CONTROLLER_COUNT];
     
 	audio_state AudioState;
     
