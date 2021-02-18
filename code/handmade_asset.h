@@ -1,5 +1,3 @@
-#pragma once
-
 struct loaded_sound {
 	u32 SampleCount;
 	u32 ChannelCount;

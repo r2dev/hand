@@ -2,6 +2,11 @@
 
 #define InvalidP v3{100000.0f, 100000.0f, 100000.0f}
 
+struct move_spec {
+	b32 UnitMaxAccelVector;
+	r32 Speed;
+	r32 Drag;
+};
 
 enum entity_type {
 	EntityType_Null,
@@ -77,6 +82,12 @@ IsEqual(traversable_reference A, traversable_reference B) {
     return(Result);
 }
 
+struct entity_visible_piece {
+    v4 Color;
+    r32 Height;
+    asset_type_id AssetTypeID;
+};
+
 struct entity {
     entity_id ID;
 	b32 Updatable;
@@ -95,7 +106,7 @@ struct entity {
     
 	v3 P;
 	v3 dP;
-    v3 ddP;
+    v3 ddP;  //non-pack
     
 	r32 DistanceLimit;
 	
@@ -106,8 +117,6 @@ struct entity {
 	u32 HitPointMax;
 	hit_point HitPoint[16];
     
-    
-	
 	r32 FacingDirection;
     
 	//@todo for stairwells
@@ -116,6 +125,9 @@ struct entity {
     
     r32 tBob;
     r32 dtBob;
+    r32 ddtBob; //non-pack
+    
+    move_spec MoveSpec; // non-pack
     
     entity_movement_code MovementMode;
     r32 tMovement;
@@ -128,6 +140,9 @@ struct entity {
     
     u32 TraversableCount;
     entity_traversable_point Traversables[16];
+    
+    u32 PieceCount;
+    entity_visible_piece Pieces[4];
 };
 
 inline b32

@@ -1,10 +1,5 @@
 #ifndef HANDMADE_SIM_REGION_H
 #define HANDMADE_SIM_REGION_H
-struct move_spec {
-	b32 UnitMaxAccelVector;
-	r32 Speed;
-	r32 Drag;
-};
 
 struct entity_hash {
 	entity* Ptr;

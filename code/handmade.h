@@ -198,9 +198,10 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 }
 #include "handmade_world.h"
 #include "handmade_render_group.h"
+#include "handmade_asset.h"
 #include "handmade_brain.h"
 #include "handmade_entity.h"
-#include "handmade_asset.h"
+
 #include "handmade_sim_region.h"
 #include "handmade_world_mode.h"
 
@@ -211,6 +212,7 @@ Copy(memory_index Size, void* SourceInit, void* DestInit) {
 struct controlled_hero {
     brain_id BrainID;
     r32 RecenterTimer;
+    v2 ddP;
 };
 
 enum game_mode {

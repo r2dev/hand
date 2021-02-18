@@ -1,12 +1,12 @@
 #include "handmade.h"
-
+#include "handmade_asset.cpp"
 #include "handmade_world.cpp"
 #include "handmade_sim_region.cpp"
 #include "handmade_render_group.cpp"
 #include "handmade_brain.cpp"
 #include "handmade_entity.cpp"
 
-#include "handmade_asset.cpp"
+
 
 #include "handmade_audio.cpp"
 #include "handmade_world_mode.cpp"

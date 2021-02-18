@@ -8,6 +8,9 @@ struct entity;
 enum brain_type {
     Brain_Hero,
     Brain_Snake,
+    Brain_Familiar,
+    Brain_FloatyThingForNow,
+    Brain_Monstar,
     Brain_Count,
 };
 

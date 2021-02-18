@@ -14,57 +14,54 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
             game_controller_input* Controller = GetController(Input, ControllerIndex);
             controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
             // ConHero_.ddP.x = 1.0f;
-            
-            
-            
             v2 dSword = {};
             r32 dZ = 0.0f;
             b32 Exited = false;
             b32 DebugSpawn = false;
             
-            v2 ddP = {};
+            
             if (Controller->IsAnalog) {
-                ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
+                ConHero->ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
             }
             else {
                 r32 RecenterTimer = 0.2f;
                 if (WasPressed(Controller->MoveUp)) {
-                    ddP.x = 0;
-                    ddP.y = 1.0f;
+                    ConHero->ddP.x = 0;
+                    ConHero->ddP.y = 1.0f;
                     ConHero->RecenterTimer = RecenterTimer;
                 }
                 if (WasPressed(Controller->MoveDown)) {
-                    ddP.x = 0;
-                    ddP.y = -1.0f;
+                    ConHero->ddP.x = 0;
+                    ConHero->ddP.y = -1.0f;
                     ConHero->RecenterTimer = RecenterTimer;
                 }
                 if (WasPressed(Controller->MoveLeft)) {
-                    ddP.x = -1.0f;
-                    ddP.y = 0;
+                    ConHero->ddP.x = -1.0f;
+                    ConHero->ddP.y = 0;
                     ConHero->RecenterTimer = RecenterTimer;
                 }
                 if (WasPressed(Controller->MoveRight)) {
-                    ddP.x = 1.0f;
-                    ddP.y = 0;
+                    ConHero->ddP.x = 1.0f;
+                    ConHero->ddP.y = 0;
                     ConHero->RecenterTimer = RecenterTimer;
                 }
                 if (!IsDown(Controller->MoveUp) && !IsDown(Controller->MoveDown)) {
-                    ddP.y = 0;
+                    ConHero->ddP.y = 0;
                     if (IsDown(Controller->MoveRight)) {
-                        ddP.x = 1;
+                        ConHero->ddP.x = 1;
                     }
                     if (IsDown(Controller->MoveLeft)) {
-                        ddP.x = -1;
+                        ConHero->ddP.x = -1;
                     }
                 }
                 
                 if (!IsDown(Controller->MoveRight) && !IsDown(Controller->MoveLeft)) {
-                    ddP.x = 0;
+                    ConHero->ddP.x = 0;
                     if (IsDown(Controller->MoveUp)) {
-                        ddP.y = 1;
+                        ConHero->ddP.y = 1;
                     }
                     if (IsDown(Controller->MoveDown)) {
-                        ddP.y = -1;
+                        ConHero->ddP.y = -1;
                     }
                 }
                 
@@ -112,6 +109,7 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
             ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
             
             if (Head) {
+                
                 if (dSword.x == 0.0f && dSword.y == 0.0f) {
                     // remain whichever face direction it was
                 }
@@ -137,35 +135,39 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                 
                 v3 ClosestP = GetSimEntityTraversable(Traversable).P;
                 b32 TimeIsUp = ConHero->RecenterTimer == 0.0f? true: false;
-                b32 NoPush = (Length(ddP) < 0.1f);
+                b32 NoPush = (Length(ConHero->ddP) < 0.1f);
                 r32 Cp = NoPush? 300.0f: 25.0f;
-                v3 ddP2 = {};
+                v3 ddP2 = V3(ConHero->ddP, 0);
                 for (u32 E = 0; E < 3; ++E) {
 #if 0
                     if (Square(ddP.E[E]) < 0.1f)
 #else
-                    if (NoPush || (TimeIsUp && (Square(ddP.E[E]) < 0.1f)))
+                    if (NoPush || (TimeIsUp && (Square(ConHero->ddP.E[E]) < 0.1f)))
 #endif
                     {
                         ddP2.E[E] =
                             Cp * (ClosestP.E[E] - Head->P.E[E]) - 30.0f * Head->dP.E[E];
                     }
                 }
-                Head->dP += dt *ddP2;
+                Head->MoveSpec.UnitMaxAccelVector = true;
+                Head->MoveSpec.Speed = 30.0f;
+                Head->MoveSpec.Drag = 8.0f;
+                Head->ddP = ddP2;
             }
             
             
             if (Body) {
                 Body->FacingDirection = Head->FacingDirection;
-                
-                DEBUG_VALUE(GetEntityGroundPoint(Body));
-                
-                
                 Body->dP = v3{0, 0, 0};
                 if (Body->MovementMode == MovementMode_Planted) {
                     Body->P = GetSimEntityTraversable(Body->Occupying).P;
+                    if (Head) {
+                        r32 HeadDistance = Length(Head->P - Body->P);
+                        r32 MaxHeadDistance = 0.5f;
+                        r32 tHeadDistance = Clamp01MapToRange(0.0f, HeadDistance, MaxHeadDistance);
+                        Body->ddtBob = -20.0f * tHeadDistance;
+                    }
                 }
-                
                 
                 v3 HeadDelta = {};
                 if (Head) {
@@ -185,6 +187,43 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
         } break;
         case Brain_Snake: {
             
+        } break;
+        case Brain_Familiar: {
+            
+#if 0            
+            entity* ClosestHero = 0;
+            r32 ClosestHeroSq = Square(10.0f);
+            entity* TestEntity = SimRegion->Entities;
+            
+            if(Global_Sim_FamiliarFollowsHero)
+            {
+                for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
+                    if (TestEntity->Type == EntityType_HeroBody) {
+                        r32 TestDSq = LengthSq(TestEntity->P - Entity->P);
+                        
+                        if (ClosestHeroSq > TestDSq) {
+                            ClosestHero = TestEntity;
+                            ClosestHeroSq = TestDSq;
+                        }
+                    }
+                }
+            }
+            
+            if (ClosestHero && (ClosestHeroSq > Square(3.0f))) {
+                r32 Acceleration = 0.5f;
+                r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
+                Entity->ddP = OneOverLength * (ClosestHero->P - Entity->P);
+            }
+            MoveSpec.UnitMaxAccelVector = true;
+            MoveSpec.Speed = 50.0f;
+            MoveSpec.Drag = 0.2f;
+#endif
+        } break;
+        case Brain_FloatyThingForNow: {
+            //Entity->P.z += 0.05f * Cos(Entity->tBob);
+            //Entity->tBob += dt;
+        } break;
+        case Brain_Monstar: {
         } break;
         InvalidDefaultCase;
     }

@@ -123,10 +123,20 @@ AddStair(game_mode_world* WorldMode, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ) {
 }
 
 internal void
+AddPiece(entity *Entity, asset_type_id AssetTypeID, r32 Height, v4 Color) {
+    Assert(Entity->PieceCount < ArrayCount(Entity->Pieces));
+    entity_visible_piece *Piece = Entity->Pieces + Entity->PieceCount++;
+    Piece->AssetTypeID = AssetTypeID;
+    Piece->Height = Height;
+    Piece->Color = Color;
+}
+
+internal void
 AddWall(game_mode_world* WorldMode, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ) {
 	world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX, AbsTileY, AbsTileZ);
     entity *Entity = BeginGroundedEntity(WorldMode, EntityType_Wall, WorldMode->WallCollision);
 	AddFlags(Entity, EntityFlag_Collides);
+    AddPiece(Entity, Asset_Tree, 2.5f, v4{1, RandomUnilateral(&WorldMode->EffectEntropy), 1, 1});
     EndEntity(WorldMode, Entity, P);
 }
 
@@ -495,10 +505,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
         ExecuteBrain(GameState, Input, SimRegion, Brain, dt);
     }
     
-    //if (ConHero->ID.Value) {
-    
-    
-    
     for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
         entity* Entity = SimRegion->Entities + EntityIndex;
         Entity->XAxis = v2{1,0};
@@ -509,9 +515,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
             if (ShadowAlpha < 0) {
                 ShadowAlpha = 0.0f;
             }
-            
-            move_spec MoveSpec = DefaultMoveSpec();
-            v3 ddP = {};
             
             v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
             r32 FadeTopEnd = 0.75f * WorldMode->TypicalFloorHeight;
@@ -531,64 +534,10 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
             }
             
             //hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
-            switch (Entity->Type) {
-                case EntityType_HeroBody: {
-                    MoveSpec.UnitMaxAccelVector = true;
-                    MoveSpec.Speed = 30.0f;
-                    MoveSpec.Drag = 8.0f;
-                } break;
-                
-                case EntityType_Familiar: {
-                    entity* ClosestHero = 0;
-                    r32 ClosestHeroSq = Square(10.0f);
-                    entity* TestEntity = SimRegion->Entities;
-                    
-                    if(Global_Sim_FamiliarFollowsHero)
-                    {
-                        for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
-                            if (TestEntity->Type == EntityType_HeroBody) {
-                                r32 TestDSq = LengthSq(TestEntity->P - Entity->P);
-                                
-                                if (ClosestHeroSq > TestDSq) {
-                                    ClosestHero = TestEntity;
-                                    ClosestHeroSq = TestDSq;
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (ClosestHero && (ClosestHeroSq > Square(3.0f))) {
-                        r32 Acceleration = 0.5f;
-                        r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
-                        ddP = OneOverLength * (ClosestHero->P - Entity->P);
-                    }
-                    
-                    MoveSpec.UnitMaxAccelVector = true;
-                    MoveSpec.Speed = 50.0f;
-                    MoveSpec.Drag = 0.2f;
-                }
-                case EntityType_FloatyThingForNow: {
-                    //Entity->P.z += 0.05f * Cos(Entity->tBob);
-                    //Entity->tBob += dt;
-                } break;
-            }
             
-            r32 ddtBob = 0.0f;
             switch (Entity->MovementMode) {
                 case MovementMode_Planted: {
-#if 0            
-                    r32 HeadDistance = 0.0f;
-                    for (u32 PairedEntityIndex = 0; PairedEntityIndex < Entity->PairedEntityCount; ++PairedEntityIndex) {
-                        entity *PairedEntity = Entity->PairedEntities[PairedEntityIndex].Ptr;
-                        if (PairedEntity) {
-                            HeadDistance += LengthSq(PairedEntity->P - Entity->P);
-                        }
-                    }
-                    HeadDistance = SquareRoot(HeadDistance);
-                    r32 MaxHeadDistance = 0.5f;
-                    r32 tHeadDistance = Clamp01MapToRange(0.0f, HeadDistance, MaxHeadDistance);
-                    ddtBob = -20.0f * tHeadDistance;
-#endif
+                    
                 } break;
                 case MovementMode_Hopping: {
                     r32 tTotal = Entity->tMovement;
@@ -598,7 +547,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     v3 MovementTo = GetSimEntityTraversable(Entity->Occupying).P;
                     
                     if (tTotal < tJump) {
-                        ddtBob = 45.0f;
+                        Entity->ddtBob = 45.0f;
                     }
                     
                     if (tTotal < tLand) {
@@ -622,14 +571,15 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                 } break;
             }
             r32 Cv = 10.0f;
-            ddtBob += -100.0f * Entity->tBob + Cv * -Entity->dtBob;
-            Entity->tBob = ddtBob * dt * dt + Entity->dtBob*dt;
-            Entity->dtBob += ddtBob * dt;
+            Entity->ddtBob += -100.0f * Entity->tBob + Cv * -Entity->dtBob;
+            Entity->tBob = Entity->ddtBob * dt * dt + Entity->dtBob*dt;
+            Entity->dtBob += Entity->ddtBob * dt;
             
             if (IsSet(Entity, EntityFlag_Moveable)) {
-                MoveEntity(WorldMode, SimRegion, Entity, Input->dtForFrame, &MoveSpec, ddP);
+                MoveEntity(WorldMode, SimRegion, Entity, Input->dtForFrame, &Entity->MoveSpec, Entity->ddP);
             }
             
+            // rendering
             object_transform EntityTransform = DefaultUprightTransform();
             EntityTransform.OffsetP = GetEntityGroundPoint(Entity) - CameraP;
             
@@ -637,6 +587,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
             MatchVector.E[Tag_FaceDirection] = (r32)Entity->FacingDirection;
             asset_vector WeightVector = {};
             WeightVector.E[Tag_FaceDirection] = 1.0f;
+            
             r32 HeroSizeC = 3.0f;
             switch (Entity->Type) {
                 case EntityType_HeroBody: {
@@ -654,10 +605,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     DrawHitPoints(Entity, RenderGroup, EntityTransform);
                     
                 } break;
-                case EntityType_Wall: {
-                    
-                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Tree), 2.5f, v3{ 0, 0, 0 });
-                } break;
                 
                 case EntityType_Familiar: {
                     PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
@@ -667,37 +614,26 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     
                     PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
                     PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), 1.2f, v3{ 0, 0, 0 });
-                    DrawHitPoints(Entity, RenderGroup, EntityTransform);
+                    
                 } break;
+            }
+            
+            for (u32 PieceIndex = 0; PieceIndex < Entity->PieceCount; ++PieceIndex) {
+                entity_visible_piece *Piece = Entity->Pieces + PieceIndex;
+                bitmap_id BitmapID = GetBestMatchBitmapFrom(TranState->Assets, Piece->AssetTypeID, &MatchVector, &WeightVector);
+                PushBitmap(RenderGroup, EntityTransform, BitmapID, Piece->Height, v3{ 0, 0, 0 }, Piece->Color);
+            }
+            
+            DrawHitPoints(Entity, RenderGroup, EntityTransform);
+            for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
+                entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
+                PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
+            }
+            for (u32 Index = 0; Index < Entity->TraversableCount; Index++) {
+                entity_traversable_point* Traversable = Entity->Traversables + Index;
                 
-                case EntityType_Stairwell: {
-                    u32 OldIndex = RenderGroup->CurrentClipRectIndex;
-                    RenderGroup->CurrentClipRectIndex = PushClipRect(RenderGroup, EntityTransform, v3{ 0, 0, 0 }, v2{10.0f, 10.0f});
-                    
-                    PushRect(RenderGroup, EntityTransform, v3{ 0, 0, 0 }, Entity->WalkableDim, v4{ 1.0f, 0.5f, 0, 1.0f });
-                    PushRect(RenderGroup, EntityTransform, v3{ 0, 0, Entity->WalkableHeight }, Entity->WalkableDim, v4{ 1.0f, 1.0f, 0, 1.0f });
-                    RenderGroup->CurrentClipRectIndex = OldIndex;
-                    
-                    //PushBitmap(&PieceGroup, &GameState->Stairwell, v2{ 0, 0 }, 0, v2{ 37, 37 });
-                } break;
-                case EntityType_FloatyThingForNow:
-                case EntityType_Floor: {
-                    
-                    for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
-                        entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                        PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
-                    }
-                    for (u32 Index = 0; Index < Entity->TraversableCount; Index++) {
-                        entity_traversable_point* Traversable = Entity->Traversables + Index;
-                        
-                        PushRect(RenderGroup, EntityTransform, Traversable->P, v2{0.1f, 0.1f}, 
-                                 Traversable->Occupier? v4{0.0f, 0.5f, 1.0f,1.0f}: v4{ 1.0f, 0.5f, 0.0f, 1.0f });
-                    }
-                } break;
-                default: {
-                    InvalidCodePath
-                } break;
-                
+                PushRect(RenderGroup, EntityTransform, Traversable->P, v2{0.1f, 0.1f}, 
+                         Traversable->Occupier? v4{0.0f, 0.5f, 1.0f,1.0f}: v4{ 1.0f, 0.5f, 0.0f, 1.0f });
             }
             if (DEBUG_UI_ENABLED) {
                 debug_id EntityDebugID = DEBUG_POINTER_ID((void *)Entity->ID.Value);
@@ -733,64 +669,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
     RenderGroup->GlobalAlpha = 1.0;
     
     
-#if 0
-    GameState->time += Input->dtForFrame;
-    
-    r32 Angle = GameState->time;
-    v2 Origin = ScreenCenter;
-    v2 Offset = v2{ 0.5f + 10.0f  * (Sin(GameState->time) + 0.5f), 0 };
-    v2 AxisX = 200 * v2{ Sin(GameState->time), Cos(GameState->time) };
-    v2 AxisY = Perp(AxisX);
-    v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
-    
-    v3 MapColor[] = {
-        {1, 0, 0},
-        {0, 1, 0},
-        {0, 0, 1}
-    };
-    
-    for (u32 MapIndex = 0;
-         MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
-        environment_map* Map = TranState->EnvMaps + MapIndex;
-        loaded_bitmap* LOD = Map->LOD + 0;
-        b32 RowCheckerOn = false;
-        s32 CheckerWidth = 16;
-        s32 CheckerHeight = 16;
-        rectangle2i ClipRect = {0, 0, LOD->Width, LOD->Height};
-        for (s32 Y = 0; Y < LOD->Height; Y += CheckerHeight) {
-            b32 CheckerOn = RowCheckerOn;
-            for (s32 X = 0; X < LOD->Width; X += CheckerWidth) {
-                v4 CheckColor = CheckerOn ? ToV4(MapColor[MapIndex], 1.0f) : v4{ 0, 0, 0, 1.0f };
-                v2 MinP = V2i(X, Y);
-                v2 MaxP = MinP + V2i(CheckerWidth, CheckerHeight);
-                DrawRectangle(LOD, MinP, MaxP, CheckColor, ClipRect, true);
-                DrawRectangle(LOD, MinP, MaxP, CheckColor, ClipRect, false);
-                CheckerOn = !CheckerOn;
-            }
-            RowCheckerOn = !RowCheckerOn;
-        }
-    }
-    
-    TranState->EnvMaps[0].Pz = -1.5f;
-    TranState->EnvMaps[1].Pz = 0.0f;
-    TranState->EnvMaps[2].Pz = 1.5f;
-    
-    CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{ AxisX.x, AxisY.y }, AxisX, AxisY, Color, 
-                     &GameState->TestDiffuse, &GameState->TestNormal, TranState->EnvMaps + 2, TranState->EnvMaps + 1, TranState->EnvMaps + 0);
-    v2 MapP = { 0.0f, 0.0f };
-    for (u32 MapIndex = 0; MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
-        environment_map* Map = TranState->EnvMaps + MapIndex;
-        loaded_bitmap* LOD = Map->LOD + 0;
-        
-        v2 XAxis = 0.5f * v2{ (r32)LOD->Width, 0 };
-        v2 YAxis = 0.5f * v2{ 0, (r32)LOD->Height };
-        CoordinateSystem(RenderGroup, MapP, XAxis, YAxis, v4{ 1.0f, 1.0f, 1.0f, 1.0f },
-                         LOD, 0, 0, 0, 0);
-        MapP += YAxis + v2{ 0.0f, 6.0f };
-    }
-    
-#endif
-    
     Orthographic(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, 1.0f);
     
     
@@ -812,6 +690,66 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
     
     return(Result);
 }
+
+
+
+#if 0
+GameState->time += Input->dtForFrame;
+
+r32 Angle = GameState->time;
+v2 Origin = ScreenCenter;
+v2 Offset = v2{ 0.5f + 10.0f  * (Sin(GameState->time) + 0.5f), 0 };
+v2 AxisX = 200 * v2{ Sin(GameState->time), Cos(GameState->time) };
+v2 AxisY = Perp(AxisX);
+v4 Color = v4{ 1.0f, 1.0f, 1.0f, 1.0f };
+
+v3 MapColor[] = {
+    {1, 0, 0},
+    {0, 1, 0},
+    {0, 0, 1}
+};
+
+for (u32 MapIndex = 0;
+     MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
+    environment_map* Map = TranState->EnvMaps + MapIndex;
+    loaded_bitmap* LOD = Map->LOD + 0;
+    b32 RowCheckerOn = false;
+    s32 CheckerWidth = 16;
+    s32 CheckerHeight = 16;
+    rectangle2i ClipRect = {0, 0, LOD->Width, LOD->Height};
+    for (s32 Y = 0; Y < LOD->Height; Y += CheckerHeight) {
+        b32 CheckerOn = RowCheckerOn;
+        for (s32 X = 0; X < LOD->Width; X += CheckerWidth) {
+            v4 CheckColor = CheckerOn ? ToV4(MapColor[MapIndex], 1.0f) : v4{ 0, 0, 0, 1.0f };
+            v2 MinP = V2i(X, Y);
+            v2 MaxP = MinP + V2i(CheckerWidth, CheckerHeight);
+            DrawRectangle(LOD, MinP, MaxP, CheckColor, ClipRect, true);
+            DrawRectangle(LOD, MinP, MaxP, CheckColor, ClipRect, false);
+            CheckerOn = !CheckerOn;
+        }
+        RowCheckerOn = !RowCheckerOn;
+    }
+}
+
+TranState->EnvMaps[0].Pz = -1.5f;
+TranState->EnvMaps[1].Pz = 0.0f;
+TranState->EnvMaps[2].Pz = 1.5f;
+
+CoordinateSystem(RenderGroup, Origin + Offset - 0.5f * v2{ AxisX.x, AxisY.y }, AxisX, AxisY, Color, 
+                 &GameState->TestDiffuse, &GameState->TestNormal, TranState->EnvMaps + 2, TranState->EnvMaps + 1, TranState->EnvMaps + 0);
+v2 MapP = { 0.0f, 0.0f };
+for (u32 MapIndex = 0; MapIndex < ArrayCount(TranState->EnvMaps); ++MapIndex) {
+    environment_map* Map = TranState->EnvMaps + MapIndex;
+    loaded_bitmap* LOD = Map->LOD + 0;
+    
+    v2 XAxis = 0.5f * v2{ (r32)LOD->Width, 0 };
+    v2 YAxis = 0.5f * v2{ 0, (r32)LOD->Height };
+    CoordinateSystem(RenderGroup, MapP, XAxis, YAxis, v4{ 1.0f, 1.0f, 1.0f, 1.0f },
+                     LOD, 0, 0, 0, 0);
+    MapP += YAxis + v2{ 0.0f, 6.0f };
+}
+
+#endif
 
 
 #if 0

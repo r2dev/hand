@@ -215,6 +215,8 @@ PackEntityIntoChunk(world *World, sim_region *SimRegion, entity *Source, world_c
     PackTraverableReference(SimRegion, &DestE->Occupying);
     PackTraverableReference(SimRegion, &DestE->CameFrom);
     
+    DestE->ddtBob = 0.0f;
+    DestE->ddP = {};
 }
 
 internal void

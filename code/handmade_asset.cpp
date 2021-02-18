@@ -1,5 +1,3 @@
-#include "handmade_asset.h"
-
 enum finalize_asset_operation {
     FinalizeAsset_None,
     FinalizeAsset_Font,
