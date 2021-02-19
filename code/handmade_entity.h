@@ -85,6 +85,7 @@ IsEqual(traversable_reference A, traversable_reference B) {
 struct entity_visible_piece {
     v4 Color;
     r32 Height;
+    v3 Offset;
     asset_type_id AssetTypeID;
 };
 

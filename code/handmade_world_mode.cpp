@@ -84,6 +84,16 @@ AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsT
 }
 
 internal void
+AddPiece(entity *Entity, asset_type_id AssetTypeID, r32 Height, v3 Offset, v4 Color) {
+    Assert(Entity->PieceCount < ArrayCount(Entity->Pieces));
+    entity_visible_piece *Piece = Entity->Pieces + Entity->PieceCount++;
+    Piece->AssetTypeID = AssetTypeID;
+    Piece->Height = Height;
+    Piece->Color = Color;
+    Piece->Offset = Offset;
+}
+
+internal void
 AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_reference StandingOn, brain_id BrainID) {
 	world_position P = MapIntoChunkSpace(SimRegion->World, SimRegion->Origin, GetSimEntityTraversable(StandingOn).P);
     
@@ -103,10 +113,21 @@ AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_referen
     Body->BrainType = Brain_Hero;
     Body->BrainSlot = BrainSlotFor(brain_hero_parts, Body);
     
-    
 	if (WorldMode->CameraFollowingEntityID.Value == 0) {
 		WorldMode->CameraFollowingEntityID = Head->ID;
 	}
+    r32 HeroSizeC = 3.0f;
+    AddPiece(Head, Asset_Head, HeroSizeC * 1.2f, v3{0, -0.5f, 0}, v4{1, 1, 1, 1});
+    
+#if 0
+    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, {0,0,0}, v4{ 1, 1, 1, ShadowAlpha });
+    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, Offset + v3{0, 0, -0.0002f}, Color, 1.0f, XAxis, YAxis);
+    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, Entity->tBob - 0.1f, -0.0001f }, Color, 1.0f, XAxis, YAxis);
+#endif
+    
+    // AddPiece(Body, Asset_Torso, HeroSizeC * 1.2f, );
+    // AddPiece(Entity, Asset_Torso, 4.5f, v3{0, 0, 0}, v4{1, 1,1,1});
+    // DrawHitPoints(Head, RenderGroup, EntityTransform);
     EndEntity(WorldMode, Head, P);
     EndEntity(WorldMode, Body, P);
 	
@@ -123,20 +144,11 @@ AddStair(game_mode_world* WorldMode, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ) {
 }
 
 internal void
-AddPiece(entity *Entity, asset_type_id AssetTypeID, r32 Height, v4 Color) {
-    Assert(Entity->PieceCount < ArrayCount(Entity->Pieces));
-    entity_visible_piece *Piece = Entity->Pieces + Entity->PieceCount++;
-    Piece->AssetTypeID = AssetTypeID;
-    Piece->Height = Height;
-    Piece->Color = Color;
-}
-
-internal void
 AddWall(game_mode_world* WorldMode, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ) {
 	world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX, AbsTileY, AbsTileZ);
     entity *Entity = BeginGroundedEntity(WorldMode, EntityType_Wall, WorldMode->WallCollision);
 	AddFlags(Entity, EntityFlag_Collides);
-    AddPiece(Entity, Asset_Tree, 2.5f, v4{1, RandomUnilateral(&WorldMode->EffectEntropy), 1, 1});
+    AddPiece(Entity, Asset_Tree, 2.5f, v3{0, 0, 0}, v4{1, RandomUnilateral(&WorldMode->EffectEntropy), 1, 1});
     EndEntity(WorldMode, Entity, P);
 }
 
@@ -146,6 +158,8 @@ AddMonster(game_mode_world* WorldMode, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ)
 	
     entity *Entity = BeginGroundedEntity(WorldMode, EntityType_Monster, WorldMode->MonstarCollision);
 	AddFlags(Entity, EntityFlag_Collides | EntityFlag_Moveable);
+    AddPiece(Entity, Asset_Shadow, 4.5f, v3{0, 0, 0}, v4{1, 1, 1, 1});
+    AddPiece(Entity, Asset_Torso, 4.5f, v3{0, 0, 0}, v4{1, 1,1,1});
 	InitHitPoints(Entity, 2);
     EndEntity(WorldMode, Entity, P);
 }
@@ -155,6 +169,10 @@ AddFamiliar(game_mode_world* WorldMode, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ
 	world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX, AbsTileY, AbsTileZ);
     entity *Entity = BeginGroundedEntity(WorldMode, EntityType_Familiar, WorldMode->FamiliarCollision);
 	AddFlags(Entity, EntityFlag_Collides | EntityFlag_Moveable);
+    
+    AddPiece(Entity, Asset_Shadow, 2.5f, v3{0, 0, 0}, v4{1, 1, 1, 1});
+    AddPiece(Entity, Asset_Head, 2.5f, v3{0, 0, 0}, v4{1, 1, 1, 1});
+    
     EndEntity(WorldMode, Entity, P);
 }
 
@@ -592,6 +610,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
             switch (Entity->Type) {
                 case EntityType_HeroBody: {
                     
+#if 0                    
                     v4 Color = {1,1,1,1};
                     v2 XAxis = Entity->XAxis;
                     v2 YAxis = Entity->YAxis;
@@ -599,32 +618,17 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                     PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), HeroSizeC * 1.2f, {0,0,0}, v4{ 1, 1, 1, ShadowAlpha });
                     PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), HeroSizeC * 1.2f, Offset + v3{0, 0, -0.0002f}, Color, 1.0f, XAxis, YAxis);
                     PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Cape, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, Entity->tBob - 0.1f, -0.0001f }, Color, 1.0f, XAxis, YAxis);
-                } break;
-                case EntityType_HeroHead: {
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), HeroSizeC * 1.2f, v3{ 0, -0.4f, 0 });
-                    DrawHitPoints(Entity, RenderGroup, EntityTransform);
-                    
-                } break;
-                
-                case EntityType_Familiar: {
-                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 0.5f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Head, &MatchVector, &WeightVector), 1.0f, v3{ 0, 0, 0 });
-                }
-                case EntityType_Monster: {
-                    
-                    PushBitmap(RenderGroup, EntityTransform, GetFirstBitmapFrom(TranState->Assets, Asset_Shadow), 1.2f, v3{ 0, 0, 0 }, v4{ 1, 1, 1, ShadowAlpha });
-                    PushBitmap(RenderGroup, EntityTransform, GetBestMatchBitmapFrom(TranState->Assets, Asset_Torso, &MatchVector, &WeightVector), 1.2f, v3{ 0, 0, 0 });
-                    
+#endif
                 } break;
             }
+            DrawHitPoints(Entity, RenderGroup, EntityTransform);
             
             for (u32 PieceIndex = 0; PieceIndex < Entity->PieceCount; ++PieceIndex) {
                 entity_visible_piece *Piece = Entity->Pieces + PieceIndex;
                 bitmap_id BitmapID = GetBestMatchBitmapFrom(TranState->Assets, Piece->AssetTypeID, &MatchVector, &WeightVector);
-                PushBitmap(RenderGroup, EntityTransform, BitmapID, Piece->Height, v3{ 0, 0, 0 }, Piece->Color);
+                PushBitmap(RenderGroup, EntityTransform, BitmapID, Piece->Height, Piece->Offset, Piece->Color);
             }
             
-            DrawHitPoints(Entity, RenderGroup, EntityTransform);
             for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
                 entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
                 PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });

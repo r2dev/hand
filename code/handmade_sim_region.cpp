@@ -185,34 +185,32 @@ BeginSim(memory_arena* SimArena, game_mode_world* WorldMode, world* World, world
                     while (Block) {
                         for (u32 EntityIndex = 0; EntityIndex < Block->EntityCount; ++EntityIndex) {
 							entity *Source = (entity *)Block->EntityData + EntityIndex;
-                            v3 SimSpaceP = Source->P + ChunkDelta;
-                            if (EntityOverlapsRectangle(SimSpaceP, Source->Collision->TotalVolume, SimRegion->Bounds)) {
-                                entity_id ID = Source->ID;
-                                entity_hash* Entry = GetHashFromID(SimRegion, ID);
-                                Assert(Entry->Ptr == 0);
-                                entity *Dest = 0;
-                                if (SimRegion->EntityCount < SimRegion->MaxEntityCount) {
-                                    Dest = SimRegion->Entities + SimRegion->EntityCount++;
-                                    Entry->ID = ID;
-                                    Entry->Ptr = Dest;
-                                    if (Source) {
-                                        // decompression
-                                        *Dest = *Source;
-                                    }
-                                    Dest->ID = ID;
-                                    Dest->P += ChunkDelta;
-                                    
-                                    Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
-                                    if (Dest->BrainID.Value != 0) {
-                                        brain *Brain = AddOrGetBrain(SimRegion, Dest->BrainID, Dest->BrainType);
-                                        Assert(Dest->BrainSlot.Index < ArrayCount(Brain->Array));
-                                        Brain->Array[Dest->BrainSlot.Index] = Dest;
-                                    }
+                            
+                            entity_id ID = Source->ID;
+                            entity_hash* Entry = GetHashFromID(SimRegion, ID);
+                            Assert(Entry->Ptr == 0);
+                            entity *Dest = 0;
+                            if (SimRegion->EntityCount < SimRegion->MaxEntityCount) {
+                                Dest = SimRegion->Entities + SimRegion->EntityCount++;
+                                Entry->ID = ID;
+                                Entry->Ptr = Dest;
+                                if (Source) {
+                                    // decompression
+                                    *Dest = *Source;
                                 }
-                                else {
-                                    InvalidCodePath
+                                Dest->ID = ID;
+                                Dest->P += ChunkDelta;
+                                
+                                Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
+                                if (Dest->BrainID.Value != 0) {
+                                    brain *Brain = AddOrGetBrain(SimRegion, Dest->BrainID, Dest->BrainType);
+                                    Assert(Dest->BrainSlot.Index < ArrayCount(Brain->Array));
+                                    Brain->Array[Dest->BrainSlot.Index] = Dest;
                                 }
-							}
+                            }
+                            else {
+                                InvalidCodePath
+                            }
 						}
                         world_entity_block* NextBlock = Block->Next;
                         AddBlockToFreeList(World, Block);

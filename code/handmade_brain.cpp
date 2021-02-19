@@ -10,10 +10,11 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
         case Brain_Hero: {
             entity *Head = Brain->Hero.Head;
             entity *Body = Brain->Hero.Body;
+            
             u32 ControllerIndex = Brain->ID.Value - ReservedBrainID_FirstControl;
-            game_controller_input* Controller = GetController(Input, ControllerIndex);
-            controlled_hero* ConHero = GameState->ControlledHeroes + ControllerIndex;
-            // ConHero_.ddP.x = 1.0f;
+            game_controller_input *Controller = GetController(Input, ControllerIndex);
+            controlled_hero *ConHero = GameState->ControlledHeroes + ControllerIndex;
+            
             v2 dSword = {};
             r32 dZ = 0.0f;
             b32 Exited = false;
@@ -24,7 +25,7 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                 ConHero->ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
             }
             else {
-                r32 RecenterTimer = 0.2f;
+                r32 RecenterTimer = 0.5f;
                 if (WasPressed(Controller->MoveUp)) {
                     ConHero->ddP.x = 0;
                     ConHero->ddP.y = 1.0f;
@@ -134,15 +135,15 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                 }
                 
                 v3 ClosestP = GetSimEntityTraversable(Traversable).P;
-                b32 TimeIsUp = ConHero->RecenterTimer == 0.0f? true: false;
-                b32 NoPush = (Length(ConHero->ddP) < 0.1f);
+                b32 TimeIsUp = (ConHero->RecenterTimer == 0.0f);
+                b32 NoPush = (LengthSq(ConHero->ddP) < 0.1f);
                 r32 Cp = NoPush? 300.0f: 25.0f;
                 v3 ddP2 = V3(ConHero->ddP, 0);
                 for (u32 E = 0; E < 3; ++E) {
 #if 0
                     if (Square(ddP.E[E]) < 0.1f)
 #else
-                    if (NoPush || (TimeIsUp && (Square(ConHero->ddP.E[E]) < 0.1f)))
+                    if (NoPush || (TimeIsUp && (Square(ddP2.E[E]) < 0.1f)))
 #endif
                     {
                         ddP2.E[E] =
@@ -157,7 +158,7 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
             
             
             if (Body) {
-                Body->FacingDirection = Head->FacingDirection;
+                
                 Body->dP = v3{0, 0, 0};
                 if (Body->MovementMode == MovementMode_Planted) {
                     Body->P = GetSimEntityTraversable(Body->Occupying).P;
@@ -171,6 +172,7 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                 
                 v3 HeadDelta = {};
                 if (Head) {
+                    Body->FacingDirection = Head->FacingDirection;
                     HeadDelta = Head->P - Body->P;
                 }
                 Body->FloorDisplace = 0.25f * HeadDelta.xy;
