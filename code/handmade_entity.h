@@ -96,17 +96,15 @@ struct entity_visible_piece {
 };
 
 struct entity {
-    entity_id ID;
+    
 	b32 Updatable;
     ////////////////////////////////////////
+    entity_id ID;
     
-    
-    
-    ///////////////////////////////////////
-    
-    brain_type BrainType;
     brain_slot BrainSlot;
     brain_id BrainID;
+    
+    ///////////////////////////////////////
     
 	u32 Flags;
     

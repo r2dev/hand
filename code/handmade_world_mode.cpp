@@ -110,12 +110,10 @@ AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_referen
     Body->Occupying = StandingOn;
     
     Head->BrainID = BrainID;
-    Head->BrainType = Brain_Hero;
-    Head->BrainSlot = BrainSlotFor(brain_hero_parts, Head);
+    Head->BrainSlot = BrainSlotFor(brain_hero, Head);
     
     Body->BrainID = BrainID;
-    Body->BrainType = Brain_Hero;
-    Body->BrainSlot = BrainSlotFor(brain_hero_parts, Body);
+    Body->BrainSlot = BrainSlotFor(brain_hero, Body);
     
 	if (WorldMode->CameraFollowingEntityID.Value == 0) {
 		WorldMode->CameraFollowingEntityID = Head->ID;
@@ -170,6 +168,9 @@ AddFamiliar(game_mode_world* WorldMode, s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ
 	world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX, AbsTileY, AbsTileZ);
     entity *Entity = BeginGroundedEntity(WorldMode, WorldMode->FamiliarCollision);
 	AddFlags(Entity, EntityFlag_Collides | EntityFlag_Moveable);
+    
+    Entity->BrainID = AddBrain(WorldMode);
+    Entity->BrainSlot = BrainSlotFor(brain_familiar, Head);
     
     AddPiece(Entity, Asset_Shadow, 2.5f, v3{0, 0, 0}, v4{1, 1, 1, ShadowAlpha});
     AddPiece(Entity, Asset_Head, 2.5f, v3{0, 0, 0}, v4{1, 1, 1, 1}, PieceMove_BobOffset);

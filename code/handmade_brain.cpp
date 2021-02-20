@@ -7,7 +7,7 @@ AddBrain(game_mode_world *WorldMode) {
 internal void
 ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, brain *Brain, r32 dt) {
     switch(Brain->Type) {
-        case Brain_Hero: {
+        case Type_brain_hero: {
             entity *Head = Brain->Hero.Head;
             entity *Body = Brain->Hero.Body;
             
@@ -183,12 +183,13 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
             }
             
         } break;
-        case Brain_Snake: {
+        case Type_brain_snake: {
             
         } break;
-        case Brain_Familiar: {
+        case Type_brain_familiar: {
+            brain_familiar *Familiar = &Brain->Familiar;
+            entity *Head = Familiar->Head;
             
-#if 0            
             entity* ClosestHero = 0;
             r32 ClosestHeroSq = Square(10.0f);
             entity* TestEntity = SimRegion->Entities;
@@ -196,8 +197,8 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
             if(Global_Sim_FamiliarFollowsHero)
             {
                 for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
-                    if (TestEntity->Type == EntityType_HeroBody) {
-                        r32 TestDSq = LengthSq(TestEntity->P - Entity->P);
+                    if (TestEntity->BrainSlot.Type == Type_brain_hero) {
+                        r32 TestDSq = LengthSq(TestEntity->P - Head->P);
                         
                         if (ClosestHeroSq > TestDSq) {
                             ClosestHero = TestEntity;
@@ -210,18 +211,17 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
             if (ClosestHero && (ClosestHeroSq > Square(3.0f))) {
                 r32 Acceleration = 0.5f;
                 r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
-                Entity->ddP = OneOverLength * (ClosestHero->P - Entity->P);
+                Head->ddP = OneOverLength * (ClosestHero->P - Head->P);
             }
-            MoveSpec.UnitMaxAccelVector = true;
-            MoveSpec.Speed = 50.0f;
-            MoveSpec.Drag = 0.2f;
-#endif
+            Head->MoveSpec.UnitMaxAccelVector = true;
+            Head->MoveSpec.Speed = 50.0f;
+            Head->MoveSpec.Drag = 0.2f;
         } break;
-        case Brain_FloatyThingForNow: {
+        case Type_brain_floaty_thing_for_now: {
             //Entity->P.z += 0.05f * Cos(Entity->tBob);
             //Entity->tBob += dt;
         } break;
-        case Brain_Monstar: {
+        case Type_brain_monstar: {
         } break;
         InvalidDefaultCase;
     }
