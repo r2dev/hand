@@ -82,11 +82,17 @@ IsEqual(traversable_reference A, traversable_reference B) {
     return(Result);
 }
 
+enum entity_visible_piece_flag {
+    PieceMove_AxesDeform = 0x1,
+    PieceMove_BobOffset = 0x2,
+};
+
 struct entity_visible_piece {
     v4 Color;
     r32 Height;
     v3 Offset;
     asset_type_id AssetTypeID;
+    u32 Flags;
 };
 
 struct entity {
@@ -102,7 +108,6 @@ struct entity {
     brain_slot BrainSlot;
     brain_id BrainID;
     
-	entity_type Type;
 	u32 Flags;
     
 	v3 P;
@@ -179,11 +184,3 @@ GetEntityGroundPoint(entity* Entity) {
 	return(Result);
 }
 
-inline r32
-GetStairGround(entity* Entity, v3 AtGroundPoint) {
-	Assert(Entity->Type == EntityType_Stairwell);
-	rectangle2 RegionRect = RectCenterDim(Entity->P.xy, Entity->WalkableDim);
-	v2 Bary = Clamp01(GetBarycentric(RegionRect, AtGroundPoint.xy));
-	r32 Result = Entity->P.z + Bary.y * Entity->WalkableHeight;
-	return(Result);
-}

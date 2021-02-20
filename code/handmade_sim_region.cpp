@@ -343,13 +343,14 @@ CanCollide(game_mode_world* WorldMode, entity* A, entity* B) {
 internal b32
 HandleCollision(game_mode_world* WorldMode, entity* A, entity* B) {
 	b32 StopsOnCollision = false;
-	
+#if 0	
 	if (A->Type > B->Type) {
 		entity* Temp = A;
 		A = B;
 		B = Temp;
 	}
-	
+#endif
+    
 	return(StopsOnCollision);
 }
 
@@ -357,9 +358,11 @@ internal b32
 CanOverlap(game_mode_world* WorldMode, entity* Mover, entity* Region) {
 	b32 Result = false;
 	if (Mover != Region) {
+#if 0        
 		if (Region->Type == EntityType_Stairwell) {
 			Result = true;
 		}
+#endif
 	}
 	return(Result);
 }
@@ -368,13 +371,14 @@ internal b32
 SpeculativeCollide(entity* Mover, entity* Region, v3 TestP) {
     TIMED_FUNCTION();
 	b32 Result = true;
+#if 0
 	if (Region->Type == EntityType_Stairwell) {
 		v3 MoverGroundPoint = GetEntityGroundPoint(Mover, TestP);
 		r32 Ground = GetStairGround(Region, MoverGroundPoint);
 		r32 StepHeight = 0.1f;
 		Result = (AbsoluteValue(GetEntityGroundPoint(Mover).z - Ground) > StepHeight);
 	}
-    
+#endif
     return(Result);
 }
 internal b32

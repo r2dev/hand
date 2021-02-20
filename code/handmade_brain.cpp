@@ -70,11 +70,7 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                     DebugSpawn = true;
                 }
             }
-#if 0
-            if (Controller->Start.EndedDown) {
-                ConHero->dZ = 3.0f;
-            }
-#endif
+            
             dSword = {};
             if (Controller->ActionUp.EndedDown) {
                 dSword = v2{ 0.0f, 1.0f };
