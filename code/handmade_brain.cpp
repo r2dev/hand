@@ -5,7 +5,7 @@ AddBrain(game_mode_world *WorldMode) {
 }
 
 internal void
-ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, brain *Brain, r32 dt) {
+ExecuteBrain(game_state *GameState, game_mode_world *WorldMode, game_input *Input, sim_region *SimRegion, brain *Brain, r32 dt) {
     switch(Brain->Type) {
         case Type_brain_hero: {
             entity *Head = Brain->Hero.Head;
@@ -19,7 +19,6 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
             r32 dZ = 0.0f;
             b32 Exited = false;
             b32 DebugSpawn = false;
-            
             
             if (Controller->IsAnalog) {
                 ConHero->ddP = v2{ Controller->StickAverageX, Controller->StickAverageY };
@@ -46,7 +45,8 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                     ConHero->ddP.y = 0;
                     ConHero->RecenterTimer = RecenterTimer;
                 }
-                if (!IsDown(Controller->MoveUp) && !IsDown(Controller->MoveDown)) {
+                if (!IsDown(Controller->MoveUp) &&
+                    !IsDown(Controller->MoveDown)) {
                     ConHero->ddP.y = 0;
                     if (IsDown(Controller->MoveRight)) {
                         ConHero->ddP.x = 1;
@@ -56,7 +56,8 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                     }
                 }
                 
-                if (!IsDown(Controller->MoveRight) && !IsDown(Controller->MoveLeft)) {
+                if (!IsDown(Controller->MoveRight) &&
+                    !IsDown(Controller->MoveLeft)) {
                     ConHero->ddP.x = 0;
                     if (IsDown(Controller->MoveUp)) {
                         ConHero->ddP.y = 1;
@@ -70,40 +71,24 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                     DebugSpawn = true;
                 }
             }
-            
+            DEBUG_VALUE(ConHero->RecenterTimer);
+            DEBUG_VALUE(ConHero->ddP);
             dSword = {};
             if (Controller->ActionUp.EndedDown) {
                 dSword = v2{ 0.0f, 1.0f };
-                ChangeVolume(GameState->Music, v2{ 1, 1 }, 2.0f);
             }
             if (Controller->ActionDown.EndedDown) {
                 dSword = v2{ 0.0f, -1.0f };
-                ChangeVolume(GameState->Music, v2{ 0, 0 }, 2.0f);
             }
             if (Controller->ActionLeft.EndedDown) {
-                ChangeVolume(GameState->Music, v2{ 1, 0 }, 2.0f);
                 dSword = v2{ -1.0f, 0.0f };
             }
             if (Controller->ActionRight.EndedDown) {
-                ChangeVolume(GameState->Music, v2{ 0, 1 }, 2.0f);
                 dSword = v2{ 1.0f, 0.0f };
             }
             if (WasPressed(Controller->Back)) {
                 Exited = true;
             }
-            
-#if 0                
-            if (ConHero->DebugSpawn && Head) {
-                traversable_reference Traversable;
-                if (GetClosestTraversable(SimRegion, Head->P, &Traversable, TraversableSearch_Unoccupied)) {
-                    AddPlayer(WorldMode, SimRegion, Traversable);
-                } else {
-                    
-                }
-                TestHero->DebugSpawn = false;
-            }
-#endif
-            ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
             
             if (Head) {
                 
@@ -127,29 +112,32 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                             }
                         }
                     }
-                } else {
                 }
                 
-                v3 ClosestP = GetSimEntityTraversable(Traversable).P;
+                v3 ClosestP = GetSimSpaceTraversable(Traversable).P;
+                
+                v3 ddP = V3(ConHero->ddP, 0);
+                r32 ddpLength = LengthSq(ddP);
+                if (ddpLength > 1.0f) {
+                    ddP *= (1.0f / SquareRoot(ddpLength));
+                }
+                r32 MovementSpeed = 30.0f;
+                r32 Drag = 8.0f;
+                ddP *= MovementSpeed;
                 b32 TimeIsUp = (ConHero->RecenterTimer == 0.0f);
                 b32 NoPush = (LengthSq(ConHero->ddP) < 0.1f);
                 r32 Cp = NoPush? 300.0f: 25.0f;
-                v3 ddP2 = V3(ConHero->ddP, 0);
                 for (u32 E = 0; E < 3; ++E) {
-#if 0
-                    if (Square(ddP.E[E]) < 0.1f)
-#else
-                    if (NoPush || (TimeIsUp && (Square(ddP2.E[E]) < 0.1f)))
-#endif
-                    {
-                        ddP2.E[E] =
-                            Cp * (ClosestP.E[E] - Head->P.E[E]) - 30.0f * Head->dP.E[E];
+                    if (NoPush || (TimeIsUp && (Square(ddP.E[E]) < 0.1f))) {
+                        // pull head to closest point
+                        ddP.E[E] = Cp * (ClosestP.E[E] - Head->P.E[E]) - 30.0f * Head->dP.E[E];
+                    } else {
+                        // air drag
+                        ddP.E[E] += -Drag * Head->dP.E[E];
                     }
                 }
-                Head->MoveSpec.UnitMaxAccelVector = true;
-                Head->MoveSpec.Speed = 30.0f;
-                Head->MoveSpec.Drag = 8.0f;
-                Head->ddP = ddP2;
+                ConHero->RecenterTimer = ClampAboveZero(ConHero->RecenterTimer - dt);
+                Head->ddP = ddP;
             }
             
             
@@ -157,7 +145,7 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                 
                 Body->dP = v3{0, 0, 0};
                 if (Body->MovementMode == MovementMode_Planted) {
-                    Body->P = GetSimEntityTraversable(Body->Occupying).P;
+                    Body->P = GetSimSpaceTraversable(Body->Occupying).P;
                     if (Head) {
                         r32 HeadDistance = Length(Head->P - Body->P);
                         r32 MaxHeadDistance = 0.5f;
@@ -213,15 +201,34 @@ ExecuteBrain(game_state *GameState, game_input *Input, sim_region *SimRegion, br
                 r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
                 Head->ddP = OneOverLength * (ClosestHero->P - Head->P);
             }
+#if 0
             Head->MoveSpec.UnitMaxAccelVector = true;
             Head->MoveSpec.Speed = 50.0f;
-            Head->MoveSpec.Drag = 0.2f;
+            Head->MoveSpec.Drag = 8.0f;
+#endif
         } break;
         case Type_brain_floaty_thing_for_now: {
             //Entity->P.z += 0.05f * Cos(Entity->tBob);
             //Entity->tBob += dt;
         } break;
-        case Type_brain_monstar: {
+        case Type_brain_monster: {
+            brain_monster *Monster = &Brain->Monster;
+            entity *Body = Monster->Body;
+            if (Body) {
+                traversable_reference Traversable;
+                v3 Delta = {RandomBilateral(&WorldMode->GameEntropy), RandomBilateral(&WorldMode->GameEntropy), 0.0f};
+                if (GetClosestTraversable(SimRegion, Body->P + Delta, &Traversable)) {
+                    if (Body->MovementMode == MovementMode_Planted) {
+                        if (!IsEqual(Traversable, Body->Occupying)) {
+                            Body->CameFrom = Body->Occupying;
+                            if (TransactionalOccupy(Body, &Body->Occupying, Traversable)) {
+                                Body->tMovement = 0;
+                                Body->MovementMode = MovementMode_Hopping;
+                            }
+                        }
+                    }
+                }
+            }
         } break;
         InvalidDefaultCase;
     }

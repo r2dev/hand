@@ -69,6 +69,7 @@ struct game_mode_world {
 #define PARTICEL_CEL_DIM 16
     particle_cel ParticleCels[PARTICEL_CEL_DIM][PARTICEL_CEL_DIM];
     
+    random_series GameEntropy;
     random_series EffectEntropy;
 };
 

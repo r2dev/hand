@@ -181,7 +181,7 @@ PackEntityReference(sim_region *SimRegion, entity_reference *Ref) {
         }
     } else if (Ref->ID.Value) {
         
-        if (!SimRegion || GetHashFromID(SimRegion, Ref->ID)) {
+        if (SimRegion && GetHashFromID(SimRegion, Ref->ID)) {
             Ref->ID.Value = 0;
         }
     }

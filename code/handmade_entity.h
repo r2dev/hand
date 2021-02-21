@@ -1,4 +1,3 @@
-#pragma once
 
 #define InvalidP v3{100000.0f, 100000.0f, 100000.0f}
 
@@ -29,8 +28,7 @@ struct hit_point {
 
 enum entity_flags {
 	EntityFlag_Collides = (1 << 0),
-	EntityFlag_Moveable = (1 << 1),
-    EntityFlag_Deleted = (1 << 2),
+    EntityFlag_Deleted = (1 << 1),
 };
 
 struct entity_id {
@@ -131,7 +129,7 @@ struct entity {
     r32 dtBob;
     r32 ddtBob; //non-pack
     
-    move_spec MoveSpec; // non-pack
+    //move_spec MoveSpec; // non-pack
     
     entity_movement_code MovementMode;
     r32 tMovement;

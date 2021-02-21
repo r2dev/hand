@@ -15,7 +15,7 @@ GetTraversable(traversable_reference Reference) {
 }
 
 inline entity_traversable_point
-GetSimEntityTraversable(entity *Entity, u32 Index) {
+GetSimSpaceTraversable(entity *Entity, u32 Index) {
     entity_traversable_point Result = {};
     Result.P = Entity->P;
     Assert(Index < Entity->TraversableCount);
@@ -29,8 +29,8 @@ GetSimEntityTraversable(entity *Entity, u32 Index) {
 }
 
 inline entity_traversable_point
-GetSimEntityTraversable(traversable_reference Ref) {
-    entity_traversable_point Result = GetSimEntityTraversable(Ref.Entity.Ptr, Ref.Index);
+GetSimSpaceTraversable(traversable_reference Ref) {
+    entity_traversable_point Result = GetSimSpaceTraversable(Ref.Entity.Ptr, Ref.Index);
     return(Result);
 }
 
@@ -398,21 +398,9 @@ TransactionalOccupy(entity *Entity, traversable_reference *Ref, traversable_refe
 }
 
 internal void
-MoveEntity(game_mode_world *WorldMode, sim_region* SimRegion, entity* Entity, r32 dt, move_spec* MoveSpec,
-           v3 ddP) {
+MoveEntity(game_mode_world *WorldMode, sim_region* SimRegion, entity* Entity, r32 dt, v3 ddP) {
     TIMED_FUNCTION();
 	world* World = SimRegion->World;
-    
-	if (MoveSpec->UnitMaxAccelVector) {
-		r32 ddpLength = LengthSq(ddP);
-		if (ddpLength > 1.0f) {
-			ddP *= (1.0f / SquareRoot(ddpLength));
-		}
-	}
-	ddP *= MoveSpec->Speed;
-	v3 Drag = -MoveSpec->Drag * Entity->dP;
-	Drag.z = 0;
-	ddP += Drag;
     
 	v3 OldPlayerP = Entity->P;
 	v3 PlayerDelta = 0.5f * Square(dt) * ddP +
@@ -566,7 +554,7 @@ GetClosestTraversable(sim_region *SimRegion, v3 FromP, traversable_reference *Re
     entity* TestEntity = SimRegion->Entities;
     for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
         for (u32 PIndex = 0; PIndex < TestEntity->TraversableCount; ++PIndex) {
-            entity_traversable_point Point = GetSimEntityTraversable(TestEntity, PIndex);
+            entity_traversable_point Point = GetSimSpaceTraversable(TestEntity, PIndex);
             if (Point.Occupier == 0 || !(Flags & TraversableSearch_Unoccupied)) {
                 v3 HeadToPoint = Point.P - FromP;
                 // HeadToPoint.z 

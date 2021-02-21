@@ -25,7 +25,7 @@ enum brain_type {
     Type_brain_snake,
     Type_brain_familiar,
     Type_brain_floaty_thing_for_now,
-    Type_brain_monstar,
+    Type_brain_monster,
     Type_brain_count,
 };
 
