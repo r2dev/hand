@@ -204,8 +204,12 @@ BeginSim(memory_arena* SimArena, game_mode_world* WorldMode, world* World, world
                                 Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
                                 if (Dest->BrainID.Value != 0) {
                                     brain *Brain = AddOrGetBrain(SimRegion, Dest->BrainID, (brain_type)Dest->BrainSlot.Type);
-                                    Assert(Dest->BrainSlot.Index < ArrayCount(Brain->Array));
-                                    Brain->Array[Dest->BrainSlot.Index] = Dest;
+                                    //Assert(Dest->BrainSlot.Index < ArrayCount(Brain->Array));
+                                    u8 *Ptr = (u8 *)&Brain->Array;
+                                    Ptr += sizeof(entity *) * Dest->BrainSlot.Index;
+                                    Assert(Ptr <= (u8 *)Brain + sizeof(brain) - sizeof(entity *));
+                                    *((entity **)Ptr) = Dest;
+                                    
                                 }
                             }
                             else {

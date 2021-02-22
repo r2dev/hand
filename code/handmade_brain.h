@@ -19,6 +19,11 @@ struct brain_familiar {
     entity *Head;
 };
 
+struct brain_snake {
+    entity *Segments[8];
+};
+
+
 ///////////////////
 enum brain_type {
     Type_brain_hero,
@@ -40,10 +45,18 @@ struct brain_id {
 
 
 #define BrainSlotFor(type, Member) BrainSlotFor_(Type_##type, (&(((type *)0)->Member)) - (entity **)0)
+#define IndexedBrainSlotFor(type, Member, Index) BrainSlotFor_(Type_##type, (u16)(Index) + (u16)((((type *)0)->Member) - (entity **)0))
 
 inline brain_slot
 BrainSlotFor_(brain_type Type, u16 PackValue) {
     brain_slot Result = {(u16)Type, PackValue};
+    return(Result);
+}
+
+inline b32
+IsType(brain_slot Slot, brain_type Type) {
+    // TODO(not-set): why is checking index non zero here
+    b32 Result = (Slot.Type == Type) && (Slot.Index != 0);
     return(Result);
 }
 
@@ -54,7 +67,8 @@ struct brain {
         brain_hero Hero;
         brain_monster Monster;
         brain_familiar Familiar;
-        entity *Array[16];
+        brain_snake Snake;
+        entity *Array;
     };
 };
 

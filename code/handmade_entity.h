@@ -66,6 +66,7 @@ struct entity_collision_volume_group {
 enum entity_movement_code {
     MovementMode_Planted,
     MovementMode_Hopping,
+    MovementMode_Floating,
 };
 
 struct traversable_reference {

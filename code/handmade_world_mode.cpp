@@ -136,6 +136,21 @@ AddMonster(game_mode_world* WorldMode, world_position P, traversable_reference S
 }
 
 internal void
+AddSnakeSegment(game_mode_world* WorldMode, world_position P, traversable_reference StandingOn, brain_id BrainID, u32 SegmentIndex) {
+    entity *Entity = BeginGroundedEntity(WorldMode, WorldMode->MonstarCollision);
+	AddFlags(Entity, EntityFlag_Collides);
+    AddPiece(Entity, SegmentIndex ==0 ?Asset_Head: Asset_Torso, 1.5f, v3{0, 0, 0}, v4{1, 1, 1, 1});
+    AddPiece(Entity, Asset_Shadow, 1.5f, v3{0, 0, 0}, v4{1, 1, 1, ShadowAlpha});
+    Entity->BrainID = BrainID;//AddBrain(WorldMode);
+    Entity->BrainSlot = IndexedBrainSlotFor(brain_snake, Segments, SegmentIndex);
+    Entity->Occupying = StandingOn;
+    
+	InitHitPoints(Entity, 2);
+    EndEntity(WorldMode, Entity, P);
+}
+
+
+internal void
 AddFamiliar(game_mode_world* WorldMode, world_position P, traversable_reference Traversable) {
     entity *Entity = BeginGroundedEntity(WorldMode, WorldMode->FamiliarCollision);
 	AddFlags(Entity, EntityFlag_Collides );
@@ -343,7 +358,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     WorldMode->HeroBodyCollision = MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.6f);
     WorldMode->MonstarCollision = MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
     WorldMode->WallCollision = MakeSimpleGroundedCollision(WorldMode, TileSideInMeters, TileSideInMeters, TileDepthInMeters);
-    WorldMode->FamiliarCollision = MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
+    WorldMode->FamiliarCollision = WorldMode->NullCollision; //MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
     
     WorldMode->FloorCollision = MakeSimpleFloorCollision(WorldMode, TileSideInMeters, TileSideInMeters, 0.9f * TileDepthInMeters);
     
@@ -366,7 +381,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     b32 DoorUp = false;
     b32 DoorDown = false;
     random_series *Series = &WorldMode->GameEntropy;
-    for (u32 ScreenIndex = 0; ScreenIndex < 4; ++ScreenIndex) {
+    for (u32 ScreenIndex = 0; ScreenIndex < 2; ++ScreenIndex) {
 #if 0
         u32 DoorDirection = RandomChoice(Series, (DoorUp || DoorDown)? 2: 4);
 #else
@@ -394,6 +409,14 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
                                              AbsTileZ, Series);
         AddMonster(WorldMode, Room.P[3][4], Room.Ground[3][4]);
         AddFamiliar(WorldMode, Room.P[4][3], Room.Ground[4][3]);
+        brain_id SnakeBrainID = AddBrain(WorldMode);
+        for (u32 SegmentIndex = 0; SegmentIndex < 8; ++SegmentIndex) {
+            u32 X = 14 - SegmentIndex;
+            world_position P = Room.P[X][1];
+            traversable_reference StandingOn = Room.Ground[X][1];
+            AddSnakeSegment(WorldMode, P, StandingOn, SnakeBrainID, SegmentIndex);
+        }
+        
         
         
         for (u32 TileY = 0; TileY < ArrayCount(Room.Ground[0]); ++TileY) {
@@ -608,7 +631,7 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
             Entity->tBob = Entity->ddtBob * dt * dt + Entity->dtBob*dt;
             Entity->dtBob += Entity->ddtBob * dt;
             
-            if (LengthSq(Entity->ddP) > 0) {
+            if (LengthSq(Entity->dP) > 0 ||  LengthSq(Entity->ddP) > 0) {
                 MoveEntity(WorldMode, SimRegion, Entity, Input->dtForFrame, Entity->ddP);
             }
             
