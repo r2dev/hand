@@ -1,12 +1,6 @@
 
 #define InvalidP v3{100000.0f, 100000.0f, 100000.0f}
 
-struct move_spec {
-	b32 UnitMaxAccelVector;
-	r32 Speed;
-	r32 Drag;
-};
-
 enum entity_type {
 	EntityType_Null,
     

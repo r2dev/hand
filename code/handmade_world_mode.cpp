@@ -1,12 +1,11 @@
 internal entity *
-BeginLowEntity(game_mode_world* WorldMode) {
+BeginEntity(game_mode_world* WorldMode) {
     Assert(WorldMode->CreationBufferIndex < ArrayCount(WorldMode->CreationBuffer));
     entity *Result = WorldMode->CreationBuffer + WorldMode->CreationBufferIndex++;
     ZeroStruct(*Result);
     Result->XAxis = v2{1, 0};
     Result->YAxis = v2{0, 1};
     Result->ID.Value = ++WorldMode->LastUsedEntityStorageIndex;
-	//Result->Type = Type;
 	Result->Collision = WorldMode->NullCollision;
     return(Result);
 }
@@ -21,7 +20,7 @@ EndEntity(game_mode_world* WorldMode, entity *Entity, world_position P) {
 
 inline entity *
 BeginGroundedEntity(game_mode_world* WorldMode, entity_collision_volume_group * Collision) {
-    entity *Entity = BeginLowEntity(WorldMode);
+    entity *Entity = BeginEntity(WorldMode);
 	Entity->Collision = Collision;
 	return(Entity);
 }
@@ -178,6 +177,8 @@ AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsT
         for (s32 OffsetX = -8; OffsetX <= 8; ++OffsetX) {
             world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX + OffsetX, AbsTileY + OffsetY, AbsTileZ);
             
+            P.Offset_.x += 0.25f * RandomUnilateral(Series);
+            P.Offset_.y += 0.25f * RandomUnilateral(Series);
             //P.Offset_.z = 0.2f * (r32)(OffsetX + OffsetY);
             traversable_reference StandingOn = {};
             if (OffsetX == 2 && OffsetY == 2) {
@@ -352,11 +353,10 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     r32 TileDepthInMeters = WorldMode->TypicalFloorHeight;
     
     WorldMode->NullCollision = MakeSimpleGroundedCollision(WorldMode, 0, 0, 0);
-    WorldMode->StairCollision = MakeSimpleGroundedCollision(WorldMode, 
-                                                            TileSideInMeters, 2.0f * TileSideInMeters, 1.1f * TileDepthInMeters);
+    //WorldMode->StairCollision = MakeSimpleGroundedCollision(WorldMode, TileSideInMeters, 2.0f * TileSideInMeters, 1.1f * TileDepthInMeters);
     WorldMode->HeroHeadCollision = MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.4f, 0.7f);
-    WorldMode->HeroBodyCollision = MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.6f);
-    WorldMode->MonstarCollision = MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
+    WorldMode->HeroBodyCollision = WorldMode->NullCollision; //MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.6f);
+    WorldMode->MonstarCollision = WorldMode->NullCollision; //MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
     WorldMode->WallCollision = MakeSimpleGroundedCollision(WorldMode, TileSideInMeters, TileSideInMeters, TileDepthInMeters);
     WorldMode->FamiliarCollision = WorldMode->NullCollision; //MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
     
@@ -410,7 +410,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
         AddMonster(WorldMode, Room.P[3][4], Room.Ground[3][4]);
         AddFamiliar(WorldMode, Room.P[4][3], Room.Ground[4][3]);
         brain_id SnakeBrainID = AddBrain(WorldMode);
-        for (u32 SegmentIndex = 0; SegmentIndex < 8; ++SegmentIndex) {
+        for (u32 SegmentIndex = 0; SegmentIndex < 3; ++SegmentIndex) {
             u32 X = 14 - SegmentIndex;
             world_position P = Room.P[X][1];
             traversable_reference StandingOn = Room.Ground[X][1];

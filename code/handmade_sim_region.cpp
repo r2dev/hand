@@ -385,6 +385,17 @@ SpeculativeCollide(entity* Mover, entity* Region, v3 TestP) {
 #endif
     return(Result);
 }
+
+inline b32
+IsOccupied(traversable_reference Ref) {
+    b32 Result = true;
+    entity_traversable_point *DesiredPoint = GetTraversable(Ref);
+    if (DesiredPoint) {
+        Result = DesiredPoint->Occupier != 0;
+    }
+    return(Result);
+}
+
 internal b32
 TransactionalOccupy(entity *Entity, traversable_reference *Ref, traversable_reference Target) {
     b32 Result = false;
@@ -566,6 +577,7 @@ GetClosestTraversable(sim_region *SimRegion, v3 FromP, traversable_reference *Re
                 if (BestDistanceSq > TestDSq) {
                     //*Result = P.P;
                     Result->Entity.Ptr = TestEntity;
+                    Result->Entity.ID = TestEntity->ID;
                     Result->Index = PIndex;
                     BestDistanceSq = TestDSq;
                     Found = true;
@@ -578,4 +590,45 @@ GetClosestTraversable(sim_region *SimRegion, v3 FromP, traversable_reference *Re
         Result->Index = 0;
     }
     return(Found);
+}
+
+internal b32
+GetClosestTraversableAlongRay(sim_region *SimRegion, v3 FromP, v3 Direction, traversable_reference Skip, traversable_reference *Result, u32 Flags = 0) {
+    b32 Found = false;
+    for (u32 ProboIndex = 0; ProboIndex < 5; ++ProboIndex) {
+        v3 SampleP = FromP + (r32)ProboIndex * 0.5f * Direction;
+        if (GetClosestTraversable(SimRegion, SampleP, Result, Flags)) {
+            if (!IsEqual(*Result, Skip)) {
+                Found = true;
+                break;
+            }
+        }
+    }
+    
+    return(Found);
+}
+
+struct closest_entity {
+    entity *Entity;
+    v3 Delta;
+    r32 DistanceSq;
+};
+
+internal closest_entity
+GetClosestEntityWithBrain(sim_region *SimRegion, v3 P, brain_type Type, r32 MaxRadius = 20.0f) {
+    closest_entity Result;
+    Result.DistanceSq = Square(MaxRadius);
+    entity* TestEntity = SimRegion->Entities;
+    for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
+        if (IsType(TestEntity->BrainSlot, Type)) {
+            v3 TestDelta = TestEntity->P - P;
+            r32 TestDSq = LengthSq(TestDelta);
+            if (Result.DistanceSq > TestDSq) {
+                Result.Entity = TestEntity;
+                Result.DistanceSq = TestDSq;
+                Result.Delta = TestDelta;
+            }
+        }
+    }
+    return(Result);
 }

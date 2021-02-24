@@ -26,6 +26,7 @@ struct brain_snake {
 
 ///////////////////
 enum brain_type {
+    Type_brain_none,
     Type_brain_hero,
     Type_brain_snake,
     Type_brain_familiar,
@@ -56,7 +57,7 @@ BrainSlotFor_(brain_type Type, u16 PackValue) {
 inline b32
 IsType(brain_slot Slot, brain_type Type) {
     // TODO(not-set): why is checking index non zero here
-    b32 Result = (Slot.Type == Type) && (Slot.Index != 0);
+    b32 Result = (Slot.Type == Type);
     return(Result);
 }
 

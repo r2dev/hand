@@ -207,30 +207,37 @@ ExecuteBrain(game_state *GameState, game_mode_world *WorldMode, game_input *Inpu
         } break;
         case Type_brain_familiar: {
             brain_familiar *Familiar = &Brain->Familiar;
-            entity *Head = Familiar->Head;
-            
-            entity* ClosestHero = 0;
-            r32 ClosestHeroSq = Square(10.0f);
-            entity* TestEntity = SimRegion->Entities;
-            
-            if(Global_Sim_FamiliarFollowsHero)
-            {
-                for (u32 TestEntityIndex = 0; TestEntityIndex < SimRegion->EntityCount; ++TestEntityIndex, ++TestEntity) {
-                    if (IsType(TestEntity->BrainSlot, Type_brain_hero)) {
-                        r32 TestDSq = LengthSq(TestEntity->P - Head->P);
-                        
-                        if (ClosestHeroSq > TestDSq) {
-                            ClosestHero = TestEntity;
-                            ClosestHeroSq = TestDSq;
+            entity *FamiliarHead = Familiar->Head;
+            if (FamiliarHead) {
+                b32 Block = true;
+                traversable_reference Traversable;
+                if (GetClosestTraversable(SimRegion, FamiliarHead->P, &Traversable)) {
+                    if (IsEqual(Traversable, FamiliarHead->Occupying)) {
+                        Block = false;
+                    } else {
+                        if (TransactionalOccupy(FamiliarHead, &FamiliarHead->Occupying, Traversable)) {
+                            Block = false;
                         }
                     }
                 }
-            }
-            
-            if (ClosestHero && (ClosestHeroSq > Square(3.0f))) {
-                r32 Acceleration = 1.0f;
-                r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroSq);
-                Head->ddP = OneOverLength * (ClosestHero->P - Head->P);
+                
+                v3 Target = GetSimSpaceTraversable(FamiliarHead->Occupying).P;
+                
+                if (!Block) {
+                    closest_entity Closest = GetClosestEntityWithBrain(SimRegion, FamiliarHead->P, Type_brain_hero, 10.0f);
+                    
+                    if (Closest.Entity) { //&& (ClosestHeroSq > Square(3.0f))) {
+                        traversable_reference TargetTraversable;
+                        if (GetClosestTraversableAlongRay(SimRegion, FamiliarHead->P, NOZ(Closest.Delta), FamiliarHead->Occupying, &TargetTraversable)) {
+                            if(!IsOccupied(TargetTraversable)) {
+                                Target = Closest.Entity->P;
+                            }
+                        }
+                    }
+                }
+                
+                FamiliarHead->ddP = 10.0f * (Target - FamiliarHead->P) - 8.0f * FamiliarHead->dP;
+                
             }
         } break;
         case Type_brain_floaty_thing_for_now: {

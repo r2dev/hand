@@ -160,7 +160,6 @@ internal world *
 CreateWorld(v3 ChunkDimInMeter, memory_arena* ParentArena) {
     world *World = PushStruct(ParentArena, world);
     World->ChunkDimInMeters = ChunkDimInMeter;
-	World->FirstFree = 0;
     SubArena(&World->Arena, ParentArena, GetArenaSizeRemaining(ParentArena), NoClear());
     return(World);
 }
