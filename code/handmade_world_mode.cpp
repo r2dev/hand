@@ -71,18 +71,27 @@ AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_referen
 	world_position P = MapIntoChunkSpace(SimRegion->World, SimRegion->Origin, GetSimSpaceTraversable(StandingOn).P);
     
     entity *Body = BeginGroundedEntity(WorldMode, WorldMode->HeroBodyCollision);
-    AddFlags(Body, EntityFlag_Collides );
+    AddFlags(Body, EntityFlag_Collides);
     InitHitPoints(Body, 3);
     
     entity *Head = BeginGroundedEntity(WorldMode, WorldMode->HeroHeadCollision);
-	AddFlags(Head, EntityFlag_Collides );
-    Body->Occupying = StandingOn;
+	AddFlags(Head, EntityFlag_Collides);
     
+    entity *Glove = BeginGroundedEntity(WorldMode, WorldMode->HeroGloveCollision);
+    AddFlags(Glove, EntityFlag_Collides);
+    Glove->MovementMode = MovementMode_AngleOffset;
+    Glove->AngleCurrent = 0.25f * Tau32;
+    Glove->AngleBaseDistance = Glove->AngleCurrentDistance = 0.5f;
+    Glove->AngleSwipeDistance = 1.5f;
+    Body->Occupying = StandingOn;
     Head->BrainID = BrainID;
     Head->BrainSlot = BrainSlotFor(brain_hero, Head);
     
     Body->BrainID = BrainID;
     Body->BrainSlot = BrainSlotFor(brain_hero, Body);
+    
+    Glove->BrainID = BrainID;
+    Glove->BrainSlot = BrainSlotFor(brain_hero, Glove);
     
 	if (WorldMode->CameraFollowingEntityID.Value == 0) {
 		WorldMode->CameraFollowingEntityID = Head->ID;
@@ -95,9 +104,13 @@ AddPlayer(game_mode_world *WorldMode, sim_region *SimRegion, traversable_referen
     AddPiece(Body, Asset_Shadow, HeroSizeC * 1.0f, v3{0, 0, 0}, {1, 1, 1, ShadowAlpha});
     AddPiece(Body, Asset_Torso, HeroSizeC * 1.2f, v3{0, 0, -0.002f}, Color, PieceMove_AxesDeform);
     AddPiece(Body, Asset_Cape, HeroSizeC * 1.2f, v3{0,  -0.1f, -0.001f}, Color, PieceMove_BobOffset|PieceMove_AxesDeform);
+    
+    AddPiece(Glove, Asset_Cape, HeroSizeC * 1.2f, v3{0, 0, 0}, Color);
     // DrawHitPoints(Head, RenderGroup, EntityTransform);
+    EndEntity(WorldMode, Glove, P);
     EndEntity(WorldMode, Head, P);
     EndEntity(WorldMode, Body, P);
+    
 	
 }
 
@@ -356,6 +369,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     //WorldMode->StairCollision = MakeSimpleGroundedCollision(WorldMode, TileSideInMeters, 2.0f * TileSideInMeters, 1.1f * TileDepthInMeters);
     WorldMode->HeroHeadCollision = MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.4f, 0.7f);
     WorldMode->HeroBodyCollision = WorldMode->NullCollision; //MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.6f);
+    WorldMode->HeroGloveCollision = WorldMode->NullCollision;
     WorldMode->MonstarCollision = WorldMode->NullCollision; //MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
     WorldMode->WallCollision = MakeSimpleGroundedCollision(WorldMode, TileSideInMeters, TileSideInMeters, TileDepthInMeters);
     WorldMode->FamiliarCollision = WorldMode->NullCollision; //MakeSimpleGroundedCollision(WorldMode, 1.0f, 0.5f, 0.5f);
@@ -624,6 +638,27 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
                         Entity->tMovement = 1.0f;
                     }
                     
+                } break;
+                case MovementMode_AttackSwipe: {
+                    if (Entity->tMovement < 1.0f) {
+                        Entity->AngleCurrent = Lerp(Entity->AngleStart, Entity->tMovement, Entity->AngleTarget);
+                        
+                        Entity->AngleCurrentDistance = Lerp(Entity->AngleBaseDistance, Triangle01(Entity->tMovement), Entity->AngleSwipeDistance);
+                    } else {
+                        Entity->MovementMode = MovementMode_AngleOffset;
+                        Entity->AngleCurrent = Entity->AngleTarget;
+                        Entity->AngleCurrentDistance = Entity->AngleBaseDistance;
+                    }
+                    Entity->tMovement += 1.0f * dt;
+                    if (Entity->tMovement > 1.0f) {
+                        Entity->tMovement = 1.0f;
+                    }
+                    
+                }
+                case MovementMode_AngleOffset: {
+                    
+                    v2 Arm = Entity->AngleCurrentDistance * Arm2( Entity->AngleCurrent + Entity->FacingDirection);
+                    Entity->P = Entity->AngleBase + V3(Arm.x, Arm.y, 0.0f);
                 } break;
             }
             r32 Cv = 10.0f;

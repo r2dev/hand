@@ -178,6 +178,20 @@ Square(r32 A) {
 }
 
 inline r32
+Sin01(r32 t) {
+    r32 Result = Sin(Pi32 * t);
+    return(Result);
+}
+inline r32
+Triangle01(r32 t) {
+    r32 Result  = 2.0f * t;
+    if (Result > 1.0f) {
+        Result = 2.0f - Result;
+    }
+    return(Result);
+}
+
+inline r32
 Lerp(r32 A, r32 t, r32 B) {
 	r32 Result = A * (1.0f - t) + B * t;
 	return(Result);

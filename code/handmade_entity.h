@@ -61,6 +61,8 @@ enum entity_movement_code {
     MovementMode_Planted,
     MovementMode_Hopping,
     MovementMode_Floating,
+    MovementMode_AttackSwipe,
+    MovementMode_AngleOffset
 };
 
 struct traversable_reference {
@@ -140,6 +142,15 @@ struct entity {
     
     u32 PieceCount;
     entity_visible_piece Pieces[4];
+    
+    v3 AngleBase;
+    r32 AngleCurrent;
+    r32 AngleStart;
+    r32 AngleTarget;
+    r32 AngleBaseDistance;
+    r32 AngleCurrentDistance;
+    r32 AngleSwipeDistance;
+    
 };
 
 inline b32
