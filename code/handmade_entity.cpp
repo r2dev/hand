@@ -18,9 +18,9 @@ DrawHitPoints(entity* Entity, render_group* PieceGroup, object_transform ObjectT
 }
 
 inline s32
-ConvertToLayerRelative(world *World, r32 *Z) {
+ConvertToLayerRelative(game_mode_world *WorldMode, r32 *Z) {
     s32 RelativeIndex = 0;
-    RecanonicalizeCoord(World->ChunkDimInMeters.z, &RelativeIndex, Z);
+    RecanonicalizeCoord(WorldMode->TypicalFloorHeight, &RelativeIndex, Z);
     return(RelativeIndex);
 }
 
@@ -136,8 +136,8 @@ UpdateAndRenderEntities(sim_region *SimRegion, game_mode_world *WorldMode, rende
             // rendering
             object_transform EntityTransform = DefaultUprightTransform();
             EntityTransform.OffsetP = GetEntityGroundPoint(Entity) - CameraP;
-            s32 RelativeLayer = ConvertToLayerRelative(WorldMode->World, &EntityTransform.OffsetP.z);
-            if (RelativeLayer >= MinimumLevelIndex && RelativeLayer >= MaximumLevelIndex) {
+            s32 RelativeLayer = ConvertToLayerRelative(WorldMode, &EntityTransform.OffsetP.z);
+            if (RelativeLayer >= MinimumLevelIndex && RelativeLayer <= MaximumLevelIndex) {
                 RenderGroup->CurrentClipRectIndex = ClipRectIndex[RelativeLayer - MinimumLevelIndex];
                 asset_vector MatchVector = {};
                 MatchVector.E[Tag_FaceDirection] = (r32)Entity->FacingDirection;
