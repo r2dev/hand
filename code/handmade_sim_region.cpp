@@ -165,11 +165,11 @@ BeginSim(memory_arena* SimArena, game_mode_world* WorldMode, world* World, world
     
 	SimRegion->MaxEntityCount = 4096;
 	SimRegion->EntityCount = 0;
-	SimRegion->Entities = PushArray(SimArena, SimRegion->MaxEntityCount, entity);
+	SimRegion->Entities = PushArray(SimArena, SimRegion->MaxEntityCount, entity, NoClear());
     
     SimRegion->MaxBrainCount = 256;
 	SimRegion->BrainCount = 0;
-    SimRegion->Brains = PushArray(SimArena, SimRegion->MaxBrainCount, brain);
+    SimRegion->Brains = PushArray(SimArena, SimRegion->MaxBrainCount, brain, NoClear());
     
 	world_position MinChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMinCorner(SimRegion->Bounds));
 	world_position MaxChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMaxCorner(SimRegion->Bounds));

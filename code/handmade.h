@@ -116,7 +116,7 @@ inline void
 ZeroSize(memory_index Size, void* Ptr) {
 	u8* Byte = (u8 *)Ptr;
 	while(Size--) {
-		*Byte++ = 0;  // should be *Byte++ = 0
+		*Byte++ = 0;
 	}
 }
 

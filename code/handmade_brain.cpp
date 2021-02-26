@@ -227,6 +227,7 @@ ExecuteBrain(game_state *GameState, game_mode_world *WorldMode, game_input *Inpu
             }
         } break;
         case Type_brain_familiar: {
+            
             brain_familiar *Familiar = &Brain->Familiar;
             entity *FamiliarHead = Familiar->Head;
             if (FamiliarHead) {

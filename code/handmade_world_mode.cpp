@@ -190,9 +190,16 @@ AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsT
         for (s32 OffsetX = -8; OffsetX <= 8; ++OffsetX) {
             world_position P = ChunkPositionFromTilePosition(WorldMode->World, AbsTileX + OffsetX, AbsTileY + OffsetY, AbsTileZ);
             
-            P.Offset_.x += 0.25f * RandomUnilateral(Series);
-            P.Offset_.y += 0.25f * RandomUnilateral(Series);
+            //P.Offset_.x += 0.25f * RandomUnilateral(Series);
+            //P.Offset_.y += 0.25f * RandomUnilateral(Series);
             //P.Offset_.z = 0.2f * (r32)(OffsetX + OffsetY);
+            if (OffsetX == 3 && OffsetY >= -2 && OffsetY <= 2) {
+                P.Offset_.z += 0.5f * (r32)(OffsetY + 2);
+            }
+            if (OffsetX >= -5 && OffsetX <= -3 && OffsetY >= -1 && OffsetY <=0) {
+                continue;
+            }
+            
             traversable_reference StandingOn = {};
             if (OffsetX == 2 && OffsetY == 2) {
                 entity *Entity = BeginGroundedEntity(WorldMode, WorldMode->FloorCollision);
@@ -219,26 +226,6 @@ AddStandardRoom(game_mode_world* WorldMode, u32 AbsTileX, u32 AbsTileY, u32 AbsT
     }
     return(Result);
 	
-}
-
-
-internal void
-DrawHitPoints(entity* Entity, render_group* PieceGroup, object_transform ObjectTransform) {
-	if (Entity->HitPointMax >= 1) {
-		v2 HealthDim = { 0.2f, 0.2f };
-		r32 SpacingX = 1.5f * HealthDim.x;
-		v2 HitP = { -0.5f * (Entity->HitPointMax - 1) * SpacingX, -0.2f };
-		v2 dHitP = { SpacingX, 0.0f };
-		for (u32 HealthIndex = 0; HealthIndex < Entity->HitPointMax; ++HealthIndex) {
-			hit_point* HitPoint = Entity->HitPoint + HealthIndex;
-			v4 Color = { 1.0f, 0.0f, 0.0f, 1.0f };
-			if (HitPoint->FilledAmount == 0) {
-				Color = { 0.2f, 0.2f, 0.2f, 1.0f };
-			}
-			PushRect(PieceGroup, ObjectTransform, V3(HitP, 0), HealthDim, Color);
-			HitP += dHitP;
-		}
-	}
 }
 
 internal entity_collision_volume_group*
@@ -395,11 +382,11 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
     b32 DoorUp = false;
     b32 DoorDown = false;
     random_series *Series = &WorldMode->GameEntropy;
-    for (u32 ScreenIndex = 0; ScreenIndex < 2; ++ScreenIndex) {
+    for (u32 ScreenIndex = 0; ScreenIndex < 3; ++ScreenIndex) {
 #if 0
         u32 DoorDirection = RandomChoice(Series, (DoorUp || DoorDown)? 2: 4);
 #else
-        u32 DoorDirection = RandomChoice(Series, 2);
+        u32 DoorDirection = 2; //RandomChoice(Series, 2);
 #endif
         
         b32 CreatedZDoor = false;
@@ -421,8 +408,10 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
                                              (ScreenX * TilesPerWidth + TilesPerWidth / 2), 
                                              (ScreenY * TilesPerHeight + TilesPerHeight / 2), 
                                              AbsTileZ, Series);
-        AddMonster(WorldMode, Room.P[3][4], Room.Ground[3][4]);
-        AddFamiliar(WorldMode, Room.P[4][3], Room.Ground[4][3]);
+        AddMonster(WorldMode, Room.P[6][4], Room.Ground[6][4]);
+        //AddFamiliar(WorldMode, Room.P[4][3], Room.Ground[4][3]);
+        
+#if 0        
         brain_id SnakeBrainID = AddBrain(WorldMode);
         for (u32 SegmentIndex = 0; SegmentIndex < 3; ++SegmentIndex) {
             u32 X = 14 - SegmentIndex;
@@ -430,9 +419,7 @@ EnterWorld(game_state *GameState, transient_state *TranState) {
             traversable_reference StandingOn = Room.Ground[X][1];
             AddSnakeSegment(WorldMode, P, StandingOn, SnakeBrainID, SegmentIndex);
         }
-        
-        
-        
+#endif
         for (u32 TileY = 0; TileY < ArrayCount(Room.Ground[0]); ++TileY) {
             for (u32 TileX = 0; TileX < ArrayCount(Room.Ground); ++TileX) {
                 world_position P = Room.P[TileX][TileY];
@@ -524,7 +511,8 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
     r32 DistanceAboveTarget = 9.0f;
     
     Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, FocalLength, DistanceAboveTarget);
-    Clear(RenderGroup, v4{ 0.25f, 0.25f, 0.25f, 1.0f });
+    v4 BackgroundColor = v4{ 0.15f, 0.15f, 0.15f, 1.0f };
+    Clear(RenderGroup, BackgroundColor);
     
     v2 ScreenCenter = v2{ 0.5f * DrawBuffer->Width, 0.5f * DrawBuffer->Height };
     
@@ -548,8 +536,6 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
     PushRectOutline(RenderGroup, WorldTransform, v3{ 0, 0, 0 }, GetDim(ScreenBound), v4{ 1.0f, 1.0f, 0.0f, 1.0f });
     PushRectOutline(RenderGroup, WorldTransform, v3{ 0, 0, 0 }, GetDim(SimBounds).xy, v4{ 0.0f, 1.0f, 1.0f, 1.0f });
     PushRectOutline(RenderGroup, WorldTransform, v3{ 0, 0, 0 }, GetDim(SimRegion->Bounds).xy, v4{ 1.0f, 0.0f, 0.0f, 1.0f });
-    
-    
     
     r32 dt = Input->dtForFrame;
     
@@ -575,172 +561,10 @@ UpdateAndRenderWorld(game_state *GameState, game_mode_world *WorldMode, transien
         ExecuteBrain(GameState, WorldMode, Input, SimRegion, Brain, dt);
     }
     
-    for (u32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex) {
-        entity* Entity = SimRegion->Entities + EntityIndex;
-        if (Entity->Updatable) {
-            
-#if 0
-            r32 ShadowAlpha = 1.0f - 0.5f * Entity->P.z;
-            if (ShadowAlpha < 0) {
-                ShadowAlpha = 0.0f;
-            }
-#endif
-            
-            v3 CameraRelativeGroundP = GetEntityGroundPoint(Entity) - CameraP;
-            r32 FadeTopEnd = 0.75f * WorldMode->TypicalFloorHeight;
-            r32 FadeTopStart = 0.5f * WorldMode->TypicalFloorHeight;
-            
-            r32 FadeBottomStart = -2.0f * WorldMode->TypicalFloorHeight;
-            r32 FadeBottomEnd = -2.25f * WorldMode->TypicalFloorHeight;
-            
-            RenderGroup->GlobalAlpha = 1.0f;
-            
-            
-            if (CameraRelativeGroundP.z > FadeTopStart) {
-                RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeTopStart, CameraRelativeGroundP.z, FadeTopEnd);
-            }
-            else if (CameraRelativeGroundP.z < FadeBottomStart) {
-                RenderGroup->GlobalAlpha = 1.0f - Clamp01MapToRange(FadeBottomStart, CameraRelativeGroundP.z, FadeBottomEnd);
-            }
-            
-            //hero_bitmaps* HeroBitmap = &GameState->HeroBitmaps[Entity->FacingDirection];
-            
-            switch (Entity->MovementMode) {
-                case MovementMode_Planted: {
-                    
-                } break;
-                case MovementMode_Hopping: {
-                    r32 tTotal = Entity->tMovement;
-                    r32 tJump = 0.1f;
-                    r32 tLand = 0.9f;
-                    v3 MovementFrom = GetSimSpaceTraversable(Entity->CameFrom).P;
-                    v3 MovementTo = GetSimSpaceTraversable(Entity->Occupying).P;
-                    
-                    if (tTotal < tJump) {
-                        Entity->ddtBob = 45.0f;
-                    }
-                    
-                    if (tTotal < tLand) {
-                        r32 t = Clamp01MapToRange(tJump, tTotal, tLand);
-                        v3 a = v3{0, -2.0f, 0};
-                        v3 b = MovementTo - MovementFrom - a;
-                        Entity->P = a * t * t + b * t + MovementFrom;
-                    }
-                    
-                    if (Entity->tMovement >= 1.0f) {
-                        Entity->P = MovementTo;
-                        Entity->CameFrom = Entity->Occupying;
-                        Entity->MovementMode = MovementMode_Planted;
-                        Entity->dtBob = -2.0f;
-                    }
-                    Entity->tMovement += 6.0f * dt;
-                    if (Entity->tMovement > 1.0f) {
-                        Entity->tMovement = 1.0f;
-                    }
-                    
-                } break;
-                case MovementMode_AttackSwipe: {
-                    if (Entity->tMovement < 1.0f) {
-                        Entity->AngleCurrent = Lerp(Entity->AngleStart, Entity->tMovement, Entity->AngleTarget);
-                        
-                        Entity->AngleCurrentDistance = Lerp(Entity->AngleBaseDistance, Triangle01(Entity->tMovement), Entity->AngleSwipeDistance);
-                    } else {
-                        Entity->MovementMode = MovementMode_AngleOffset;
-                        Entity->AngleCurrent = Entity->AngleTarget;
-                        Entity->AngleCurrentDistance = Entity->AngleBaseDistance;
-                    }
-                    Entity->tMovement += 1.0f * dt;
-                    if (Entity->tMovement > 1.0f) {
-                        Entity->tMovement = 1.0f;
-                    }
-                    
-                }
-                case MovementMode_AngleOffset: {
-                    
-                    v2 Arm = Entity->AngleCurrentDistance * Arm2( Entity->AngleCurrent + Entity->FacingDirection);
-                    Entity->P = Entity->AngleBase + V3(Arm.x, Arm.y, 0.0f);
-                } break;
-            }
-            r32 Cv = 10.0f;
-            Entity->ddtBob += -100.0f * Entity->tBob + Cv * -Entity->dtBob;
-            Entity->tBob = Entity->ddtBob * dt * dt + Entity->dtBob*dt;
-            Entity->dtBob += Entity->ddtBob * dt;
-            
-            if (LengthSq(Entity->dP) > 0 ||  LengthSq(Entity->ddP) > 0) {
-                MoveEntity(WorldMode, SimRegion, Entity, Input->dtForFrame, Entity->ddP);
-            }
-            
-            // rendering
-            object_transform EntityTransform = DefaultUprightTransform();
-            EntityTransform.OffsetP = GetEntityGroundPoint(Entity) - CameraP;
-            
-            asset_vector MatchVector = {};
-            MatchVector.E[Tag_FaceDirection] = (r32)Entity->FacingDirection;
-            asset_vector WeightVector = {};
-            WeightVector.E[Tag_FaceDirection] = 1.0f;
-            
-            DrawHitPoints(Entity, RenderGroup, EntityTransform);
-            
-            for (u32 PieceIndex = 0; PieceIndex < Entity->PieceCount; ++PieceIndex) {
-                entity_visible_piece *Piece = Entity->Pieces + PieceIndex;
-                bitmap_id BitmapID = GetBestMatchBitmapFrom(TranState->Assets, Piece->AssetTypeID, &MatchVector, &WeightVector);
-                
-                v2 XAxis = {1.0f , 0};
-                v2 YAxis = {0, 1.0f};
-                if (Piece->Flags & PieceMove_AxesDeform) {
-                    XAxis = Entity->XAxis;
-                    YAxis = Entity->YAxis;
-                }
-                v3 Offset = {};
-                if (Piece->Flags & PieceMove_BobOffset) {
-                    Offset = V3(Entity->FloorDisplace, 0.0f);
-                    Offset.y += Entity->tBob;
-                }
-                PushBitmap(RenderGroup, EntityTransform, BitmapID, Piece->Height, Piece->Offset + Offset, Piece->Color, 1.0f, XAxis, YAxis);
-            }
-            
-            for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
-                entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, v4{ 0, 0.5f, 1.0f, 1.0f });
-            }
-            for (u32 Index = 0; Index < Entity->TraversableCount; Index++) {
-                entity_traversable_point* Traversable = Entity->Traversables + Index;
-                
-                PushRect(RenderGroup, EntityTransform, Traversable->P, v2{0.1f, 0.1f}, 
-                         Traversable->Occupier? v4{0.0f, 0.5f, 1.0f,1.0f}: v4{ 1.0f, 0.5f, 0.0f, 1.0f });
-            }
-            if (DEBUG_UI_ENABLED) {
-                debug_id EntityDebugID = DEBUG_POINTER_ID((void *)Entity->ID.Value);
-                for (u32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; VolumeIndex++) {
-                    entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-                    v3 WorldMousePoint = Unproject(RenderGroup, EntityTransform, MouseP);
-#if 0
-                    PushRect(RenderGroup, V3(WorldMousePoint, 0.0f), v2{1.0f, 1.0f}, v4{1.0f, 0.0f, 1.0f, 1.0f});
-#endif
-                    if ((WorldMousePoint.x > -0.5f * Volume->Dim.x && WorldMousePoint.x < 0.5f * Volume->Dim.x) &&
-                        (WorldMousePoint.y > -0.5f * Volume->Dim.y && WorldMousePoint.y < 0.5f * Volume->Dim.y)){
-                        
-                        DEBUG_HIT(EntityDebugID, WorldMousePoint.z);
-                    }
-                    v4 EntityOutlineColor;
-                    if (DEBUG_HIGHLIGHTED(EntityDebugID, &EntityOutlineColor)) {
-                        PushRectOutline(RenderGroup, EntityTransform, V3(Volume->OffsetP.xy, 0.0f), Volume->Dim.xy, EntityOutlineColor, 0.05f);
-                    }
-                    
-                }
-                if (DEBUG_REQUESTED(EntityDebugID)) {
-                    DEBUG_DATA_BLOCK("Simulation/Entity");
-                    DEBUG_VALUE(Entity->P);
-                    DEBUG_VALUE(Entity->dP);
-                    DEBUG_VALUE(Entity->FacingDirection);
-                    DEBUG_VALUE(Entity->WalkableDim);
-                    DEBUG_VALUE(Entity->WalkableHeight);
-                    DEBUG_VALUE(Entity->ID.Value);
-                }
-            }
-        }
-    }
-    RenderGroup->GlobalAlpha = 1.0;
+    UpdateAndRenderEntities(SimRegion, WorldMode, RenderGroup, CameraP, DrawBuffer, BackgroundColor, dt, TranState, MouseP);
+    
+    
+    RenderGroup->tGlobalColor = v4{0, 0, 0, 0};
     
     
     Orthographic(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, 1.0f);

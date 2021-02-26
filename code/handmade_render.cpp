@@ -192,14 +192,14 @@ RenderCommandsToBitmap(game_render_commands* RenderCommands, loaded_bitmap* Outp
             case RenderGroupEntryType_render_entry_clear: {
                 render_entry_clear* Entry = (render_entry_clear*)Data;
                 
-                DrawRectangle(OutputTarget, v2{ 0, 0 }, v2{ (r32)OutputTarget->Width, (r32)OutputTarget->Height }, Entry->Color, ClipRect, Even);
+                DrawRectangle(OutputTarget, v2{ 0, 0 }, v2{ (r32)OutputTarget->Width, (r32)OutputTarget->Height }, Entry->PremulColor, ClipRect, Even);
                 BaseAddress += sizeof(*Entry);
             } break;
             
             case RenderGroupEntryType_render_entry_rectangle: {
                 render_entry_rectangle* Entry = (render_entry_rectangle*)Data;
                 
-                DrawRectangle(OutputTarget, Entry->P, Entry->P + Entry->Dim, Entry->Color, ClipRect, Even);
+                DrawRectangle(OutputTarget, Entry->P, Entry->P + Entry->Dim, Entry->PremulColor, ClipRect, Even);
                 
                 BaseAddress += sizeof(*Entry);
             } break;
@@ -207,7 +207,7 @@ RenderCommandsToBitmap(game_render_commands* RenderCommands, loaded_bitmap* Outp
                 render_entry_bitmap* Entry = (render_entry_bitmap*)Data;
                 v2 XAxis = {1, 0};
                 v2 YAxis = {0, 1};
-                DrawRectangle2(OutputTarget, Entry->P, Entry->XAxis, Entry->YAxis, Entry->Color, Entry->Bitmap, NullPixelsToMeters, ClipRect, Even);
+                DrawRectangle2(OutputTarget, Entry->P, Entry->XAxis, Entry->YAxis, Entry->PremulColor, Entry->Bitmap, NullPixelsToMeters, ClipRect, Even);
                 
                 BaseAddress += sizeof(*Entry);
                 
@@ -657,8 +657,7 @@ void
 DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, r32 PixelsToMeters, rectangle2i ClipRect, b32 Even) {
     TIMED_FUNCTION();
     Assert(Texture->Memory);
-    // premultiply alpha
-    Color.rgb *= Color.a;
+    
     
     r32 AxisXLength = Length(AxisX);
     r32 AxisYLength = Length(AxisY);

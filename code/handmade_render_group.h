@@ -1,5 +1,3 @@
-#pragma once
-
 
 struct loaded_bitmap {
     void* Memory;
@@ -27,9 +25,15 @@ enum render_group_entry_type {
 	RenderGroupEntryType_render_entry_coordinate_system
 };
 
+struct clip_rect_fx {
+    v4 tColor;
+    v4 Color;
+};
+
 struct render_entry_cliprect {
     render_entry_cliprect *Next;
     rectangle2i Rect;
+    clip_rect_fx FX;
     // u16 X, Y, W, H;
 };
 
@@ -93,8 +97,9 @@ DefaultDebugTransform() {
 
 struct render_group {
     b32 IsHardware;
-	
-	r32 GlobalAlpha;
+    v4 tGlobalColor;
+    v4 GlobalColor;
+    
 	v2 MonitorHalfDimInMeters;
 	
 	camera_transform CameraTransform;
@@ -110,12 +115,12 @@ struct render_group {
 };
 
 struct render_entry_clear {
-	v4 Color;
+	v4 PremulColor;
 };
 
 struct render_entry_rectangle {
 	v2 P;
-	v4 Color;
+	v4 PremulColor;
 	v2 Dim;
     
 };
@@ -123,7 +128,7 @@ struct render_entry_rectangle {
 struct render_entry_bitmap {
 	v2 P;
 	loaded_bitmap* Bitmap;
-	v4 Color;
+	v4 PremulColor;
 	v2 XAxis;
     v2 YAxis;
 };
@@ -154,6 +159,26 @@ struct used_bitmap_dim {
 	v2 Align;
 	v3 P;
 	entity_basis_p_result Basis;
+};
+
+struct transient_clip_rect {
+    render_group *RenderGroup;
+    u32 OldClipRectIndex;
+    
+    transient_clip_rect(render_group *RenderGroupInit, u32 NewClipRectIndex) {
+        RenderGroup = RenderGroupInit;
+        OldClipRectIndex = RenderGroup->CurrentClipRectIndex;
+        RenderGroup->CurrentClipRectIndex = NewClipRectIndex;
+    }
+    
+    transient_clip_rect(render_group *RenderGroupInit) {
+        RenderGroup = RenderGroupInit;
+        OldClipRectIndex = RenderGroup->CurrentClipRectIndex;
+    }
+    
+    ~transient_clip_rect() {
+        RenderGroup->CurrentClipRectIndex = OldClipRectIndex;
+    }
 };
 
 void DrawRectangle2(loaded_bitmap* Buffer, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, loaded_bitmap* Texture, r32 PixelsToMeters, rectangle2i ClipRect, b32 Even);

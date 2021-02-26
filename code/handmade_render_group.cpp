@@ -81,6 +81,22 @@ GetBitmapDim(render_group* Group, object_transform ObjectTransform, loaded_bitma
     return(Result);
 }
 
+inline v4
+StoreColor(render_group *Group, v4 Src) {
+    v4 Dest;
+    v4 t = Group->tGlobalColor;
+    v4 C = Group->GlobalColor;
+    
+    Dest.a = Lerp(Src.a, t.a, C.a);
+    
+    Dest.r = Dest.a * Lerp(Src.r, t.r, C.r);
+    Dest.g = Dest.a * Lerp(Src.g, t.g, C.g);
+    Dest.b = Dest.a * Lerp(Src.b, t.b, C.b);
+    
+    
+    return(Dest);
+}
+
 inline void
 PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap* Bitmap, r32 Height, v3 Offset, v4 Color = v4{ 1.0f, 1.0, 1.0f, 1.0f }, r32 CAlign = 1.0f, v2 XAxis = v2{1, 0}, v2 YAxis = v2{0, 1}) {
 	used_bitmap_dim BitmapDim = GetBitmapDim(Group, ObjectTransform, Bitmap, Height, Offset, CAlign, XAxis, YAxis);
@@ -89,7 +105,7 @@ PushBitmap(render_group* Group, object_transform ObjectTransform, loaded_bitmap*
 		if (Entry) {
 			Entry->P = BitmapDim.Basis.P;
 			Entry->Bitmap = Bitmap;
-			Entry->Color = Group->GlobalAlpha * Color;
+			Entry->PremulColor = StoreColor(Group, Color);
 			v2 Size = BitmapDim.Basis.Scale * BitmapDim.Size;
             Entry->XAxis = Size.x * XAxis;
             Entry->YAxis = Size.y * YAxis;
@@ -139,7 +155,7 @@ PushRect(render_group* Group, object_transform ObjectTransform, v3 Offset, v2 Di
 		render_entry_rectangle* Entry = PushRenderElement(Group, render_entry_rectangle, Basis.SortKey);
 		if (Entry) {
 			Entry->P = Basis.P;
-			Entry->Color = Color;
+			Entry->PremulColor = StoreColor(Group, Color);
 			Entry->Dim = Basis.Scale * Dim;
 		}
 	}
@@ -165,7 +181,7 @@ Clear(render_group* Group, v4 Color) {
     
 	render_entry_clear* Piece = PushRenderElement(Group, render_entry_clear, Real32Minimum);
 	if (Piece) {
-		Piece->Color = Color;
+		Piece->PremulColor = StoreColor(Group, Color);
 	}
 }
 
@@ -188,7 +204,7 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 AxisX, v2 AxisY, v4 Color, l
 }
 
 inline u32
-PushClipRect(render_group* Group, u32 X, u32 Y, u32 W, u32 H) {
+PushClipRect(render_group* Group, u32 X, u32 Y, u32 W, u32 H, clip_rect_fx FX = {}) {
     u32 Result = 0;
 	u32 Size = sizeof(render_entry_cliprect);
     game_render_commands *Commands = Group->Commands;
@@ -291,7 +307,7 @@ BeginRenderGroup(game_assets* Assets, game_render_commands *Commands, u32 Genera
     Result.Commands = Commands;
     
     Result.Assets = Assets;
-	Result.GlobalAlpha = 1.0f;
+	
 	Result.MissingResourceCount = 0;
     Result.RenderInBackground = RenderInBackground;
     

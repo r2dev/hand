@@ -191,14 +191,14 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
 		switch (Header->Type) {
             case RenderGroupEntryType_render_entry_clear: {
                 render_entry_clear* Entry = (render_entry_clear*)Data;
-                glClearColor(Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
+                glClearColor(Entry->PremulColor.r, Entry->PremulColor.g, Entry->PremulColor.b, Entry->PremulColor.a);
                 glClear(GL_COLOR_BUFFER_BIT);
             } break;
             
             case RenderGroupEntryType_render_entry_rectangle: {
                 render_entry_rectangle* Entry = (render_entry_rectangle*)Data;
                 glDisable(GL_TEXTURE_2D);
-                OpenGLRectangle(Entry->P, Entry->P + Entry->Dim, Entry->Color);
+                OpenGLRectangle(Entry->P, Entry->P + Entry->Dim, Entry->PremulColor);
                 glEnable(GL_TEXTURE_2D);
             } break;
             
@@ -221,7 +221,7 @@ OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 Window
                     v2 MaxXMaxY = MinP + XAxis + YAxis;
                     
                     glBegin(GL_TRIANGLES);
-                    glColor4fv(Entry->Color.E);
+                    glColor4fv(Entry->PremulColor.E);
                     
                     glTexCoord2f(MinUV.x, MinUV.y);
                     glVertex2fv(MinXMinY.E);
