@@ -1,7 +1,3 @@
-
-#include "handmade_world.h"
-#include "handmade.h"
-
 #define TILE_CHUNK_SAFE_MARGIN (INT32_MAX / 64)
 #define TILE_CHUNK_UNINITIALIZED INT32_MAX
 #define TILES_PER_CHUNK 8
