@@ -4,7 +4,8 @@ inline entity_basis_p_result
 GetRenderEntityBasisP(camera_transform CameraTransform, object_transform ObjectTransform, v3 OriginP) {
 	entity_basis_p_result Result = {};
     
-	v3 P = V3(OriginP.xy, 0.0f) + ObjectTransform.OffsetP;
+	v3 P = OriginP + ObjectTransform.OffsetP;
+    //r32 Pw = OriginP.w + ObjectTransform.OffsetP.w;
     
 	if (CameraTransform.Orthographic == false) {
         r32 DistanceAboveTarget = CameraTransform.DistanceAboveTarget;
@@ -31,9 +32,15 @@ GetRenderEntityBasisP(camera_transform CameraTransform, object_transform ObjectT
 		Result.Valid = true;
 		Result.P = CameraTransform.ScreenCenter + CameraTransform.MetersToPixels * P.xy;
 	}
+    r32 Pw = 0;
+    r32 PerspectiveZ = Result.Scale;
+    r32 DisplacementZ = Result.Scale * Pw;
+    r32 PerspectiveSortTerm = 4096.0f *PerspectiveZ;
+    r32 YSortTerm = -1024.0f * P.y;
+    r32 ZSortTerm = DisplacementZ;
+    
     // TODO(NAME): 
-    Result.SortKey = ObjectTransform.SortBias + 
-        4096.0f *((2.0f * P.z) + OriginP.z + (1.0f * (r32)ObjectTransform.Upright)) - P.y;
+    Result.SortKey = PerspectiveSortTerm + YSortTerm + ZSortTerm + ObjectTransform.SortBias;
     
 	return(Result);
 }

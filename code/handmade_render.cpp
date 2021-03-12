@@ -8,25 +8,51 @@ Swap(sort_entry *A, sort_entry *B) {
     *B = Temp;
 }
 
+struct sort_sprite_bound {
+    r32 YMin;
+    r32 YMax;
+    r32 ZMax;
+    u32 Index;
+};
+
+inline void
+Swap(sort_sprite_bound *A, sort_sprite_bound *B) {
+    sort_sprite_bound Temp = *A;
+    *A = *B;
+    *B = Temp;
+}
+
+inline b32
+IsInFrontOf(sort_sprite_bound *A, sort_sprite_bound *B) {
+    b32 BothZSprites = ((A->YMin == A->YMax) && (B->YMin == B->YMax));
+    b32 AIncludesB = ((B->YMin >= A->YMin) && (B->YMax <= A->YMax));
+    b32 BIncludesA = ((A->YMin >= B->YMin) && (A->YMax <= B->YMax));
+    b32 SortByZ = BothZSprites || AIncludesB || BIncludesA;
+    b32 Result = SortByZ? (A->ZMax > B->ZMax): (A->YMin < B->YMin);
+}
+
 internal void
-MergeSort(sort_entry *First, u32 Count, sort_entry *Temp) {
+MergeSort(sort_sprite_bound *First, u32 Count, sort_sprite_bound *Temp) {
     if (Count == 2) {
-        if (First->SortKey > (First + 1)->SortKey) {
-            Swap(First, First + 1);
+        sort_sprite_bound *EntryA = First;
+        sort_sprite_bound *EntryB = First + 1;
+        if (IsInFrontOf(EntryB, EntryA)) {
+            Swap(EntryA, EntryB);
         }
     } else if (Count > 2) {
         u32 Half0 = Count / 2;
-        sort_entry *FirstHalf = First;
-        sort_entry *SecondHalf = First + Half0;
+        sort_sprite_bound *FirstHalf = First;
+        sort_sprite_bound *SecondHalf = First + Half0;
         MergeSort(FirstHalf, Half0, Temp);
         MergeSort(SecondHalf, Count - Half0, Temp);
-        sort_entry *FirstRead = First;
-        sort_entry *SecondRead = First + Half0;
-        sort_entry *End = First + Count;
+        sort_sprite_bound *FirstRead = First;
+        sort_sprite_bound *SecondRead = First + Half0;
+        sort_sprite_bound *End = First + Count;
         
-        sort_entry *Out = Temp;
+        sort_sprite_bound *Out = Temp;
         while(FirstRead != SecondHalf && SecondRead != End) {
-            if (FirstRead->SortKey < SecondRead->SortKey) {
+            
+            if (IsInFrontOf(SecondRead, FirstRead)) {
                 *Out++ = *FirstRead++;
             } else {
                 *Out++ = *SecondRead++;

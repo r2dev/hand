@@ -150,7 +150,7 @@ ConnectEntityPointers(sim_region *SimRegion) {
     }
 }
 
-internal sim_region*
+internal sim_region *
 BeginSim(memory_arena* SimArena, game_mode_world* WorldMode, world* World, world_position Origin, rectangle3 Bounds, r32 dt) {
     TIMED_FUNCTION();
 	sim_region* SimRegion = PushStruct(SimArena, sim_region);

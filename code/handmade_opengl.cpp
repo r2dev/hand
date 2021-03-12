@@ -150,8 +150,6 @@ OpenGLDisplayBitmap(s32 Width, s32 Height, void *Memory, s32 Pitch, s32 WindowWi
     OpenGLRectangle(MinP, MaxP, Color);
 }
 
-global_variable u32 TextBindCount = 0;
-
 internal void
 OpenGLRenderCommands(game_render_commands *Commands, s32 WindowWidth, s32 WindowHeight) {
     // Passing windowWidth and height
